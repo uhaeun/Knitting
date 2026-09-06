@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createProject, deleteProject, listProjects } from '@/features/project/repository';
+import { createProject, deleteProject, getProject, listProjects } from '@/features/project/repository';
 
 /** 화면은 repository를 직접 부르지 않고 이 훅만 쓴다. 캐시 무효화가 한 곳에 모인다. */
 
@@ -27,4 +27,8 @@ export function useDeleteProject() {
     mutationFn: (id: string) => Promise.resolve(deleteProject(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: projectKeys.all }),
   });
+}
+
+export function useProject(id: string) {
+  return useQuery({ queryKey: [...projectKeys.all, id] as const, queryFn: () => getProject(id) });
 }

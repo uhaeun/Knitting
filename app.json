@@ -46,7 +46,19 @@
       ],
       "expo-sharing",
       "expo-asset",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "편물을 같은 각도로 촬영하기 위해 카메라를 사용합니다."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "앨범에서 편물 사진을 가져오기 위해 사용합니다."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
