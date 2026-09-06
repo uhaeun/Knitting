@@ -5,6 +5,9 @@ import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, useWindow
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePosts } from '@/features/capture/queries';
+import { MakeVideoSheet } from '@/features/media/MakeVideoSheet';
+import { estimateDurationMs, MIN_PHOTOS } from '@/features/media/plan';
+import { useMakeVideo } from '@/features/media/useMakeVideo';
 import { postPhotoUri } from '@/features/capture/repository';
 import { Scrubber } from '@/features/project/Scrubber';
 import { useDeleteProject, useProject } from '@/features/project/queries';
@@ -21,6 +24,7 @@ export default function ProjectScreen() {
   const project = useProject(id);
   const posts = usePosts(id);
   const del = useDeleteProject();
+  const video = useMakeVideo(id);
 
   const items = posts.data ?? [];
   const total = items.length;
@@ -97,10 +101,26 @@ export default function ProjectScreen() {
           <View style={styles.spacer} />
           <View style={styles.actions}>
             <Button label="사진 찍기" large onPress={goCapture} />
-            <Button label="영상 만들기" variant="secondary" large disabled onPress={() => {}} />
+            <Button
+              label={total < MIN_PHOTOS ? `영상 만들기 (사진 ${MIN_PHOTOS}장부터)` : '영상 만들기'}
+              variant="secondary"
+              large
+              disabled={total < MIN_PHOTOS}
+              onPress={video.start}
+            />
           </View>
         </>
       )}
+
+      <MakeVideoSheet
+        state={video.state}
+        photoCount={total}
+        estimateSec={estimateDurationMs(total) / 1000}
+        onClose={video.reset}
+        onRetry={video.start}
+        onSave={video.saveToAlbum}
+        onShare={video.share}
+      />
     </SafeAreaView>
   );
 }

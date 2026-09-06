@@ -1,4 +1,6 @@
-/** 로컬 SQLite 스키마와 1:1. 3주차 Supabase 전환 시 설계도 3장의 컬럼과 맞춘다. */
+/** 로컬 SQLite 스키마와 1:1. 서버(Supabase) 스키마와 컬럼명을 맞춘다 — 동기화 시 그대로 upsert. */
+
+export type Visibility = 'private' | 'followers' | 'public';
 
 export type Project = {
   id: string; // UUID v4
@@ -6,9 +8,11 @@ export type Project = {
   started_at: string; // 'YYYY-MM-DD'
   finished_at: string | null;
   cover_post_id: string | null;
+  default_visibility: Visibility;
   created_at: string; // ISO
   updated_at: string;
   deleted_at: string | null;
+  synced_at: string | null; // 서버에 마지막으로 올린 시각. NULL = 올릴 것 있음
 };
 
 export type Post = {
@@ -19,9 +23,11 @@ export type Post = {
   width: number;
   height: number;
   taken_at: string; // ISO
+  visibility: Visibility;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  synced_at: string | null;
 };
 
 /** 목록 화면용. projects + 집계 */

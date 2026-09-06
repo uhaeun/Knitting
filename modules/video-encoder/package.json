@@ -1,0 +1,10 @@
+{
+  "name": "video-encoder",
+  "version": "0.1.0",
+  "description": "사진 시퀀스를 기기 안에서 H.264 MP4로 인코딩하는 로컬 Expo 모듈",
+  "main": "index.ts",
+  "private": true,
+  "license": "MIT",
+  "author": "uhaeun",
+  "homepage": "https://github.com/uhaeun/Knitting"
+}
