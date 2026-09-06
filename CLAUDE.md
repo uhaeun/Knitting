@@ -9,35 +9,31 @@ iOS · Android 동시. Expo + TypeScript.
 
 ## 지금 어느 단계인가
 
-> 이 절은 단계가 바뀔 때마다 갱신한다. **현재: 2주차 — 영상 만들기 (MVP 범위 = 촬영·타임라인·MP4 생성·앨범 저장·공유, 로컬 전용). 1주차 6단계는 2026-09-06 완료**
+> 이 절은 단계가 바뀔 때마다 갱신한다. **현재: MVP 구현 완료(2026-09-07). 다음은 실기기 검증과 스토어 준비.**
+
+MVP 범위 = 촬영·타임라인·영상 + 계정·동기화 + 피드·팔로우·댓글·좋아요 + 신고·차단.
 
 | | 상태 |
 |---|---|
-| 저장 위치 | **기기 로컬** (expo-file-system + expo-sqlite) |
-| 서버 | **없음.** Supabase 아직 붙이지 않음 |
-| 로그인 | **없음.** 인증 화면 만들지 않음 |
-| 목표 | 촬영 → 로컬 저장 → 타임라인 → MP4 생성 → 앨범 저장·공유가 양쪽 실기기에서 동작 |
+| 저장 위치 | **로컬 우선** (expo-sqlite + 파일) → Supabase로 push/pull |
+| 서버 | Supabase. `supabase/migrations/0001_init.sql` 적용 필요 |
+| 로그인 | 이메일+비밀번호. Apple·Google은 콘솔 설정 후 추가 |
+| 목표 | 양쪽 실기기에서 촬영·영상·피드·댓글이 동작하고 기기를 바꿔도 데이터가 따라옴 |
 
-### 하지 말 것 — 이 단계에서
+### 하지 말 것
 
-- **Supabase를 붙이지 않는다.** `@supabase/supabase-js` import 금지
-- **로그인·회원가입·프로필 화면을 만들지 않는다**
-- **피드·팔로우·댓글·좋아요·신고·차단을 만들지 않는다**
 - 영상 인코딩은 `modules/video-encoder` (Swift AVAssetWriter / Kotlin MediaCodec) 한 곳에서만. 다른 라이브러리를 들이지 않는다
+- **RLS 조건을 클라이언트에서 중복 작성하지 않는다.** 가시성 판정은 서버 정책이 한다
+- **피드에서 서명 URL을 개별 발급하지 않는다.** `createSignedUrls` 배치만
+- 대댓글·DM·알고리즘 추천·오프라인 업로드 큐는 v2
 
-기능 요청이 위 목록에 해당하면 구현하지 말고 "이건 N주차 항목이다"라고 알린다.
+### 구조 규칙 (서버 전환을 이미 했으므로 더 중요하다)
 
-### 나중에 전환할 것을 전제로 설계한다
-
-로컬 저장은 임시다. 2~3주차에 Supabase로 옮긴다. 그래서:
-
-- 데이터 접근은 **`src/features/*/repository.ts` 한 곳에만** 둔다. 화면에서 직접 파일·DB를 만지지 않는다
-- ID는 전부 **UUID v4**. auto-increment 정수 금지
+- 데이터 접근은 **`src/features/*/repository.ts`(로컬)와 `src/features/*/api.ts`(서버)에만** 둔다. 화면에서 직접 DB·네트워크를 만지지 않는다
+- ID는 전부 **UUID v4**. 로컬과 서버가 같은 id를 쓴다
 - 삭제는 **soft delete** (`deleted_at`). 물리 삭제 금지
-- 모든 레코드에 `created_at`, `updated_at`, `deleted_at`을 둔다
-- 사진 파일명은 UUID. 기기가 준 이름(`IMG_0032.jpg`) 사용 금지
-
-이 네 가지를 지키면 전환 시 저장 계층만 갈아끼우면 된다. 어기면 마이그레이션 지옥이 된다.
+- 모든 레코드에 `created_at`, `updated_at`, `deleted_at`, `synced_at`
+- 사진 파일명은 UUID. 로컬은 상대 경로, 서버는 `{owner}/{project}/{post}.jpg`
 
 ---
 
