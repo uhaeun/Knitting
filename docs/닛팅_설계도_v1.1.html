@@ -1,0 +1,975 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knitting 닛팅 — 시스템 설계도 v1.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAFAF8; --ink:#16203A; --muted:#616B80; --faint:#8B93A3;
+    --rule:#E3E4DF; --rule-soft:#EDEEE9;
+    --indigo:#2A4A7B; --indigo-soft:#EAEFF6;
+    --ochre:#8A6714; --ochre-soft:#F7F2E2;
+    --clay:#8E4526; --clay-soft:#F7EEE9;
+    --sans:"IBM Plex Sans KR",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+       font-weight:300;font-size:16px;line-height:1.75;-webkit-font-smoothing:antialiased}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+  .wrap{max-width:1160px;margin:0 auto;padding:0 28px}
+
+  /* hero */
+  .hero{border-bottom:1px solid var(--rule);padding:64px 0 38px}
+  .kicker{font-family:var(--mono);font-size:12.5px;color:var(--faint);letter-spacing:.02em;margin:0 0 20px}
+  .kicker b{font-weight:500;color:var(--indigo)}
+  h1{font-size:44px;line-height:1.15;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  h1 .en{font-weight:300;color:var(--muted)}
+  .lede{font-size:19px;font-weight:300;color:var(--muted);margin:0;max-width:46ch;line-height:1.6}
+
+  /* stitch chart strip */
+  .chart{margin:38px 0 0}
+  .chart-row{display:flex;gap:3px;flex-wrap:wrap}
+  .cell{flex:1 1 96px;min-width:88px;border:1px solid var(--rule);background:#fff;padding:9px 10px 11px}
+  .cell .n{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .cell .l{font-size:12.5px;line-height:1.4;color:var(--muted);margin-top:3px}
+  .cell.now{background:var(--indigo);border-color:var(--indigo)}
+  .cell.now .n{color:#A9C2E2}
+  .cell.now .l{color:#fff;font-weight:400}
+  .chart-note{font-size:13px;color:var(--faint);margin:11px 0 0}
+
+  /* layout */
+  .cols{display:grid;grid-template-columns:206px minmax(0,1fr);gap:52px;padding:44px 0 100px;align-items:start}
+  nav{position:sticky;top:24px;font-size:13.5px;line-height:1.5}
+  nav ol{list-style:none;margin:0;padding:0}
+  nav li{margin:0}
+  nav a{display:flex;gap:9px;padding:5px 0 5px 9px;color:var(--muted);text-decoration:none;
+        border-left:2px solid var(--rule-soft)}
+  nav a:hover{color:var(--ink);border-left-color:var(--faint)}
+  nav a.on{color:var(--indigo);border-left-color:var(--indigo);font-weight:500}
+  nav a span{font-family:var(--mono);font-size:11.5px;color:var(--faint);min-width:15px}
+  nav a.on span{color:var(--indigo)}
+  nav a:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+
+  main{max-width:74ch}
+  section{padding-top:14px;margin-bottom:56px}
+  h2{font-size:15px;font-weight:500;margin:0 0 22px;padding-bottom:9px;border-bottom:1px solid var(--rule);
+     display:flex;gap:11px;align-items:baseline}
+  h2 span{font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:400}
+  h3{font-size:16.5px;font-weight:500;margin:34px 0 12px}
+  h3:first-of-type{margin-top:0}
+  p{margin:0 0 15px}
+  strong{font-weight:500}
+  main a{color:var(--indigo)}
+
+  code{font-family:var(--mono);font-size:13.5px;background:var(--rule-soft);padding:1px 5px;
+       border-radius:3px;font-weight:400}
+  .code{position:relative;margin:0 0 20px;border:1px solid var(--rule);background:#fff}
+  .code pre{margin:0;padding:17px 19px;overflow-x:auto;font-family:var(--mono);font-size:13px;
+            line-height:1.68;font-weight:400;color:#23304C}
+  .code .cap{display:flex;justify-content:space-between;align-items:center;gap:12px;
+             padding:7px 12px 7px 19px;border-bottom:1px solid var(--rule-soft);background:#FCFCFA}
+  .code .cap b{font-family:var(--mono);font-size:11.5px;font-weight:400;color:var(--faint)}
+  .cp{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);background:none;
+      border:1px solid var(--rule);padding:3px 10px;cursor:pointer}
+  .cp:hover{border-color:var(--faint);color:var(--ink)}
+  .cp:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+  .cp.done{color:var(--indigo);border-color:var(--indigo)}
+
+  table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:14.5px}
+  th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  th{font-weight:500;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--rule);
+     padding-bottom:7px;white-space:nowrap}
+  td:last-child,th:last-child{padding-right:0}
+  tr:last-child td{border-bottom:1px solid var(--rule)}
+  td .no{color:var(--clay)}
+  td .yes{color:var(--indigo)}
+
+  ul,ol.list{margin:0 0 18px;padding-left:19px}
+  li{margin-bottom:7px}
+
+  .note{border-left:2px solid var(--ochre);background:var(--ochre-soft);padding:13px 17px;
+        margin:0 0 20px;border-radius:0;font-size:14.5px}
+  .note b{font-weight:500;color:var(--ochre)}
+  .warn{border-left:2px solid var(--clay);background:var(--clay-soft);padding:13px 17px;
+        margin:0 0 20px;border-radius:0;font-size:14.5px}
+  .warn b{font-weight:500;color:var(--clay)}
+  .key{border-left:2px solid var(--indigo);background:var(--indigo-soft);padding:13px 17px;
+       margin:0 0 20px;border-radius:0;font-size:14.5px}
+  .key b{font-weight:500;color:var(--indigo)}
+  .note p:last-child,.warn p:last-child,.key p:last-child{margin-bottom:0}
+
+  .tree{font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre;overflow-x:auto;
+        border:1px solid var(--rule);background:#fff;padding:17px 19px;margin:0 0 20px;color:#23304C}
+
+  figure{margin:0 0 22px}
+  figure svg{display:block;width:100%;height:auto;border:1px solid var(--rule);background:#fff}
+  figcaption{font-size:13px;color:var(--faint);margin-top:9px}
+
+  footer{border-top:1px solid var(--rule);padding:26px 0 60px;font-size:13px;color:var(--faint)}
+
+  @media (max-width:880px){
+    .cols{grid-template-columns:1fr;gap:26px;padding-top:26px}
+    nav{position:static;border-bottom:1px solid var(--rule);padding-bottom:18px}
+    nav ol{display:flex;flex-wrap:wrap;gap:3px 14px}
+    nav a{border-left:none;padding:2px 0}
+    nav a.on{border-left:none}
+    h1{font-size:33px}
+    .wrap{padding:0 20px}
+    .hero{padding:40px 0 30px}
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="kicker">시스템 설계도 <b>v1.1</b> · 2026-09-04 · 개발은 Claude, 검증은 두 사람</p>
+    <h1>Knitting <span class="en">닛팅</span></h1>
+    <p class="lede">편물을 같은 각도로 찍어 쌓고, 자동으로 성장 영상을 만들어 공유하는 앱.</p>
+
+    <div class="chart">
+      <div class="chart-row">
+        <div class="cell now"><div class="n">1</div><div class="l">영상 스파이크</div></div>
+        <div class="cell"><div class="n">2</div><div class="l">저장소 셋업</div></div>
+        <div class="cell"><div class="n">3</div><div class="l">스키마 · RLS</div></div>
+        <div class="cell"><div class="n">4</div><div class="l">인증 · EULA</div></div>
+        <div class="cell"><div class="n">5</div><div class="l">첫 설치 · 도그푸딩</div></div>
+        <div class="cell"><div class="n">6</div><div class="l">미디어 · 소셜</div></div>
+        <div class="cell"><div class="n">7</div><div class="l">안전 · 알림</div></div>
+        <div class="cell"><div class="n">8</div><div class="l">통합 QA</div></div>
+      </div>
+      <p class="chart-note">착수 순서. 1번이 실패하면 제품 정의가 바뀌므로 다른 모든 것보다 앞선다. 5번부터는 두 사람 폰에 앱이 깔린 상태로 진행한다.</p>
+    </div>
+  </header>
+
+  <div class="cols">
+    <nav aria-label="목차">
+      <ol>
+        <li><a href="#s1"><span>1</span>기술 스택</a></li>
+        <li><a href="#s2"><span>2</span>시스템 구성</a></li>
+        <li><a href="#s3"><span>3</span>데이터 모델</a></li>
+        <li><a href="#s4"><span>4</span>RLS 설계</a></li>
+        <li><a href="#s5"><span>5</span>Storage</a></li>
+        <li><a href="#s6"><span>6</span>미디어 파이프라인</a></li>
+        <li><a href="#s7"><span>7</span>인증 흐름</a></li>
+        <li><a href="#s8"><span>8</span>화면 구조</a></li>
+        <li><a href="#s9"><span>9</span>알림 · 모더레이션</a></li>
+        <li><a href="#s10"><span>10</span>개발 · 배포 루프</a></li>
+        <li><a href="#s11"><span>11</span>초기 셋업</a></li>
+        <li><a href="#s12"><span>12</span>확인 필요</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+<section id="s1">
+  <h2><span>01</span>기술 스택</h2>
+
+  <h3>언어</h3>
+  <p>사실상 네 개고, 그중 하나가 90%다. 영상 인코딩 때문에 Swift와 Kotlin을 각각 200~300줄쯤 쓴다.</p>
+  <table>
+    <tr><th>언어</th><th>사용처</th><th>비중</th></tr>
+    <tr><td><strong>TypeScript</strong></td><td>화면, 상태, 비즈니스 로직, Edge Function</td><td>~90%</td></tr>
+    <tr><td><strong>SQL</strong></td><td>스키마 DDL, RLS 정책, 함수, 트리거</td><td>~5%</td></tr>
+    <tr><td><strong>Swift</strong></td><td>iOS 영상 인코딩 네이티브 모듈</td><td>~3%</td></tr>
+    <tr><td><strong>Kotlin</strong></td><td>Android 영상 인코딩 네이티브 모듈</td><td>~2%</td></tr>
+  </table>
+  <p>JavaScript는 쓰지 않는다. <code>strict: true</code>, <code>noUncheckedIndexedAccess: true</code>로 시작한다.</p>
+
+  <h3>프레임워크 · 라이브러리</h3>
+  <table>
+    <tr><th>계층</th><th>선택</th><th>이유</th></tr>
+    <tr><td>런타임</td><td>Expo SDK 56</td><td>RN 0.85 / React 19.2 / Android API 36 / Xcode 26.4 지원</td></tr>
+    <tr><td>라우팅</td><td>Expo Router</td><td>파일 기반. 딥링크가 공짜로 따라옴</td></tr>
+    <tr><td>백엔드</td><td>Supabase</td><td>Auth + Postgres + Storage를 한 번에. 서버 코드 최소화</td></tr>
+    <tr><td>서버 상태</td><td>TanStack Query v5</td><td>캐시 · 재시도 · 무한스크롤. 피드에 필수</td></tr>
+    <tr><td>로컬 상태</td><td>Zustand v5</td><td>화면 로컬 상태만. 서버 상태는 Query가 담당</td></tr>
+    <tr><td>카메라</td><td>expo-camera</td><td></td></tr>
+    <tr><td>이미지 처리</td><td>expo-image-manipulator</td><td>리사이즈, EXIF 회전 정규화</td></tr>
+    <tr><td>이미지 표시</td><td>expo-image</td><td>디스크 캐시. 피드 스크롤 성능</td></tr>
+    <tr><td>프레임 합성</td><td>react-native-skia v2</td><td>2·3분할 결과 사진, 영상 프레임 오프스크린 렌더</td></tr>
+    <tr><td>푸시</td><td>expo-notifications</td><td>APNs / FCM 추상화</td></tr>
+    <tr><td>로그인</td><td>expo-apple-authentication<br>google-signin</td><td>Apple은 iOS 네이티브 / Android 웹 리디렉션</td></tr>
+    <tr><td>네이티브 모듈</td><td>expo-modules-core</td><td>Swift · Kotlin 모듈 작성</td></tr>
+    <tr><td>빌드 · 배포</td><td>EAS Build / Submit</td><td></td></tr>
+    <tr><td><strong>무선 업데이트</strong></td><td><strong>EAS Update</strong></td><td>TypeScript 변경을 빌드 없이 두 기기에 배포. 10장 참조</td></tr>
+    <tr><td>테스트</td><td>Jest + RN Testing Library<br>pgTAP 또는 순수 SQL</td><td>RLS 조합 매트릭스는 SQL로</td></tr>
+    <tr><td>린트 · 포맷</td><td>Biome v2</td><td>ESLint+Prettier보다 빠르고 설정 하나</td></tr>
+  </table>
+
+  <h3>의도적으로 안 쓰는 것</h3>
+  <table>
+    <tr><th>항목</th><th>이유</th></tr>
+    <tr><td>Redux / MobX</td><td>서버 상태는 Query, 로컬은 Zustand로 충분</td></tr>
+    <tr><td>ffmpeg 계열</td><td>FFmpegKit 은퇴(2025-04). 유지보수되는 RN 바인딩 없음</td></tr>
+    <tr><td>NativeWind</td><td>빌드 체인 추가 대비 이득 적음. StyleSheet + 토큰 상수로 충분</td></tr>
+    <tr><td>자체 API 서버</td><td>RLS가 접근 제어를 대신함. v1 유지보수 부담 회피</td></tr>
+    <tr><td>Expo Go</td><td>네이티브 모듈 사용으로 불가. Development Build 사용</td></tr>
+  </table>
+
+  <h3>개발 환경과 역할</h3>
+  <p>코드는 Claude 세션 하나가 쓴다. 하은과 다희는 기획 · 판단 · 테스트 설계와 각자 기기의 실사용 검증을 맡는다. 상세는 10장.</p>
+  <table>
+    <tr><th></th><th>하은</th><th>다희</th></tr>
+    <tr><td>로컬 OS</td><td>macOS</td><td>미확인</td></tr>
+    <tr><td>검증 기기</td><td><strong>iPhone</strong> 실기기</td><td><strong>Android</strong> 실기기 (저사양 우선)</td></tr>
+    <tr><td>콘솔 작업</td><td>Apple · Google · Supabase</td><td>Play Console 보조</td></tr>
+    <tr><td>공통</td><td colspan="2">기획 판단, 테스트 케이스 설계, 도그푸딩, 이슈 등록</td></tr>
+  </table>
+  <div class="warn"><p><b>Apple Developer Program이 조기에 필요하다.</b> 무료 계정은 실기기 설치가 7일마다 만료된다. 몇 주간 계속 쓰면서 고치는 방식이므로 <strong>1~2주차에 결제</strong>해야 한다. 승인에 48시간 정도 걸리고 신분증 제출을 요청받는 경우도 있다.</p></div>
+</section>
+
+<section id="s2">
+  <h2><span>02</span>시스템 구성</h2>
+  <figure>
+    <svg viewBox="0 0 680 566" role="img" xmlns="http://www.w3.org/2000/svg">
+      <title>닛팅 앱 시스템 구성도</title>
+      <desc>Expo 기반 앱이 화면·상태, 촬영·미디어, 소셜·피드 세 영역과 네이티브 영상 인코더로 구성되고, Supabase의 Auth·Postgres·Storage에 직접 연결되며, Supabase가 다시 푸시 발송과 이미지 모더레이션 외부 서비스를 호출한다.</desc>
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#616B80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <rect x="40" y="40" width="600" height="230" rx="14" fill="#F4F6FA" stroke="#C7D2E2" stroke-width="0.8"/>
+      <text x="340" y="68" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#2A4A7B">닛팅 앱 · Expo Dev Build</text>
+
+      <rect x="60" y="94" width="176" height="76" rx="8" fill="#fff" stroke="#DDE2EA" stroke-width="0.8"/>
+      <text x="148" y="122" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">화면 · 상태</text>
+      <text x="148" y="144" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">Expo Router · Query</text>
+
+      <rect x="252" y="94" width="176" height="76" rx="8" fill="#fff" stroke="#DDE2EA" stroke-width="0.8"/>
+      <text x="340" y="122" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">촬영 · 미디어</text>
+      <text x="340" y="144" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">Camera · Skia</text>
+
+      <rect x="444" y="94" width="176" height="76" rx="8" fill="#fff" stroke="#DDE2EA" stroke-width="0.8"/>
+      <text x="532" y="122" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">소셜 · 피드</text>
+      <text x="532" y="144" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">피드 · 댓글</text>
+
+      <rect x="60" y="190" width="560" height="56" rx="8" fill="#F7EEE9" stroke="#D9AF9C" stroke-width="0.8"/>
+      <text x="340" y="210" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#8E4526">네이티브 영상 인코더</text>
+      <text x="340" y="228" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Mono,monospace" font-size="12" fill="#A0664A">iOS AVAssetWriter · Android MediaCodec</text>
+
+      <line x1="340" y1="274" x2="340" y2="296" stroke="#616B80" stroke-width="1.2" marker-end="url(#ar)"/>
+
+      <rect x="40" y="300" width="600" height="150" rx="14" fill="#F2F6F4" stroke="#BFD3CB" stroke-width="0.8"/>
+      <text x="340" y="328" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#2E6152">Supabase</text>
+
+      <rect x="60" y="354" width="176" height="72" rx="8" fill="#fff" stroke="#D6E0DB" stroke-width="0.8"/>
+      <text x="148" y="380" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">Auth</text>
+      <text x="148" y="402" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">Apple · Google</text>
+
+      <rect x="252" y="354" width="176" height="72" rx="8" fill="#fff" stroke="#D6E0DB" stroke-width="0.8"/>
+      <text x="340" y="380" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">Postgres</text>
+      <text x="340" y="402" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">RLS 정책</text>
+
+      <rect x="444" y="354" width="176" height="72" rx="8" fill="#fff" stroke="#D6E0DB" stroke-width="0.8"/>
+      <text x="532" y="380" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">Storage</text>
+      <text x="532" y="402" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">private 버킷</text>
+
+      <line x1="220" y1="454" x2="220" y2="476" stroke="#616B80" stroke-width="1.2" marker-end="url(#ar)"/>
+      <line x1="460" y1="454" x2="460" y2="476" stroke="#616B80" stroke-width="1.2" marker-end="url(#ar)"/>
+
+      <rect x="120" y="480" width="200" height="56" rx="8" fill="#fff" stroke="#E3E4DF" stroke-width="0.8"/>
+      <text x="220" y="500" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">APNs / FCM</text>
+      <text x="220" y="518" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">푸시 발송</text>
+
+      <rect x="360" y="480" width="200" height="56" rx="8" fill="#fff" stroke="#E3E4DF" stroke-width="0.8"/>
+      <text x="460" y="500" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="14" font-weight="500" fill="#16203A">Vision API</text>
+      <text x="460" y="518" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans KR,sans-serif" font-size="12" fill="#616B80">이미지 모더레이션</text>
+    </svg>
+    <figcaption>주황색 박스가 유일하게 직접 작성하는 네이티브 코드이자 최대 기술 리스크다.</figcaption>
+  </figure>
+
+  <div class="key">
+    <p><b>핵심 특성</b> — 자체 API 서버가 없다. 앱이 Postgres에 직접 붙고 접근 제어는 전적으로 RLS가 담당한다. 따라서 <strong>RLS 정책의 정확성이 곧 앱의 보안 전부</strong>다.</p>
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span>03</span>데이터 모델</h2>
+
+  <h3>관계 요약</h3>
+  <div class="tree">profiles ──&lt; projects ──&lt; posts ──&lt; comments
+    │                       │
+    │                       └──&lt; reactions
+    ├──&lt; follows (follower / followee)
+    ├──&lt; blocks  (blocker / blocked)
+    └──&lt; reports</div>
+
+  <h3>DDL</h3>
+  <div class="code">
+    <div class="cap"><b>supabase/migrations/init_schema.sql</b><button class="cp">복사</button></div>
+<pre>create extension if not exists "pgcrypto";
+
+create type follow_status as enum ('pending', 'accepted');
+create type visibility     as enum ('private', 'followers', 'public');
+create type reaction_kind  as enum ('like', 'cheer');
+create type report_target  as enum ('post', 'comment', 'profile');
+create type report_status  as enum ('open', 'actioned', 'dismissed');
+
+-- 프로필 --------------------------------------------------
+create table profiles (
+  id           uuid primary key references auth.users on delete cascade,
+  username     text not null unique
+                 check (username ~ '^[a-z0-9_]{3,20}$'),
+  display_name text not null check (char_length(display_name) between 1 and 30),
+  bio          text check (char_length(bio) &lt;= 150),
+  avatar_path  text,
+  is_private   boolean not null default false,
+  eula_version int not null default 0,   -- 동의한 약관 버전. 0 = 미동의
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  deleted_at   timestamptz
+);
+
+-- 편물 프로젝트 --------------------------------------------
+create table projects (
+  id                 uuid primary key default gen_random_uuid(),
+  owner_id           uuid not null references profiles on delete cascade,
+  name               text not null check (char_length(name) between 1 and 50),
+  cover_post_id      uuid,                  -- FK는 posts 생성 후 추가
+  started_at         date not null default current_date,
+  finished_at        date,
+  default_visibility visibility not null default 'private',
+  reminder_enabled   boolean not null default false,
+  reminder_time      time,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now(),
+  deleted_at         timestamptz
+);
+create index on projects (owner_id, created_at desc) where deleted_at is null;
+
+-- 게시물(기록 1건 = 사진 1장) -------------------------------
+create table posts (
+  id            uuid primary key default gen_random_uuid(),
+  project_id    uuid not null references projects on delete cascade,
+  owner_id      uuid not null references profiles on delete cascade,
+  photo_path    text not null,          -- Storage 키. 공개 URL 아님
+  thumb_path    text not null,
+  width         int  not null,
+  height        int  not null,
+  caption       text check (char_length(caption) &lt;= 500),
+  taken_at      timestamptz not null,
+  visibility    visibility not null default 'private',
+  align_hint    jsonb,                  -- 촬영 각도/줌 힌트
+  like_count    int not null default 0, -- 비정규화. 트리거로 유지
+  comment_count int not null default 0,
+  hidden_at     timestamptz,            -- 신고 누적 자동 숨김
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  deleted_at    timestamptz
+);
+
+alter table projects
+  add constraint projects_cover_fk
+  foreign key (cover_post_id) references posts(id) on delete set null;
+
+create index on posts (project_id, taken_at, created_at)
+  where deleted_at is null;
+create index on posts (created_at desc)
+  where deleted_at is null and hidden_at is null and visibility = 'public';
+create index on posts (like_count desc, created_at desc)
+  where deleted_at is null and hidden_at is null and visibility = 'public';
+create index on posts (owner_id, created_at desc)
+  where deleted_at is null and hidden_at is null;
+
+-- 관계 ------------------------------------------------------
+create table follows (
+  follower_id uuid not null references profiles on delete cascade,
+  followee_id uuid not null references profiles on delete cascade,
+  status      follow_status not null default 'accepted',
+  created_at  timestamptz not null default now(),
+  primary key (follower_id, followee_id),
+  check (follower_id &lt;&gt; followee_id)
+);
+create index on follows (followee_id, status);
+
+create table blocks (
+  blocker_id uuid not null references profiles on delete cascade,
+  blocked_id uuid not null references profiles on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id &lt;&gt; blocked_id)
+);
+create index on blocks (blocked_id, blocker_id);
+
+-- 상호작용 --------------------------------------------------
+create table comments (
+  id         uuid primary key default gen_random_uuid(),
+  post_id    uuid not null references posts on delete cascade,
+  author_id  uuid not null references profiles on delete cascade,
+  body       text not null check (char_length(body) between 1 and 300),
+  hidden_at  timestamptz,
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+create index on comments (post_id, created_at) where deleted_at is null;
+
+create table reactions (
+  post_id    uuid not null references posts on delete cascade,
+  user_id    uuid not null references profiles on delete cascade,
+  kind       reaction_kind not null default 'like',
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)   -- 1인 1반응
+);
+
+-- 안전 ------------------------------------------------------
+create table reports (
+  id          uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references profiles on delete cascade,
+  target_type report_target not null,
+  target_id   uuid not null,
+  reason      text not null,
+  status      report_status not null default 'open',
+  created_at  timestamptz not null default now(),
+  unique (reporter_id, target_type, target_id)   -- 중복 신고 방지
+);
+create index on reports (status, created_at);</pre>
+  </div>
+
+  <h3>카운터 유지 트리거</h3>
+  <p><code>like_count</code>를 매번 <code>count(*)</code>로 계산하면 인기순 정렬이 느려진다. 트리거로 유지한다.</p>
+  <div class="code">
+    <div class="cap"><b>like_count 트리거</b><button class="cp">복사</button></div>
+<pre>create or replace function bump_like_count()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if TG_OP = 'INSERT' then
+    update posts set like_count = like_count + 1 where id = NEW.post_id;
+  elsif TG_OP = 'DELETE' then
+    update posts set like_count = greatest(like_count - 1, 0) where id = OLD.post_id;
+  end if;
+  return null;
+end $$;
+
+create trigger reactions_count
+after insert or delete on reactions
+for each row execute function bump_like_count();</pre>
+  </div>
+  <p><code>comment_count</code>도 동일 패턴으로 작성한다. 단, 댓글은 soft delete이므로 <code>deleted_at</code>이 채워질 때도 감소시켜야 한다. UPDATE 트리거를 추가할 것.</p>
+
+  <h3>신고 누적 자동 숨김</h3>
+  <p>24시간 내 사람 대응이 불가능한 구간을 메우는 안전장치다.</p>
+  <div class="code">
+    <div class="cap"><b>신고 3회 자동 숨김</b><button class="cp">복사</button></div>
+<pre>create or replace function auto_hide_on_reports()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  select count(*) into n from reports
+   where target_type = NEW.target_type and target_id = NEW.target_id
+     and status = 'open';
+  if n &gt;= 3 then
+    if NEW.target_type = 'post' then
+      update posts set hidden_at = now()
+       where id = NEW.target_id and hidden_at is null;
+    elsif NEW.target_type = 'comment' then
+      update comments set hidden_at = now()
+       where id = NEW.target_id and hidden_at is null;
+    end if;
+  end if;
+  return null;
+end $$;
+
+create trigger reports_auto_hide
+after insert on reports
+for each row execute function auto_hide_on_reports();</pre>
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span>04</span>RLS 설계</h2>
+
+  <h3>원칙</h3>
+  <ol class="list">
+    <li>모든 테이블에 <code>enable row level security</code>. 정책 없는 테이블을 만들지 않는다.</li>
+    <li>판정 로직은 <code>stable</code> + <code>security definer</code> 함수로 분리한다. 정책 본문에 인라인 서브쿼리를 두면 행마다 재평가된다.</li>
+    <li><code>auth.uid()</code>는 반드시 <code>(select auth.uid())</code>로 감싼다. Postgres가 InitPlan으로 끌어올려 질의당 1회만 평가한다.</li>
+    <li>차단은 <strong>양방향</strong>이다. 차단한 쪽도 차단당한 쪽도 서로 안 보인다.</li>
+  </ol>
+
+  <h3>판정 함수</h3>
+  <div class="code">
+    <div class="cap"><b>가시성 판정 헬퍼</b><button class="cp">복사</button></div>
+<pre>alter table profiles  enable row level security;
+alter table projects  enable row level security;
+alter table posts     enable row level security;
+alter table follows   enable row level security;
+alter table blocks    enable row level security;
+alter table comments  enable row level security;
+alter table reactions enable row level security;
+alter table reports   enable row level security;
+
+-- 양방향 차단 판정
+create or replace function is_blocked_pair(a uuid, b uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from blocks
+     where (blocker_id = a and blocked_id = b)
+        or (blocker_id = b and blocked_id = a)
+  );
+$$;
+
+-- 승인된 팔로워 판정
+create or replace function is_accepted_follower(viewer uuid, target uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from follows
+     where follower_id = viewer and followee_id = target
+       and status = 'accepted'
+  );
+$$;</pre>
+  </div>
+
+  <h3>핵심 정책</h3>
+  <div class="code">
+    <div class="cap"><b>posts · comments · profiles 정책</b><button class="cp">복사</button></div>
+<pre>-- 게시물 조회
+create policy posts_select on posts for select using (
+      deleted_at is null
+  and hidden_at  is null
+  and not is_blocked_pair(owner_id, (select auth.uid()))
+  and (
+        owner_id = (select auth.uid())
+     or visibility = 'public'
+     or (visibility = 'followers'
+         and is_accepted_follower((select auth.uid()), owner_id))
+  )
+);
+
+-- 게시물 생성: 본인 소유 프로젝트에만
+create policy posts_insert on posts for insert with check (
+      owner_id = (select auth.uid())
+  and exists (select 1 from projects p
+               where p.id = project_id
+                 and p.owner_id = (select auth.uid())
+                 and p.deleted_at is null)
+);
+
+create policy posts_update on posts for update
+  using      (owner_id = (select auth.uid()))
+  with check (owner_id = (select auth.uid()));
+
+-- 댓글 조회: 부모 게시물이 보이면 보인다
+create policy comments_select on comments for select using (
+      deleted_at is null
+  and hidden_at  is null
+  and not is_blocked_pair(author_id, (select auth.uid()))
+  and exists (select 1 from posts p where p.id = post_id)
+);
+
+-- 댓글 삭제: 작성자 또는 게시물 소유자
+create policy comments_delete on comments for delete using (
+      author_id = (select auth.uid())
+   or exists (select 1 from posts p
+               where p.id = post_id and p.owner_id = (select auth.uid()))
+);
+
+-- 프로필 조회: 비공개 계정은 본인 · 승인 팔로워만
+create policy profiles_select on profiles for select using (
+      deleted_at is null
+  and not is_blocked_pair(id, (select auth.uid()))
+  and (
+        id = (select auth.uid())
+     or is_private = false
+     or is_accepted_follower((select auth.uid()), id)
+  )
+);</pre>
+  </div>
+  <p><code>comments_select</code>의 <code>exists (select 1 from posts …)</code>는 posts 정책이 다시 적용되므로 게시물 가시성이 자동으로 상속된다. 조건을 중복 작성하지 않는다.</p>
+
+  <h3>검증 매트릭스</h3>
+  <p>정책은 눈으로 검증할 수 없다. 아래 조합을 테스트로 고정한다.</p>
+  <table>
+    <tr><th>#</th><th>소유자</th><th>게시물 범위</th><th>조회자 관계</th><th>기대</th></tr>
+    <tr><td>1</td><td>공개</td><td>private</td><td>타인</td><td class="no">안 보임</td></tr>
+    <tr><td>2</td><td>공개</td><td>followers</td><td>미팔로우</td><td class="no">안 보임</td></tr>
+    <tr><td>3</td><td>공개</td><td>followers</td><td>승인 팔로워</td><td class="yes">보임</td></tr>
+    <tr><td>4</td><td><strong>비공개</strong></td><td>followers</td><td><strong>pending</strong></td><td class="no"><strong>안 보임</strong></td></tr>
+    <tr><td>5</td><td>공개</td><td>public</td><td>내가 차단함</td><td class="no">안 보임</td></tr>
+    <tr><td>6</td><td>공개</td><td>public</td><td>나를 차단함</td><td class="no">안 보임</td></tr>
+    <tr><td>7</td><td>본인</td><td>private</td><td>본인</td><td class="yes">보임</td></tr>
+    <tr><td>8</td><td>공개</td><td>public</td><td>비로그인</td><td class="yes">보임</td></tr>
+    <tr><td>9</td><td>공개</td><td>public</td><td>hidden_at 있음</td><td class="no">안 보임</td></tr>
+    <tr><td>10</td><td>공개</td><td>public</td><td>deleted_at 있음</td><td class="no">안 보임</td></tr>
+  </table>
+  <div class="warn"><p><b>4번이 가장 흔한 버그다.</b> 비공개 계정에 팔로우 요청만 걸어둔 pending 상태에서 게시물이 보이는 실수. 반드시 테스트에 넣을 것.</p></div>
+  <div class="code">
+    <div class="cap"><b>실행 패턴 — rollback으로 cleanup 자동</b><button class="cp">복사</button></div>
+<pre>begin;
+  set local role authenticated;
+  set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111"}';
+
+  select count(*) from posts where id = '&lt;대상 post id&gt;';   -- 기대: 0
+rollback;</pre>
+  </div>
+</section>
+
+<section id="s5">
+  <h2><span>05</span>Storage</h2>
+
+  <h3>버킷</h3>
+  <table>
+    <tr><th>버킷</th><th>공개</th><th>용도</th></tr>
+    <tr><td><code>photos</code></td><td><strong>private</strong></td><td>원본 리사이즈본 + 썸네일</td></tr>
+    <tr><td><code>avatars</code></td><td>private</td><td>프로필 이미지</td></tr>
+    <tr><td><code>exports</code></td><td>private</td><td>렌더링된 영상. 선택 — 기기 저장이 기본</td></tr>
+  </table>
+  <div class="warn"><p><b>공개 버킷을 쓰지 않는다.</b> 팔로워 공개 사진을 공개 버킷에 두면 URL 유출만으로 전체 노출된다. RLS를 아무리 잘 짜도 무의미해진다.</p></div>
+
+  <h3>경로 규칙</h3>
+  <div class="tree">photos/{owner_id}/{project_id}/{post_id}.jpg
+photos/{owner_id}/{project_id}/{post_id}_t.jpg
+avatars/{owner_id}/avatar.jpg</div>
+  <p><code>owner_id</code>를 첫 세그먼트에 두면 Storage 정책을 경로 기반으로 단순하게 쓸 수 있다.</p>
+  <div class="code">
+    <div class="cap"><b>Storage 쓰기 정책</b><button class="cp">복사</button></div>
+<pre>create policy photos_write on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'photos'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);</pre>
+  </div>
+  <p>읽기는 앱에서 서명 URL로만 발급한다. 피드에서는 반드시 배치 서명을 쓴다.</p>
+  <div class="code">
+    <div class="cap"><b>배치 서명 — 개별 호출 20회 금지</b><button class="cp">복사</button></div>
+<pre>const { data } = await supabase.storage
+  .from('photos')
+  .createSignedUrls(paths, 3600);</pre>
+  </div>
+
+  <h3>용량 정책</h3>
+  <table>
+    <tr><th>항목</th><th>값</th><th>근거</th></tr>
+    <tr><td>원본 장변</td><td><strong>1440px</strong></td><td>뜨개 코 식별에 충분. 2048은 과함</td></tr>
+    <tr><td>원본 품질</td><td>JPEG q80</td><td>장당 약 250KB</td></tr>
+    <tr><td>썸네일</td><td>400px / q70</td><td>장당 약 30KB</td></tr>
+    <tr><td>사용자당 예상</td><td>프로젝트 3 × 사진 50 ≈ 42MB</td><td>무료 1GB ≈ 24명</td></tr>
+  </table>
+  <div class="note"><p><b>확인 필요</b> — 무료 티어 초과가 예상되면 Storage만 Cloudflare R2로 분리한다. egress가 무료라 사진 앱에 유리하다. 전환 시점은 실사용 데이터로 판단.</p></div>
+</section>
+
+<section id="s6">
+  <h2><span>06</span>미디어 파이프라인</h2>
+
+  <h3>촬영 → 저장</h3>
+  <div class="tree">expo-camera 촬영
+  → EXIF 회전 정규화 (expo-image-manipulator)
+  → 중앙 정사각 크롭          ← 기기별 센서비 차이 흡수
+  → 1440px 리사이즈 / q80
+  → 400px 썸네일 생성
+  → Storage 업로드 (원본 → 썸네일 순)
+  → posts INSERT
+  → 로컬 임시파일 삭제</div>
+  <p><strong>실패 처리</strong> — 업로드 성공 후 INSERT 실패 시 고아 파일이 남는다. 앱 시작 시 <code>photos/{uid}/</code> 목록과 <code>posts</code> 테이블을 대조해 정리한다. 반대로 INSERT 후 업로드 실패는 없어야 하므로 순서를 위와 같이 고정한다.</p>
+  <p><strong>오프라인</strong> — 촬영은 오프라인에서 가능해야 한다. 로컬 큐에 쌓고 온라인 복귀 시 업로드한다. v1 포함 여부는 미정이나, 최소한 업로드 실패 시 재시도 버튼은 필수다.</p>
+
+  <h3>결과 사진 합성</h3>
+  <p>Skia 오프스크린 렌더로 처리한다. 서버 왕복이 없다.</p>
+  <table>
+    <tr><th>종류</th><th>구성</th></tr>
+    <tr><td>전체 1장</td><td>현재 사진 + 프로젝트명 + 경과일 워터마크</td></tr>
+    <tr><td>전후 2분할</td><td>첫 사진 | 현재 사진</td></tr>
+    <tr><td>3분할</td><td>첫 | 중간(시간 기준 중앙값) | 현재</td></tr>
+  </table>
+  <div class="code">
+    <div class="cap"><b>Skia 오프스크린 렌더</b><button class="cp">복사</button></div>
+<pre>const surface = Skia.Surface.MakeOffscreen(1080, 1080);
+// ... draw
+const snapshot = surface.makeImageSnapshot();
+const bytes = snapshot.encodeToBytes(ImageFormat.JPEG, 90);</pre>
+  </div>
+
+  <h3>영상 인코딩</h3>
+  <div class="warn"><p><b>최대 기술 리스크.</b> FFmpeg 계열은 사용 불가하므로 네이티브 모듈을 자작한다.</p></div>
+  <table>
+    <tr><th>플랫폼</th><th>API</th><th>담당</th></tr>
+    <tr><td>iOS</td><td><code>AVAssetWriter</code> + <code>AVAssetWriterInputPixelBufferAdaptor</code></td><td>하은</td></tr>
+    <tr><td>Android</td><td><code>MediaCodec</code> + <code>MediaMuxer</code> (Surface 입력)</td><td>다희</td></tr>
+  </table>
+  <div class="code">
+    <div class="cap"><b>modules/video-encoder/index.ts</b><button class="cp">복사</button></div>
+<pre>export type EncodeOptions = {
+  frames: string[];      // 로컬 이미지 경로 배열 (합성 완료본)
+  fps: number;           // 기본 8
+  width: number;         // 1080
+  height: number;        // 1080 또는 1920(9:16)
+  outputPath: string;
+};
+
+export function encodeFrames(
+  opts: EncodeOptions,
+  onProgress?: (ratio: number) =&gt; void
+): Promise&lt;string&gt;;      // 결과 mp4 경로</pre>
+  </div>
+  <p><strong>스파이크 — 착수 즉시, 3일 타임박스.</strong> 성공 기준은 저사양 Android 기기에서 사진 30장을 1080×1080 MP4로 10초 이내에 만들고 앨범 저장까지 확인하는 것이다. 최신 기기 기준으로 판정하지 않는다. 실패 시 폴백은 GIF 또는 서버 렌더링 전환.</p>
+  <p>3분할 성장 영상은 위 Skia 합성을 프레임마다 수행해 프레임 배열을 만든 뒤 동일 인코더에 넣는다. <strong>인코더는 하나만 유지한다.</strong></p>
+</section>
+
+<section id="s7">
+  <h2><span>07</span>인증 흐름</h2>
+  <div class="tree">앱 시작
+  → 세션 확인 (supabase.auth.getSession)
+  → 없으면 로그인 화면
+       ├ Apple  (iOS 네이티브 / Android 웹 리디렉션)
+       └ Google (네이티브 SDK → idToken)
+  → supabase.auth.signInWithIdToken
+  → profiles 행 존재 확인
+       ├ 없음 → 온보딩(username, display_name) → INSERT
+       └ 있음 → 진입
+  → eula_version &lt; 현재 버전이면 EULA 전체화면 게이트</div>
+  <p><strong>계정 삭제</strong> — <code>auth.users</code> 삭제 후 <code>on delete cascade</code>로 전체 정리. Storage는 별도로 지워야 하므로 Edge Function에서 <code>photos/{uid}/</code> 프리픽스를 일괄 삭제한다.</p>
+  <div class="warn"><p><b>한국 개발자 필수 항목</b> — 2026년 1월부터 Sign in with Apple Services ID를 신규 등록하거나 갱신할 때 server-to-server 알림 엔드포인트가 필수다. Supabase Edge Function으로 엔드포인트를 하나 만들어 등록한다. App Store 제출 전 반드시 처리할 것.</p></div>
+</section>
+
+<section id="s8">
+  <h2><span>08</span>화면 구조</h2>
+  <div class="tree">app/
+  (auth)/
+    sign-in.tsx
+    onboarding.tsx           username, display_name
+    eula.tsx                 전체화면 게이트
+  (tabs)/
+    index.tsx                팔로잉 피드
+    explore.tsx              탐색 피드 (최신순 / 인기순)
+    capture.tsx              촬영 (탭 중앙)
+    projects.tsx             내 편물 목록
+    me.tsx                   프로필
+  project/
+    [id].tsx                 프로젝트 상세 = 사진 타임라인
+    [id]/export.tsx          결과 사진 · 영상 생성
+    new.tsx
+  post/
+    [id].tsx                 게시물 상세 + 댓글
+  user/
+    [username].tsx           타 사용자 프로필
+  settings/
+    index.tsx                계정, 알림, 연락처, 약관, 계정 삭제
+    blocked.tsx              차단 목록
+_layout.tsx</div>
+
+  <h3>촬영 화면</h3>
+  <ul>
+    <li>이전 사진 고스트 레이어 — 끔 / 30% / 60%</li>
+    <li>3×3 격자 토글</li>
+    <li>화면비 고정 (1:1)</li>
+    <li>첫 촬영은 고스트 없이 "편물을 중앙에, 배경은 단색으로" 안내</li>
+  </ul>
+  <div class="warn"><p><b>edge-to-edge 강제</b> — Android API 36을 타겟하면 opt-out이 불가능하다. 고스트 레이어와 격자 오버레이 좌표를 반드시 safe area 기준으로 계산할 것. 이걸 놓치면 Android에서만 사진이 어긋난다.</p></div>
+</section>
+
+<section id="s9">
+  <h2><span>09</span>알림 · 모더레이션</h2>
+
+  <h3>푸시</h3>
+  <table>
+    <tr><th>이벤트</th><th>수신자</th></tr>
+    <tr><td>새 댓글</td><td>게시물 작성자</td></tr>
+    <tr><td>새 좋아요 · 응원</td><td>게시물 작성자 (묶어서 발송)</td></tr>
+    <tr><td>팔로우 요청</td><td>비공개 계정 소유자</td></tr>
+    <tr><td>팔로우 승인</td><td>요청자</td></tr>
+    <tr><td>촬영 리마인더</td><td>본인 (로컬 알림)</td></tr>
+  </table>
+  <p>DB 트리거 → Edge Function → Expo Push. 토큰은 <code>push_tokens</code> 테이블로 분리한다. 기기 다중 로그인 대비.</p>
+
+  <h3>App Store 1.2 대응</h3>
+  <table>
+    <tr><th>요건</th><th>구현</th></tr>
+    <tr><td>EULA 동의 (무관용 명시)</td><td><code>profiles.eula_version</code> 게이트</td></tr>
+    <tr><td>콘텐츠 필터링</td><td>업로드 시 Vision API SafeSearch + 댓글 금칙어</td></tr>
+    <tr><td>신고 기능</td><td><code>reports</code> + 게시물 · 댓글 · 프로필 신고 UI</td></tr>
+    <tr><td>차단 기능</td><td><code>blocks</code> + 양방향 RLS</td></tr>
+    <tr><td>즉시 제거 수단</td><td>본인 게시물 삭제 + 신고 3회 자동 숨김</td></tr>
+    <tr><td>24시간 대응</td><td>자동 숨김 + 모더레이션 페이지 일 1회 확인</td></tr>
+    <tr><td>앱 내 연락처</td><td>설정 화면에 이메일</td></tr>
+  </table>
+  <div class="note"><p><b>콜드스타트 대응</b> — Google Play 신규 개인 계정은 14일 비공개 테스트 12명이 강제다. 이 기간을 콘텐츠 시딩에 쓴다. 테스터를 실제 뜨개하는 사람으로 모아 14일간 편물을 올리게 하면 정식 출시 시점에 탐색 피드가 이미 차 있다. 어차피 피할 수 없는 14일이라 비용이 0이다. 안전장치로, 전체 공개 게시물이 20개 미만이면 탐색 탭을 숨기고 팔로잉 피드만 보여준다.</p></div>
+</section>
+
+<section id="s10">
+  <h2><span>10</span>개발 · 배포 루프</h2>
+  <p>코드는 Claude 세션 하나가 작성하고, 하은과 다희는 각자 기기에 설치해 실제로 뜨개하며 쓴다. 발견한 문제를 이슈로 올리면 다시 고친다. 이 반복이 이 프로젝트의 개발 방식이다.</p>
+
+  <div class="tree">Claude가 기능 구현
+  → EAS Update로 무선 배포 (1~2분)
+  → 하은 iPhone / 다희 Android 각자 최신 버전
+  → 실제 편물을 기록하며 사용
+  → 불편함 · 버그 → GitHub Issue
+  → 다시 위로</div>
+
+  <div class="key">
+    <p><b>배포 주기</b> — 주 2회. 매일이면 피드백이 쌓일 틈이 없고, 주 1회면 반복이 너무 느리다.</p>
+  </div>
+
+  <h3>EAS Update — 이 루프의 전제 조건</h3>
+  <p>코드를 고칠 때마다 전체 빌드를 다시 돌리면 20분씩 걸려 반복이 성립하지 않는다. TypeScript 변경은 무선 업데이트로 내린다.</p>
+  <table>
+    <tr><th>변경 종류</th><th>배포 방식</th><th>소요</th></tr>
+    <tr><td>화면 · 로직 · 스타일 (대부분)</td><td><code>eas update</code> → 앱 재시작</td><td>1~2분</td></tr>
+    <tr><td>네이티브 모듈 · 패키지 추가 (드묾)</td><td><code>eas build</code> 후 재설치</td><td>15~20분</td></tr>
+  </table>
+  <p>초기 셋업에 반드시 포함시킨다. 나중에 붙이면 그때까지의 반복 속도를 통째로 잃는다.</p>
+
+  <h3>역할</h3>
+  <table>
+    <tr><th>주체</th><th>담당</th></tr>
+    <tr><td>Claude</td><td>TypeScript 화면 · 로직, SQL 스키마 · 정책, Swift · Kotlin 인코더, 테스트 코드</td></tr>
+    <tr><td>하은</td><td>기획 · 판단 · 테스트 설계 · <strong>iOS 실기기 검증</strong> · 콘솔 작업</td></tr>
+    <tr><td>다희</td><td>기획 · 판단 · 테스트 설계 · <strong>Android 실기기 검증</strong></td></tr>
+  </table>
+  <p>둘 다 QA 엔지니어라는 점이 이 구조에 맞는다. AI가 코드를 쓰는 상황에서 가장 부족해지는 것이 "이게 맞는지 판단하는 사람"이고, 그것이 두 사람의 본업이다.</p>
+
+  <div class="warn">
+    <p><b>도그푸딩이 성립해야 이 방식이 작동한다.</b> 각자 실제 편물 하나를 이 앱으로만 기록하고 매일 1장 이상 찍는다. 이걸 안 하면 무엇을 고쳐야 할지 알 수 없고, 이 루프는 빈 껍데기가 된다.</p>
+  </div>
+
+  <h3>디렉터리</h3>
+  <div class="tree">knitting/
+  app/                       Expo Router 화면
+  src/
+    features/
+      capture/               촬영, 고스트 레이어, 저장 파이프라인
+      media/                 Skia 합성, 영상 인코딩 호출
+      project/               프로젝트 CRUD, 타임라인
+      auth/                  로그인, 온보딩, EULA
+      feed/                  팔로잉 · 탐색 피드, 페이지네이션
+      social/                팔로우, 댓글, 반응
+      safety/                신고, 차단, 숨김
+    shared/
+      types/database.ts      자동 생성. 손으로 수정 금지
+      ui/
+      lib/supabase.ts
+  modules/
+    video-encoder/
+      ios/                   Swift (AVAssetWriter)
+      android/               Kotlin (MediaCodec)
+      index.ts               공통 TS 인터페이스
+  supabase/
+    migrations/
+    functions/               Edge Functions
+  CLAUDE.md                  Claude 세션의 상시 규칙</div>
+
+  <h3>마이그레이션 규율</h3>
+  <ol class="list">
+    <li>파일명 <code>20260904_120000_add_comment_count.sql</code></li>
+    <li>한 파일에 한 가지 변경. 되돌릴 수 있게</li>
+    <li>적용 후 반드시 타입 재생성</li>
+    <li>적용 전 4장 검증 매트릭스를 다시 돌린다</li>
+  </ol>
+  <div class="code">
+    <div class="cap"><b>타입 재생성</b><button class="cp">복사</button></div>
+<pre>supabase gen types typescript --linked &gt; src/shared/types/database.ts</pre>
+  </div>
+</section>
+
+<section id="s11">
+  <h2><span>11</span>초기 셋업</h2>
+  <div class="code">
+    <div class="cap"><b>macOS · zsh</b><button class="cp">복사</button></div>
+<pre># 1) 프로젝트 생성
+npx create-expo-app@latest knitting --template default
+cd knitting
+
+# 2) 핵심 패키지
+npx expo install \
+  expo-camera expo-image expo-image-manipulator expo-media-library \
+  expo-sharing expo-notifications expo-apple-authentication \
+  expo-secure-store expo-file-system
+
+npm i @supabase/supabase-js @tanstack/react-query zustand \
+      @shopify/react-native-skia @react-native-google-signin/google-signin
+
+npm i -D @biomejs/biome jest @testing-library/react-native
+
+# 3) Android API 36 강제
+npx expo install expo-build-properties
+# app.json plugins에 추가:
+#   ["expo-build-properties", { "android": {
+#       "compileSdkVersion": 36,
+#       "targetSdkVersion": 36,
+#       "buildToolsVersion": "36.0.0" } }]
+
+# 4) Development Build — Expo Go 사용 불가
+npx expo install expo-dev-client
+eas build --profile development --platform ios
+eas build --profile development --platform android
+
+# 5) EAS Update — 두 기기에 무선 배포. 초기에 반드시 붙일 것
+npx expo install expo-updates
+eas update:configure
+# 이후 코드 수정 시:  eas update --branch development --message "설명"
+
+# 6) Supabase
+npm i -g supabase
+supabase init
+supabase link --project-ref &lt;프로젝트-ref&gt;
+supabase migration new init_schema
+# → 3장 DDL을 생성된 파일에 붙여넣기
+supabase db push
+supabase gen types typescript --linked &gt; src/shared/types/database.ts</pre>
+  </div>
+</section>
+
+<section id="s12">
+  <h2><span>12</span>확인 필요</h2>
+  <h3>확정된 것</h3>
+  <table>
+    <tr><th>항목</th><th>결정</th></tr>
+    <tr><td>다희 Android 실기기 · Kotlin 담당</td><td>가능. 확정</td></tr>
+    <tr><td>탐색 피드 v1 포함</td><td><strong>포함.</strong> Vision API 모더레이션이 필수화됨</td></tr>
+    <tr><td>오프라인 업로드 큐</td><td><strong>제외.</strong> 단 업로드 성공 전 로컬 파일 삭제 금지 + 재시도 버튼은 필수</td></tr>
+    <tr><td>단수 기록 · 푸르시오</td><td><strong>제거.</strong> 다시 제안하지 않는다</td></tr>
+    <tr><td>영상 방식</td><td>네이티브 자작 MP4. 스파이크로 확정 예정</td></tr>
+  </table>
+
+  <h3>남은 확인 필요</h3>
+  <table>
+    <tr><th>#</th><th>항목</th><th>영향</th><th>시한</th></tr>
+    <tr><td>1</td><td><strong>Apple Developer Program 결제</strong></td><td>무료 계정은 7일마다 재설치. 도그푸딩 불가</td><td><strong>1~2주차</strong></td></tr>
+    <tr><td>2</td><td>다희 로컬 OS</td><td>셋업 명령 일부</td><td>첫 세션 전</td></tr>
+    <tr><td>3</td><td>EAS 무료 티어 빌드 한도 · 대기시간</td><td>반복 속도</td><td>착수 시</td></tr>
+    <tr><td>4</td><td>Supabase 무료 티어 한도</td><td>Storage 초과 시점</td><td>착수 시</td></tr>
+    <tr><td>5</td><td>Vision API 무료 한도</td><td>모더레이션 비용</td><td>7주차 전</td></tr>
+    <tr><td>6</td><td>신고 3회 자동 숨김이 심사 1.2를 충족하는지</td><td>리젝 리스크</td><td>제출로만 판정 가능</td></tr>
+  </table>
+</section>
+
+    </main>
+  </div>
+
+  <footer>
+    Knitting 닛팅 · 시스템 설계도 v1.1 · 선행 문서: 서비스기획안 v0.1(일부 폐기)
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll('.cp').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.closest('.code').querySelector('pre');
+      navigator.clipboard.writeText(pre.innerText).then(function () {
+        btn.textContent = '복사됨';
+        btn.classList.add('done');
+        setTimeout(function () { btn.textContent = '복사'; btn.classList.remove('done'); }, 1600);
+      }).catch(function () {
+        btn.textContent = '복사 실패';
+        setTimeout(function () { btn.textContent = '복사'; }, 1600);
+      });
+    });
+  });
+
+  var links = {};
+  document.querySelectorAll('nav a').forEach(function (a) {
+    links[a.getAttribute('href').slice(1)] = a;
+  });
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        Object.keys(links).forEach(function (k) { links[k].classList.remove('on'); });
+        if (links[e.target.id]) links[e.target.id].classList.add('on');
+      }
+    });
+  }, { rootMargin: '-10% 0px -75% 0px' });
+  document.querySelectorAll('section').forEach(function (s) { io.observe(s); });
+</script>

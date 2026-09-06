@@ -1,0 +1,398 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knitting 닛팅 — 함께 시작하기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAFAF8; --ink:#16203A; --muted:#616B80; --faint:#8B93A3;
+    --rule:#E3E4DF; --rule-soft:#EDEEE9;
+    --indigo:#2A4A7B; --indigo-soft:#EAEFF6;
+    --ochre:#8A6714; --ochre-soft:#F7F2E2;
+    --clay:#8E4526; --clay-soft:#F7EEE9;
+    --green:#2E6152; --green-soft:#EDF3F0;
+    --sans:"IBM Plex Sans KR",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+       font-weight:300;font-size:16px;line-height:1.78;-webkit-font-smoothing:antialiased}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+  .wrap{max-width:800px;margin:0 auto;padding:0 28px}
+
+  .hero{padding:60px 0 34px;border-bottom:1px solid var(--rule)}
+  .kicker{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin:0 0 18px}
+  h1{font-size:33px;line-height:1.25;font-weight:600;margin:0 0 12px;letter-spacing:-.015em}
+  .lede{font-size:18px;color:var(--muted);margin:0;max-width:54ch;line-height:1.62}
+
+  .tldr{margin:30px 0 0;border:1px solid var(--indigo);background:var(--indigo-soft);padding:20px 22px}
+  .tldr h2{font-size:13px;font-weight:500;color:var(--indigo);margin:0 0 12px;border:none;padding:0}
+  .tldr ul{margin:0;padding-left:18px}
+  .tldr li{margin-bottom:6px;font-size:15px}
+  .tldr li:last-child{margin-bottom:0}
+
+  main{padding:44px 0 90px}
+  section{margin-bottom:52px}
+  h2{font-size:15px;font-weight:500;margin:0 0 20px;padding-bottom:9px;border-bottom:1px solid var(--rule);
+     display:flex;gap:11px;align-items:baseline}
+  h2 span{font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:400}
+  h3{font-size:16.5px;font-weight:500;margin:32px 0 11px}
+  h3:first-of-type{margin-top:0}
+  p{margin:0 0 15px}
+  strong{font-weight:500}
+  a{color:var(--indigo)}
+
+  code{font-family:var(--mono);font-size:13.5px;background:var(--rule-soft);padding:1px 5px;
+       border-radius:3px;font-weight:400}
+  .code{margin:0 0 20px;border:1px solid var(--rule);background:#fff}
+  .code pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;
+            line-height:1.68;font-weight:400;color:#23304C}
+  .code .cap{display:flex;justify-content:space-between;align-items:center;gap:12px;
+             padding:7px 12px 7px 18px;border-bottom:1px solid var(--rule-soft);background:#FCFCFA}
+  .code .cap b{font-family:var(--mono);font-size:11.5px;font-weight:400;color:var(--faint)}
+  .cp{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);background:none;
+      border:1px solid var(--rule);padding:3px 10px;cursor:pointer}
+  .cp:hover{border-color:var(--faint);color:var(--ink)}
+  .cp:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+  .cp.done{color:var(--indigo);border-color:var(--indigo)}
+
+  table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:14.5px}
+  th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  th{font-weight:500;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--rule);
+     padding-bottom:7px;white-space:nowrap}
+  td:last-child,th:last-child{padding-right:0}
+  tr:last-child td{border-bottom:1px solid var(--rule)}
+  td.blank{color:var(--faint)}
+
+  ul,ol.list{margin:0 0 18px;padding-left:19px}
+  li{margin-bottom:7px}
+
+  .check{list-style:none;padding:0;margin:0 0 20px}
+  .check li{display:flex;gap:11px;align-items:flex-start;padding:10px 0;
+            border-bottom:1px solid var(--rule-soft);margin:0}
+  .check li:last-child{border-bottom:1px solid var(--rule)}
+  .check .box{flex:0 0 auto;width:15px;height:15px;border:1.5px solid var(--faint);margin-top:6px}
+  .check .txt{flex:1}
+  .check .txt b{display:block;font-weight:500;margin-bottom:2px}
+  .check .txt span{font-size:14px;color:var(--muted);line-height:1.6}
+
+  .note{border-left:2px solid var(--ochre);background:var(--ochre-soft);padding:13px 17px;margin:0 0 20px;font-size:14.5px}
+  .note b{font-weight:500;color:var(--ochre)}
+  .warn{border-left:2px solid var(--clay);background:var(--clay-soft);padding:13px 17px;margin:0 0 20px;font-size:14.5px}
+  .warn b{font-weight:500;color:var(--clay)}
+  .ok{border-left:2px solid var(--green);background:var(--green-soft);padding:13px 17px;margin:0 0 20px;font-size:14.5px}
+  .ok b{font-weight:500;color:var(--green)}
+  .note p:last-child,.warn p:last-child,.ok p:last-child{margin-bottom:0}
+
+  .tree{font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre;overflow-x:auto;
+        border:1px solid var(--rule);background:#fff;padding:16px 18px;margin:0 0 20px;color:#23304C}
+
+  .agenda{border:1px solid var(--rule);background:#fff;margin:0 0 20px}
+  .agenda div{display:flex;gap:14px;padding:12px 18px;border-bottom:1px solid var(--rule-soft);font-size:14.5px}
+  .agenda div:last-child{border-bottom:none}
+  .agenda b{flex:0 0 62px;font-family:var(--mono);font-size:12px;font-weight:400;color:var(--faint);padding-top:4px}
+
+  footer{border-top:1px solid var(--rule);padding:24px 0 60px;font-size:13px;color:var(--faint)}
+
+  @media (max-width:640px){
+    h1{font-size:26px}.wrap{padding:0 20px}.hero{padding:38px 0 26px}
+    .agenda b{flex:0 0 54px}
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="kicker">Knitting 닛팅 · 2026-09-04 · github.com/uhaeun/Knitting</p>
+    <h1>함께 시작하기</h1>
+    <p class="lede">다희 매니저님께. 뜨개 앱을 같이 만들려고 합니다. 무엇을 만드는지, 우리 둘이 무엇을 하는지, 그리고 첫 관문 하나를 정리했습니다.</p>
+
+    <div class="tldr">
+      <h2>5분 요약</h2>
+      <ul>
+        <li>뜨개 편물을 같은 각도로 찍어 쌓고 <strong>자라나는 영상</strong>을 만들어 주는 앱입니다.</li>
+        <li><strong>코드는 AI(Claude)가 씁니다.</strong> 우리 둘은 기획 · 판단 · 테스트를 합니다.</li>
+        <li>만들어진 앱을 <strong>각자 폰에 설치</strong>해서, 실제로 뜨개하며 써 보고 고쳐 나갑니다.</li>
+        <li>다희 매니저님은 Android, 하은은 iPhone. 서로 없는 기기를 볼 수 없어서 그렇습니다.</li>
+        <li>본 개발 전에 <strong>3일짜리 기술 검증</strong> 하나가 있습니다. 그게 지금 할 일입니다.</li>
+      </ul>
+    </div>
+  </header>
+
+  <main>
+
+<section>
+  <h2><span>00</span>현재 상태</h2>
+  <p>지금 어디까지 와 있는지부터 공유드립니다.</p>
+
+  <h3>끝난 것</h3>
+  <table>
+    <tr><th>항목</th><th>내용</th></tr>
+    <tr><td>제품 범위 확정</td><td>넣을 기능과 뺄 기능이 정해졌습니다. 아래 "확정된 결정" 참조</td></tr>
+    <tr><td>시스템 설계 v1.1</td><td>데이터 모델, 공개 범위 규칙, 화면 구조, 스토리지 설계까지</td></tr>
+    <tr><td>영상 인코더 코드</td><td>iOS · Android 양쪽 작성 완료. <strong>단, 아직 한 번도 컴파일해 보지 않았습니다</strong></td></tr>
+    <tr><td>검증 도구</td><td>테스트 이미지 생성기 + 결과 자동 판정 스크립트. 동작 확인 완료</td></tr>
+    <tr><td>스토어 심사 요건 조사</td><td>Apple UGC 정책, 연령 등급, Google Play 타깃 API 등</td></tr>
+  </table>
+
+  <h3>진행 중</h3>
+  <table>
+    <tr><th>항목</th><th>담당</th></tr>
+    <tr><td>저장소 초기 셋업 (Expo 프로젝트 생성, 빌드 설정)</td><td>하은</td></tr>
+    <tr><td>다희 매니저님 저장소 초대</td><td>하은 — GitHub 아이디 필요</td></tr>
+  </table>
+
+  <h3>아직 안 한 것</h3>
+  <table>
+    <tr><th>항목</th><th>시점</th></tr>
+    <tr><td><strong>화면 코드 — 아직 한 줄도 없습니다</strong></td><td>스파이크 이후</td></tr>
+    <tr><td>Supabase 프로젝트 생성 · 데이터베이스 구축</td><td>1주차</td></tr>
+    <tr><td>Apple Developer Program 결제 ($99/년)</td><td>1~2주차. 이게 없으면 iPhone에 몇 주씩 설치해 둘 수 없습니다</td></tr>
+    <tr><td>Google Play 개발자 등록 ($25)</td><td>내부 배포 전</td></tr>
+  </table>
+
+  <h3>확정된 결정</h3>
+  <p>여기까지는 정해졌습니다. 이견 있으시면 첫 세션에서 말씀해 주세요. 지금이 바꾸기 가장 싼 시점입니다.</p>
+  <table>
+    <tr><th>항목</th><th>결정</th></tr>
+    <tr><td>앱 이름</td><td>Knitting 닛팅</td></tr>
+    <tr><td>단수 기록 · 푸르시오 기능</td><td><strong>제외.</strong> 사진과 영상에 집중</td></tr>
+    <tr><td>탐색 피드(모두의 게시물)</td><td><strong>포함.</strong> 대신 부적절 이미지 자동 검사가 필수가 됨</td></tr>
+    <tr><td>오프라인 업로드 대기열</td><td><strong>제외.</strong> 단 업로드 실패해도 사진이 사라지지 않게는 함</td></tr>
+    <tr><td>공개 범위</td><td>게시물마다 선택 — 나만 / 팔로워만 / 전체</td></tr>
+    <tr><td>댓글</td><td>1단계만. 대댓글과 DM은 다음 버전</td></tr>
+    <tr><td>영상 방식</td><td>기기 안에서 MP4 생성. <strong>이번 스파이크로 확정</strong></td></tr>
+  </table>
+
+  <h3>다음 순서</h3>
+  <div class="tree">1. 하은: 저장소 셋업 + 초대            ← 지금 여기
+2. 다희 매니저님: 초대 수락, 이 문서 확인
+3. 둘이 같이: 첫 세션 (설계 검토 + 규칙 합의)
+4. 각자: 스파이크 실행 (3일)
+5. 결과에 따라 본 개발 착수</div>
+</section>
+
+<section>
+  <h2><span>01</span>만들려는 것</h2>
+  <p><strong>Knitting(닛팅)</strong>은 뜨개 편물을 같은 각도로 찍어 쌓고, 그 사진들을 이어붙여 편물이 자라나는 영상을 자동으로 만들어 주는 앱입니다. 여기에 팔로우 · 피드 · 댓글 같은 소셜 기능이 붙습니다. iOS와 Android 동시 출시가 목표입니다.</p>
+  <p>기존 뜨개 앱(닛다, cromu, Knitflow, 실노트, 닛로그)은 전부 사진을 프로젝트에 딸린 첨부물로 취급합니다. <strong>사진 자체가 주인공이고 그게 영상이 되는 앱은 없었습니다.</strong> 거기가 이 앱의 자리입니다.</p>
+  <table>
+    <tr><th>항목</th><th>선택</th></tr>
+    <tr><td>앱</td><td>Expo (React Native) + TypeScript — 코드 한 벌로 양 플랫폼</td></tr>
+    <tr><td>백엔드</td><td>Supabase (인증 · 데이터베이스 · 저장소)</td></tr>
+    <tr><td>영상</td><td>기기 안에서 직접 인코딩. 이것만 플랫폼별 코드가 필요합니다</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span>02</span>우리 둘이 하는 일</h2>
+  <div class="ok"><p><b>코드는 Claude(AI 코딩 도구)가 씁니다.</b> 화면도 로직도 데이터베이스도요. 그래서 우리 둘은 손으로 코드를 짜는 대신 <strong>무엇을 만들지 정하고, 만들어진 걸 검증하고, 고칠 것을 찾는 일</strong>을 합니다.</p></div>
+
+  <table>
+    <tr><th>주체</th><th>담당</th></tr>
+    <tr><td>Claude</td><td>화면 · 로직 · 데이터베이스 · 테스트 코드 작성</td></tr>
+    <tr><td>우리 둘</td><td>기획 판단, 테스트 설계, 실사용 검증, 버그 · 개선점 발굴, 우선순위 결정</td></tr>
+    <tr><td>하은</td><td>위 + iPhone 검증 + 콘솔 작업(Apple · Google · Supabase)</td></tr>
+    <tr><td>다희 매니저님</td><td>위 + Android 검증</td></tr>
+  </table>
+  <p>둘 다 QA를 하고 있다는 게 이 구조에 잘 맞습니다. AI가 코드를 쓰는 상황에서 가장 부족해지는 게 <strong>"이게 맞는지 판단하는 사람"</strong>인데, 그게 우리 본업이니까요.</p>
+
+  <h3>실제 진행 방식</h3>
+  <div class="tree">Claude가 기능 구현
+  → 무선 업데이트로 배포 (1~2분)
+  → 다희 매니저님 Android / 하은 iPhone 에 최신 버전
+  → 각자 실제로 뜨개하면서 써 봄
+  → "이게 불편하다" / "여기서 터진다" → GitHub Issue
+  → 다시 위로</div>
+  <p>배포는 <strong>주 2회</strong> 정도로 잡고 있습니다. 매일이면 써 볼 틈이 없고, 주 1회면 너무 느립니다.</p>
+  <p>화면이나 로직만 바뀌면 <strong>앱을 껐다 켜는 것만으로 최신 버전이 됩니다.</strong> 매번 새로 설치하실 필요 없습니다. 카메라 같은 기기 기능이 추가될 때만 재설치가 필요하고, 그건 드뭅니다.</p>
+
+  <h3>가장 중요한 부탁 — 실제로 써 주세요</h3>
+  <div class="warn"><p><b>각자 실제 편물 하나를 이 앱으로만 기록해 주셨으면 합니다.</b> 매일 한 장 이상. 이걸 안 하면 무엇을 고쳐야 할지 알 수가 없고, 위 루프가 빈 껍데기가 됩니다.</p></div>
+  <p>기록 앱의 진짜 적은 경쟁 앱이 아니라 <strong>"귀찮음"</strong>입니다. "오늘 찍기 귀찮았다"가 가장 값진 피드백입니다. 그런 순간이 오면 그대로 이슈로 남겨 주세요. 버그보다 중요합니다.</p>
+
+  <h3>이슈 쓰실 때</h3>
+  <ul>
+    <li>무엇을 하려 했는지 / 무엇이 일어났는지 / 무엇을 기대했는지</li>
+    <li>재현 순서 (가능하면)</li>
+    <li>스크린샷 또는 화면 녹화</li>
+    <li>기기 모델과 OS 버전</li>
+  </ul>
+  <p>익숙한 형식이실 테니 편하신 대로 쓰셔도 됩니다.</p>
+</section>
+
+<section>
+  <h2><span>03</span>첫 세션에서 같이 할 것</h2>
+  <p>혼자 시작하실 필요 없습니다. <strong>첫 세션은 같이 앉아서 진행합니다.</strong> 여기서 정한 것이 이후 모든 코드의 기준이 되기 때문에, 나눠서 하면 안 되는 것들입니다.</p>
+  <div class="agenda">
+    <div><b>30분</b><span>설계 문서 같이 훑기 — 무엇을 만들지 합의</span></div>
+    <div><b>50분</b><span>데이터베이스 구조 같이 검토 — 한 번 정하면 되돌리기 어렵습니다</span></div>
+    <div><b>40분</b><span>공개 범위 · 차단 규칙 검토 — 이 앱은 서버가 따로 없어서 여기가 보안 전부입니다. QA 관점의 조합 매트릭스를 같이 만듭니다</span></div>
+    <div><b>20분</b><span>도그푸딩 규칙 · 이슈 작성 규칙 · 배포 주기 합의</span></div>
+    <div><b>20분</b><span>각자 개발 환경 셋업, 빈 앱이 각자 기기에서 뜨는지 확인</span></div>
+  </div>
+  <p>총 세 시간 정도입니다. 부담되면 두 번으로 나눠도 됩니다. 다만 <strong>데이터베이스 구조와 공개 범위 규칙은 반드시 같이</strong> 봐 주세요.</p>
+  <p>세 번째 항목이 특히 그렇습니다. 게시물 공개 범위(나만 / 팔로워만 / 전체) × 비공개 계정 × 팔로우 승인 대기 × 차단이 겹치는 조합이라, 눈으로는 검증이 안 되고 테스트로 고정해야 합니다. 딱 우리가 평소에 하는 일입니다.</p>
+</section>
+
+<section>
+  <h2><span>04</span>첫 관문 — 영상이 되는지 확인하기</h2>
+  <p>본 개발에 들어가기 전에 통과해야 할 검증이 하나 있습니다. 개발 용어로 <strong>스파이크(spike)</strong>라고 합니다.</p>
+
+  <h3>스파이크가 무엇인지</h3>
+  <p><strong>답을 모르는 기술 질문 하나에, 답만 얻으려고, 시간을 정해놓고 하는 실험</strong>입니다. 산출물이 완성된 기능이 아니라 <strong>결정</strong>이라는 점이 다릅니다. 패치 검증 들어가기 전에 "이 이슈가 우리 환경에서 재현이나 되는가"만 먼저 확인하는 것과 같은 성격입니다.</p>
+  <table>
+    <tr><th></th><th>일반 개발</th><th>스파이크</th></tr>
+    <tr><td>목적</td><td>동작하는 기능을 만든다</td><td>질문에 답한다</td></tr>
+    <tr><td>코드 품질</td><td>유지보수 가능해야 함</td><td><strong>버릴 코드.</strong> 구조 · 예외 처리 신경 쓰지 않음</td></tr>
+    <tr><td>완료 조건</td><td>인수 기준 통과</td><td>답이 나옴 (된다 / 안 된다 둘 다 정상)</td></tr>
+    <tr><td>기간</td><td>필요한 만큼</td><td><strong>미리 정한 만큼.</strong> 넘기면 중단</td></tr>
+  </table>
+
+  <h3>질문과 그 무게</h3>
+  <p>질문은 하나입니다. <strong>사진 30장을 기기 안에서 1080×1080 MP4로 만들 수 있는가.</strong></p>
+  <p>사진을 이어붙여 새 영상을 만드는 기능이 React Native 생태계에 없습니다. 예전에는 FFmpegKit이라는 라이브러리가 그 역할을 했는데 2025년 4월에 은퇴했고, 대체재를 찾아봤지만 재생 · 압축 · 썸네일용만 있었습니다. 그래서 이 기능만 직접 만들어야 하고, 만들어 봐야 되는지 알 수 있습니다.</p>
+  <table>
+    <tr><th>결과</th><th>이 앱은</th><th>차별점</th></tr>
+    <tr><td>된다</td><td>편물 성장 타임랩스 앱</td><td>고스트 촬영 + 자동 영상</td></tr>
+    <tr><td>안 된다</td><td>뜨개 사진 앨범 + 피드</td><td>사실상 없음</td></tr>
+  </table>
+  <div class="ok"><p><b>부담 갖지 않으셔도 됩니다.</b> "안 된다"도 정확히 같은 가치를 가진 결과입니다. 화면 20개를 다 만든 뒤에 발견하는 것보다 훨씬 좋은 결말이고, 그래서 제일 먼저 합니다.</p></div>
+  <p>코드는 이미 Claude가 작성해 두었습니다. <strong>빌드해서 기기에서 돌려 보고 측정하는 일</strong>입니다.</p>
+</section>
+
+<section>
+  <h2><span>05</span>실행 절차</h2>
+  <p>첫 세션에서 같이 하거나, 편하시면 미리 해 보셔도 됩니다.</p>
+
+  <div class="code">
+    <div class="cap"><b>준비</b><button class="cp">복사</button></div>
+<pre>git clone https://github.com/uhaeun/Knitting.git
+cd Knitting
+npm install
+
+# 기기 기능이 포함되어 있어 개발 빌드가 필요합니다
+npx expo login
+npx expo prebuild --clean
+eas build --profile development --platform android
+
+# 검증용 이미지 30장 생성
+node scripts/make-fixtures.mjs assets/fixtures 30 1080</pre>
+  </div>
+  <p>Windows PowerShell이어도 위 명령은 동일합니다. Expo 계정은 무료로 충분합니다.</p>
+  <p>빌드가 끝나면 <code>app/spike.tsx</code>의 <code>FIXTURES</code> 배열에 <code>frame_000</code>부터 <code>frame_029</code>까지 30줄을 채웁니다. 이 부분은 Claude에게 시키셔도 되고 하은이 미리 채워 둘 수도 있습니다.</p>
+
+  <h3>실행과 측정</h3>
+  <p>앱을 띄우고 <code>/spike</code> 화면에서 실행 버튼을 누르면 소요 시간 · 파일 크기 · 프레임 수가 화면에 표시되고 결과 영상이 앨범에 저장됩니다.</p>
+  <div class="warn"><p><b>측정 기기가 중요합니다.</b> 인코딩은 기기 성능 편차가 가장 큰 작업이라, 최신 기기에서만 재면 반드시 놓칩니다. <strong>가지고 계신 것 중 가장 느린 기기</strong>로 재 주세요. 2~4년 된 중저가 기기가 오히려 좋습니다.</p></div>
+
+  <div class="code">
+    <div class="cap"><b>결과 회수와 자동 검증</b><button class="cp">복사</button></div>
+<pre>adb pull /sdcard/Movies/spike-android.mp4 .
+
+# 개발 머신에만 ffprobe가 필요합니다 (앱에는 들어가지 않습니다)
+#   macOS    brew install ffmpeg
+#   Windows  winget install Gyan.FFmpeg
+
+node scripts/verify-output.mjs spike-android.mp4</pre>
+  </div>
+  <p>해상도 · 프레임 수 · 재생 길이 · 회전 정보를 자동으로 PASS/FAIL 판정합니다. 하은의 iOS 결과물과 나란히 넣으면 <strong>플랫폼 간 대조</strong>까지 해 줍니다.</p>
+</section>
+
+<section>
+  <h2><span>06</span>성공 기준</h2>
+  <p>1~6번과 10번은 검증 스크립트가 자동으로 봅니다. 나머지는 눈으로 확인합니다.</p>
+  <table>
+    <tr><th>#</th><th>항목</th><th>기준</th><th>결과</th></tr>
+    <tr><td>1</td><td>코덱</td><td>h264</td><td class="blank">—</td></tr>
+    <tr><td>2</td><td>해상도</td><td>1080 × 1080</td><td class="blank">—</td></tr>
+    <tr><td>3</td><td>프레임 수</td><td>30</td><td class="blank">—</td></tr>
+    <tr><td>4</td><td>재생 길이</td><td>3.75초 ±0.1</td><td class="blank">—</td></tr>
+    <tr><td>5</td><td>회전 정보</td><td>0 (정방향)</td><td class="blank">—</td></tr>
+    <tr><td>6</td><td>픽셀 포맷</td><td>yuv420p</td><td class="blank">—</td></tr>
+    <tr><td>7</td><td><strong>소요 시간</strong></td><td><strong>10초 이내</strong></td><td class="blank">—</td></tr>
+    <tr><td>8</td><td>앨범 재생</td><td>갤러리 앱에서 정상 재생</td><td class="blank">—</td></tr>
+    <tr><td>9</td><td>프레임 순서</td><td>좌상단 마커가 1개→30개로 증가</td><td class="blank">—</td></tr>
+    <tr><td>10</td><td>iOS와 파일 크기 차이</td><td>30% 이내</td><td class="blank">—</td></tr>
+    <tr><td>11</td><td>색 육안 비교</td><td>iOS 결과와 실 색이 크게 다르지 않음</td><td class="blank">—</td></tr>
+  </table>
+  <div class="note"><p><b>검증 이미지에 대해</b> — 실제 뜨개 사진 대신 합성 이미지를 씁니다. 입력이 완전히 같아야 양 플랫폼 결과를 대조할 수 있기 때문입니다. 다만 합성 이미지는 단색 면이 많아 압축이 과도하게 잘 됩니다. <strong>파일 크기와 소요 시간의 최종 측정은 실제 뜨개 사진 30장으로 한 번 더</strong> 해 주세요.</p></div>
+</section>
+
+<section>
+  <h2><span>07</span>막힐 만한 지점을 미리 적어둡니다</h2>
+  <p>Kotlin 코드는 아직 한 번도 컴파일해 보지 않았습니다. 첫 빌드에서 오류가 나는 것은 정상 과정입니다. 오류가 나면 그대로 붙여서 공유해 주시면 Claude가 고칩니다.</p>
+
+  <h3>속도 — 가장 가능성이 높습니다</h3>
+  <p>현재 구현은 이미지의 색상값을 영상 포맷으로 변환하는 계산을 소프트웨어로 합니다. 1080×1080 한 장이 약 116만 픽셀이고 30장이면 3,500만 회 연산이라, 저사양 기기에서는 이 부분만 수 초가 나올 수 있습니다.</p>
+  <p>7번 기준(10초)을 못 넘기면 <strong>GPU가 변환을 대신하는 방식으로 바꾸는 것이 다음 수순</strong>입니다. 이 판단이 필요해지면 같이 정하시죠.</p>
+
+  <h3>색 — 뒤집혀 보이면 이 문제입니다</h3>
+  <p>기기마다 코덱이 받아들이는 색 데이터 배치가 달라서, 결과 영상에서 붉은 실이 파랗게 나오는 식일 수 있습니다. 그러면 색 평면 순서 문제이고, 실제 포맷을 확인해서 분기하면 됩니다.</p>
+</section>
+
+<section>
+  <h2><span>08</span>기간과 중단 규칙</h2>
+  <p><strong>타임박스 3일</strong>입니다. 양 플랫폼 합계 기준입니다.</p>
+  <p>시간 제한을 미리 정해 두는 이유는, 이게 없으면 "하루만 더 하면 될 것 같은데"가 반복되면서 2주가 사라지기 때문입니다. <strong>3일째에 결론이 없으면 그것도 결론입니다.</strong></p>
+  <table>
+    <tr><th>상황</th><th>대응</th></tr>
+    <tr><td>아예 만들어지지 않음</td><td>서버에서 영상을 만드는 방식으로 전환. 설계를 다시 씁니다</td></tr>
+    <tr><td>30초 이상 걸림</td><td>최대 장수 제한(60장) + 진행률 표시. 그래도 느리면 720×720으로 하향</td></tr>
+    <tr><td>한쪽 플랫폼만 됨</td><td>안 되는 쪽만 서버 렌더링. 최후 수단</td></tr>
+    <tr><td>색이 크게 다름</td><td>색 변환 방식 조정 후 재측정</td></tr>
+    <tr><td>3일 안에 결론 없음</td><td><strong>GIF로 확정하고 종료.</strong> 더 붙잡지 않습니다</td></tr>
+  </table>
+  <div class="warn"><p><b>막히면 2시간 안에 알려 주세요.</b> 혼자 오래 붙잡는 것이 스파이크에서 가장 손해가 큽니다. 상황만 공유해 주시면 같이 봅니다.</p></div>
+  <p>결과는 <code>docs/spike-video-encoding.md</code>의 6장에 채워 주세요. 무엇을 시도했고, 무엇이 됐고, 무엇이 안 됐는지, 측정값, 그리고 결정 한 줄입니다.</p>
+</section>
+
+<section>
+  <h2><span>09</span>확인 부탁드립니다</h2>
+  <p>답 주시면 일정과 진행 방식을 확정하겠습니다.</p>
+  <ul class="check">
+    <li><span class="box"></span><span class="txt"><b>첫 세션 가능한 시간</b><span>세 시간 정도. 온라인 화면 공유로 충분합니다. 나눠서 두 번도 괜찮습니다.</span></span></li>
+    <li><span class="box"></span><span class="txt"><b>GitHub 아이디</b><span>저장소 초대를 보내기 위해 필요합니다.</span></span></li>
+    <li><span class="box"></span><span class="txt"><b>Android 실기기 모델과 OS 버전</b><span>측정 기준 기기입니다. 여러 대 있으시면 가장 느린 것으로.</span></span></li>
+    <li><span class="box"></span><span class="txt"><b>로컬 개발 환경 OS</b><span>Windows인지 macOS인지. 셋업 명령 일부가 달라집니다.</span></span></li>
+    <li><span class="box"></span><span class="txt"><b>지금 뜨고 계신 편물이 있으신지</b><span>없으면 하나 시작해 주셔야 합니다. 도그푸딩에 실제 편물이 필요합니다.</span></span></li>
+    <li><span class="box"></span><span class="txt"><b>주당 투입 가능 시간</b><span>대략이면 됩니다. 일정 추정에만 씁니다.</span></span></li>
+  </ul>
+</section>
+
+<section>
+  <h2><span>10</span>이 검증이 끝나면</h2>
+  <p>스파이크 결과가 나오면 본 개발에 들어갑니다. 순서는 이렇습니다.</p>
+  <table>
+    <tr><th>시점</th><th>내용</th></tr>
+    <tr><td>1주차</td><td>스파이크 + 저장소 · 데이터베이스 셋업</td></tr>
+    <tr><td><strong>2~3주차</strong></td><td><strong>최소 동작 버전을 각자 폰에 설치.</strong> 촬영 → 저장 → 목록까지</td></tr>
+    <tr><td>3주차~</td><td>도그푸딩 시작. 여기서부터 계속 쓰면서 고칩니다</td></tr>
+    <tr><td>4~6주차</td><td>피드 · 소셜 · 영상 추가하면서 계속 사용</td></tr>
+    <tr><td>7~8주차</td><td>안전 · 알림 · 약관 + 통합 QA</td></tr>
+  </table>
+  <p><strong>2~3주차에 폰에 뭐라도 깔리는 것</strong>이 목표입니다. 완성도보다 손에 쥐어지는 시점을 당기는 게 이 방식에서는 훨씬 중요합니다.</p>
+  <p>전체 설계는 별도 문서(<strong>닛팅 시스템 설계도 v1.1</strong>)에 정리되어 있습니다. 데이터 모델, 공개 범위 규칙, 화면 구조가 들어 있습니다. 첫 세션 전에 훑어보시면 좋지만, 지금 읽지 않으셔도 진행에는 문제없습니다.</p>
+</section>
+
+  </main>
+
+  <footer>Knitting 닛팅 · 함께 시작하기 · 2026-09-04</footer>
+</div>
+
+<script>
+  document.querySelectorAll('.cp').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.closest('.code').querySelector('pre');
+      navigator.clipboard.writeText(pre.innerText).then(function () {
+        btn.textContent = '복사됨';
+        btn.classList.add('done');
+        setTimeout(function () { btn.textContent = '복사'; btn.classList.remove('done'); }, 1600);
+      }).catch(function () {
+        btn.textContent = '복사 실패';
+        setTimeout(function () { btn.textContent = '복사'; }, 1600);
+      });
+    });
+  });
+</script>
