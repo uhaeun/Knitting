@@ -123,7 +123,7 @@ INSERT 실패 시 남은 고아 파일은 앱 시작 시 DB와 대조해 정리�
 ## 디렉터리
 
 ```
-app/                    Expo Router 화면
+src/app/                Expo Router 화면 (템플릿 기본 위치. 루트 app/ 아님)
 src/
   features/
     capture/            촬영, 고스트 레이어, 저장 파이프라인
