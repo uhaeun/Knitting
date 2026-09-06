@@ -1,0 +1,121 @@
+import { Tabs, useRouter } from 'expo-router';
+import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
+
+import { useIsOnline } from '@/features/auth/store';
+import { useProjects } from '@/features/project/queries';
+import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
+
+/** 편물 · 피드 · 촬영(가운데) · 탐색 · 나. 로그인 안 했으면 서버 탭은 숨긴다. */
+export default function TabsLayout() {
+  const online = useIsOnline();
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: color.text,
+        tabBarInactiveTintColor: color.textMuted,
+        tabBarStyle: styles.bar,
+        tabBarLabelStyle: styles.label,
+        sceneStyle: { backgroundColor: color.bg },
+      }}
+    >
+      <Tabs.Screen
+        name="projects"
+        options={{ title: '편물', tabBarIcon: ({ color: c }) => <Glyph kind="list" tint={c} /> }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: '피드',
+          href: online ? undefined : null,
+          tabBarIcon: ({ color: c }) => <Glyph kind="feed" tint={c} />,
+        }}
+      />
+      <Tabs.Screen
+        name="capture"
+        options={{ title: '', tabBarIcon: () => <ShutterIcon />, tabBarButton: (p) => <CaptureButton {...p} /> }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: '탐색',
+          href: online ? undefined : null,
+          tabBarIcon: ({ color: c }) => <Glyph kind="search" tint={c} />,
+        }}
+      />
+      <Tabs.Screen
+        name="me"
+        options={{ title: '나', tabBarIcon: ({ color: c }) => <Glyph kind="me" tint={c} /> }}
+      />
+    </Tabs>
+  );
+}
+
+/** 탭바 가운데 촬영 버튼. 최근 편물로 바로 간다. */
+function CaptureButton(_props: object) {
+  const router = useRouter();
+  const projects = useProjects();
+  const go = () => {
+    const first = projects.data?.[0];
+    if (first) router.push({ pathname: '/capture/[projectId]', params: { projectId: first.id } });
+    else router.push('/projects');
+  };
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel="촬영" onPress={go} style={styles.captureButton}>
+      <ShutterIcon />
+    </Pressable>
+  );
+}
+
+function ShutterIcon() {
+  return (
+    <View style={styles.shutter}>
+      <View style={styles.shutterRing} />
+    </View>
+  );
+}
+
+/** 아이콘 폰트를 안 쓴다. 토큰 색만 참조하는 단순 도형. */
+function Glyph({ kind, tint }: { kind: 'list' | 'feed' | 'search' | 'me'; tint: ColorValue }) {
+  if (kind === 'list') return <View style={[styles.glyphBox, { borderColor: tint }]} />;
+  if (kind === 'feed') {
+    return (
+      <View style={styles.glyphStack}>
+        <View style={[styles.glyphLine, { backgroundColor: tint }]} />
+        <View style={[styles.glyphLine, { backgroundColor: tint, width: 10 }]} />
+        <View style={[styles.glyphLine, { backgroundColor: tint }]} />
+      </View>
+    );
+  }
+  if (kind === 'search') return <View style={[styles.glyphCircle, { borderColor: tint }]} />;
+  return (
+    <View style={styles.glyphMe}>
+      <View style={[styles.glyphHead, { borderColor: tint }]} />
+      <View style={[styles.glyphBody, { borderColor: tint }]} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bar: {
+    backgroundColor: color.bg,
+    borderTopWidth: size.hairline,
+    borderTopColor: color.border,
+    height: 84,
+    paddingTop: space.sm,
+  },
+  label: { fontSize: fontSize.caption, fontWeight: fontWeight.semibold },
+  captureButton: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: space.sm },
+  shutter: {
+    width: size.tap, height: size.tap, borderRadius: radius.pill,
+    backgroundColor: color.accent, alignItems: 'center', justifyContent: 'center',
+  },
+  shutterRing: { width: 16, height: 16, borderRadius: radius.pill, borderWidth: 2, borderColor: color.onDark },
+  glyphBox: { width: 18, height: 14, borderWidth: 1.5, borderRadius: 2 },
+  glyphStack: { gap: 3, alignItems: 'flex-start' },
+  glyphLine: { width: 16, height: 2, borderRadius: 1 },
+  glyphCircle: { width: 16, height: 16, borderWidth: 1.5, borderRadius: radius.pill },
+  glyphMe: { alignItems: 'center', gap: 2 },
+  glyphHead: { width: 8, height: 8, borderWidth: 1.5, borderRadius: radius.pill },
+  glyphBody: { width: 16, height: 8, borderWidth: 1.5, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+});

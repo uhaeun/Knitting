@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createProject, deleteProject, getProject, listProjects } from '@/features/project/repository';
+import { createProject, deleteProject, getProject, listProjects, setProjectVisibility } from '@/features/project/repository';
+import type { Visibility } from '@/shared/types/models';
 
 /** 화면은 repository를 직접 부르지 않고 이 훅만 쓴다. 캐시 무효화가 한 곳에 모인다. */
 
@@ -16,8 +17,21 @@ export function useProjects() {
 export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string; started_at: string }) => Promise.resolve(createProject(input)),
+    mutationFn: (input: { name: string; started_at: string; default_visibility?: Visibility }) =>
+      Promise.resolve(createProject(input)),
     onSuccess: () => qc.invalidateQueries({ queryKey: projectKeys.all }),
+  });
+}
+
+export function useSetVisibility() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; visibility: Visibility }) =>
+      Promise.resolve(setProjectVisibility(v.id, v.visibility)),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: projectKeys.all });
+      qc.invalidateQueries({ queryKey: projectKeys.posts(v.id) });
+    },
   });
 }
 
