@@ -1,67 +1,106 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BottomSheet } from '@/shared/ui/BottomSheet';
-import { Button } from '@/shared/ui/Button';
+import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
+import { useProjects } from '@/features/project/queries';
+import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { toUri } from '@/shared/lib/files';
 import { EmptyState } from '@/shared/ui/EmptyState';
-import { Field } from '@/shared/ui/Field';
 import { ProjectCard } from '@/shared/ui/ProjectCard';
-import { color, fontSize, fontWeight, space } from '@/shared/ui/tokens';
+import { TabBar } from '@/shared/ui/TabBar';
+import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
-// 임시: 공통 컴포넌트 확인용. 3단계(로컬 저장) 뒤 편물 목록으로 교체한다.
-export default function ComponentPreview() {
+/** 시안 1a / 1b — 편물 목록 (홈) */
+export default function HomeScreen() {
+  const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [name, setName] = useState('');
+  const projects = useProjects();
+  const items = projects.data ?? [];
+
+  // 탭바 촬영: 가장 최근 편물로. 편물이 없으면 만들기 시트.
+  const captureLatest = () => {
+    const first = items[0];
+    if (first) router.push({ pathname: '/capture/[projectId]', params: { projectId: first.id } });
+    else setSheetOpen(true);
+  };
 
   return (
-    <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <View style={styles.header}>
         <Text style={styles.title}>내 편물</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="편물 추가"
+          onPress={() => setSheetOpen(true)}
+          style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
+        >
+          <View style={styles.plusH} />
+          <View style={styles.plusV} />
+        </Pressable>
+      </View>
 
-        <ProjectCard
-          name="회색 라글란 스웨터"
-          subtitle="27일째 · 8월 8일 시작"
-          photoCount={24}
-          onPress={() => {}}
+      {projects.isError ? (
+        <EmptyState title="목록을 불러오지 못했어요" description={String(projects.error)} />
+      ) : items.length === 0 && !projects.isPending ? (
+        <EmptyState
+          title="첫 편물을 만들어 보세요"
+          description="매일 같은 각도로 한 장씩. 사진이 쌓이면 편물이 자라나는 영상이 됩니다."
+          actionLabel="편물 만들기"
+          onAction={() => setSheetOpen(true)}
         />
-        <ProjectCard name="엄마 목도리" subtitle="52일째 · 7월 14일 시작" photoCount={41} onPress={() => {}} />
-        <ProjectCard name="양말 한 켤레" subtitle="6일째 · 8월 29일 시작" photoCount={6} onPress={() => {}} />
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(p) => p.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <ProjectCard
+              name={item.name}
+              subtitle={`${daysSince(item.started_at)}일째 · ${formatMonthDay(item.started_at)} 시작`}
+              photoCount={item.photo_count}
+              thumbUri={item.cover_thumb_path ? toUri(item.cover_thumb_path) : undefined}
+              onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}
+            />
+          )}
+        />
+      )}
 
-        <View style={styles.row}>
-          <Button label="주요" onPress={() => setSheetOpen(true)} />
-          <Button label="보조" variant="secondary" onPress={() => {}} />
-        </View>
+      <TabBar onCapture={captureLatest} />
 
-        <View style={styles.emptyBox}>
-          <EmptyState
-            title="첫 편물을 만들어 보세요"
-            description="매일 같은 각도로 한 장씩. 사진이 쌓이면 편물이 자라나는 영상이 됩니다."
-            actionLabel="편물 만들기"
-            onAction={() => setSheetOpen(true)}
-          />
-        </View>
-      </ScrollView>
-
-      <BottomSheet visible={sheetOpen} title="편물 만들기" onClose={() => setSheetOpen(false)}>
-        <Field label="편물 이름" value={name} onChangeText={setName} placeholder="예: 회색 라글란 스웨터" />
-        <Button label="만들기" large onPress={() => setSheetOpen(false)} style={styles.sheetAction} />
-      </BottomSheet>
+      <CreateProjectSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onCreated={(id) => router.push({ pathname: '/project/[id]', params: { id } })}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.bg },
-  content: { padding: space.xl, gap: space.md },
-  title: {
-    fontSize: fontSize.title,
-    fontWeight: fontWeight.semibold,
-    color: color.text,
-    letterSpacing: -0.5,
-    marginBottom: space.xs,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.xl,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
   },
-  row: { flexDirection: 'row', gap: space.md, marginTop: space.md },
-  emptyBox: { height: 320 },
-  sheetAction: { marginTop: space.sm },
+  title: { fontSize: fontSize.title, fontWeight: fontWeight.semibold, color: color.text, letterSpacing: -0.5 },
+  addButton: {
+    width: size.tap,
+    height: size.tap,
+    borderWidth: size.hairline,
+    borderColor: color.border,
+    borderRadius: radius.button,
+    backgroundColor: color.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonPressed: { borderColor: color.accent },
+  plusH: { position: 'absolute', width: 16, height: 2, backgroundColor: color.text },
+  plusV: { position: 'absolute', width: 2, height: 16, backgroundColor: color.text },
+  list: { paddingHorizontal: space.xl, paddingTop: space.xs, paddingBottom: space.xl, gap: space.md },
 });
