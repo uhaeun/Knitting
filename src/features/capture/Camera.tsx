@@ -25,6 +25,11 @@ type Props = {
   /** 영상 모드는 정사각 크기를 요청하지 않는다 (녹화 파일이 눌려 기록되는 것을 피함) */
   mode?: 'photo' | 'video';
   onCameraReady?: () => void;
+  /**
+   * 스트림이 열린 동안 끊겼을 때 (영상 트랙 ended, 화면 숨김(전화·앱 전환), 녹화기 오류). 끊김마다 한 번.
+   * 이후 화면이 다시 보이면 스트림을 다시 열고 재생되면 onCameraReady를 다시 부른다.
+   */
+  onInterrupted?: () => void;
   style?: { width?: number; height?: number; marginTop?: number };
   animateShutter?: boolean;
 };
@@ -35,20 +40,45 @@ const JPEG_QUALITY = 0.95;
 /** 영상 모드: 가로만 요청. 정사각 요청 시 iPhone 녹화본이 눌려 기록되는 문제를 피한다 (설계 0절) */
 const VIDEO_IDEAL_WIDTH = 1920;
 
-export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady, style }: Props) {
+export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady, onInterrupted, style }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; done: Promise<void> } | null>(null);
+  /** 끊긴 뒤 스트림을 다시 열 때 올린다 (effect 재실행) */
+  const [session, setSession] = useState(0);
+  /** 지금 열린 스트림의 끊김 처리. 녹화기 오류에서 부른다 */
+  const interruptRef = useRef<(() => void) | null>(null);
   // 화면이 매 렌더마다 새 콜백을 넘기므로 ref로 받아 스트림을 다시 열지 않는다
   const onReady = useRef(onCameraReady);
+  const onInterrupt = useRef(onInterrupted);
   useEffect(() => {
     onReady.current = onCameraReady;
+    onInterrupt.current = onInterrupted;
   });
 
   useEffect(() => {
     let stream: MediaStream | null = null;
     let cancelled = false;
+    let interrupted = false;
+    const reopen = () => {
+      if (cancelled) return;
+      setError(null);
+      setSession((n) => n + 1);
+    };
+    // 전화·앱 전환·트랙 종료·녹화기 오류: 화면에 한 번만 알리고(녹화 중이면 거기까지 저장), 보이는 상태면 바로 다시 연다
+    const interrupt = () => {
+      if (cancelled || interrupted || !stream) return;
+      interrupted = true;
+      onInterrupt.current?.();
+      if (document.visibilityState === 'visible') reopen();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') interrupt();
+      else if (interrupted) reopen();
+    };
+    interruptRef.current = interrupt;
+    document.addEventListener('visibilitychange', onVisibility);
     navigator.mediaDevices
       .getUserMedia({
         audio: false,
@@ -68,6 +98,7 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
         }
         stream = s;
         streamRef.current = s;
+        for (const t of s.getVideoTracks()) t.addEventListener('ended', interrupt);
         const v = video.current;
         if (!v) return;
         v.srcObject = s;
@@ -83,14 +114,17 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
       });
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (interruptRef.current === interrupt) interruptRef.current = null;
       if (recorder.current) {
         recorder.current.rec.stop();
         recorder.current = null;
       }
+      for (const t of stream?.getVideoTracks() ?? []) t.removeEventListener('ended', interrupt);
       for (const t of stream?.getTracks() ?? []) t.stop();
       streamRef.current = null;
     };
-  }, [facing, mode]);
+  }, [facing, mode, session]);
 
   useImperativeHandle(ref, () => ({
     takePictureAsync: async () => {
@@ -119,6 +153,11 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
       };
       const done = new Promise<void>((resolve) => {
         rec.onstop = () => resolve();
+        // 오류 뒤 stop 이벤트가 안 올 수도 있어 기다림을 풀어 둔다
+        rec.onerror = () => {
+          resolve();
+          interruptRef.current?.();
+        };
       });
       rec.start(250);
       recorder.current = { rec, chunks, done };

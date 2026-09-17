@@ -118,6 +118,12 @@ export default function CaptureScreen() {
     }
   };
 
+  /** 전화·앱 전환 등으로 카메라가 끊김: 녹화 중이면 거기까지 저장(1초 미만은 기존 안내), 다시 열릴 때까지 셔터를 끈다 */
+  const handleInterrupted = () => {
+    setReady(false);
+    if (recordingSince !== null) void stopAndSave();
+  };
+
   const toggleRecording = () => {
     if (!camera.current || !ready) return;
     if (recordingSince !== null) {
@@ -219,6 +225,7 @@ export default function CaptureScreen() {
           mode={mode}
           animateShutter={false}
           onCameraReady={() => setReady(true)}
+          onInterrupted={handleInterrupted}
           style={{ width: screenW, height: previewH, marginTop: (screenW - previewH) / 2 }}
         />
         {ghostUri && ghost !== 'off' ? (
