@@ -1,20 +1,20 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CameraView } from '@/features/capture/Camera';
 import { GhostToggle } from '@/features/capture/GhostToggle';
 import { GridOverlay } from '@/features/capture/GridOverlay';
 import { useLatestPost, useSavePost } from '@/features/capture/queries';
@@ -22,7 +22,9 @@ import { postPhotoUri } from '@/features/capture/repository';
 import { useCaptureSettings } from '@/features/capture/store';
 import { useProject } from '@/features/project/queries';
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
+import { useSquareSide } from '@/shared/ui/layout';
 import { color, fontSize, fontWeight, ghostOpacity, radius, size, space } from '@/shared/ui/tokens';
 
 type Shot = { uri: string; width: number; height: number };
@@ -31,7 +33,7 @@ type Shot = { uri: string; width: number; height: number };
 export default function CaptureScreen() {
   const { projectId } = useLocalSearchParams<{ projectId: string }>();
   const router = useRouter();
-  const { width: screenW } = useWindowDimensions();
+  const screenW = useSquareSide(size.webCaptureChrome); // 정사각 촬영 영역 한 변 (앱은 화면 너비)
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
   const [ready, setReady] = useState(false);
@@ -54,7 +56,7 @@ export default function CaptureScreen() {
       {
         onSuccess: () => router.back(),
         onError: (e) =>
-          Alert.alert('저장하지 못했어요', e instanceof Error ? e.message : String(e), [
+          showAlert('저장하지 못했어요', e instanceof Error ? e.message : String(e), [
             { text: '다시 시도', onPress: () => persist(shot) },
             { text: '닫기', style: 'cancel' },
           ]),
@@ -69,7 +71,7 @@ export default function CaptureScreen() {
       const pic = await camera.current.takePictureAsync({ quality: 1, exif: false, shutterSound: false });
       persist({ uri: pic.uri, width: pic.width, height: pic.height });
     } catch (e) {
-      Alert.alert('촬영하지 못했어요', e instanceof Error ? e.message : String(e));
+      showAlert('촬영하지 못했어요', e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -93,12 +95,17 @@ export default function CaptureScreen() {
           <Text style={styles.permissionBody}>
             {permission.canAskAgain
               ? '편물을 같은 각도로 찍으려면 카메라 권한이 필요합니다.'
-              : '설정에서 Knitting의 카메라 권한을 켜 주세요.'}
+              : Platform.OS === 'web'
+                ? '브라우저 주소창의 카메라 권한을 허용한 뒤 다시 시도해 주세요. 카메라 없이 앨범에서 가져올 수도 있어요.'
+                : '설정에서 Knitting의 카메라 권한을 켜 주세요.'}
           </Text>
           <Button
-            label={permission.canAskAgain ? '권한 허용' : '설정 열기'}
-            onPress={() => (permission.canAskAgain ? requestPermission() : Linking.openSettings())}
+            label={permission.canAskAgain ? '권한 허용' : Platform.OS === 'web' ? '다시 시도' : '설정 열기'}
+            onPress={() =>
+              permission.canAskAgain || Platform.OS === 'web' ? requestPermission() : Linking.openSettings()
+            }
           />
+          {Platform.OS === 'web' ? <Button label="앨범에서 가져오기" variant="secondary" onPress={pickFromAlbum} /> : null}
           <Button label="닫기" variant="secondary" onPress={() => router.back()} />
         </View>
       </SafeAreaView>
@@ -213,7 +220,7 @@ const styles = StyleSheet.create({
   xB: { transform: [{ rotate: '-45deg' }] },
   title: { flex: 1, textAlign: 'center', fontSize: fontSize.label, fontWeight: fontWeight.semibold, color: color.onDark },
 
-  square: { overflow: 'hidden', backgroundColor: color.cameraBg },
+  square: { alignSelf: 'center', overflow: 'hidden', backgroundColor: color.cameraBg },
   ghostBadge: {
     position: 'absolute', left: space.md, bottom: space.md,
     paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, backgroundColor: color.overlay,

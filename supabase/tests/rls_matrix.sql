@@ -1,6 +1,7 @@
 -- RLS 가시성 검증 매트릭스. 설계도 v1.1 4장의 조합표를 실행 가능한 형태로 고정한다.
 -- 정책은 눈으로 검증할 수 없다. 이 파일이 그 역할을 한다.
 --
+-- 전제: migrations 0001~0004 적용.
 -- 실행: Supabase SQL Editor에 통째로 붙여넣는다. 마지막 줄이 ALL PASS여야 한다.
 -- 전체가 rollback으로 끝나므로 데이터는 남지 않는다.
 -- ⚠️ auth.users에 임시 행을 넣으므로 개발 프로젝트에서만 실행할 것.
@@ -69,6 +70,22 @@ begin
   return n > 0;
 end $$;
 
+-- 특정 사용자로 가장해서 쓰기가 성공하는지 판정 (정책 순환·SELECT 정책 재검사 회귀 방지)
+create or replace function pg_temp.writes_as(viewer uuid, stmt text)
+returns boolean language plpgsql as $$
+declare ok boolean := true;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', viewer)::text, true);
+  begin
+    execute stmt;
+  exception when others then
+    ok := false;
+  end;
+  perform set_config('role', 'postgres', true);
+  return ok;
+end $$;
+
 create temporary table t_result (no int, 케이스 text, 기대 boolean, 실제 boolean);
 insert into t_result values
   (1, 'private 글을 타인(C)이 조회', false,
@@ -90,7 +107,22 @@ insert into t_result values
   (9, 'hidden_at 있는 글 (신고 3회 자동 숨김)', false,
       pg_temp.visible_as((select id from t_ids where label='C'), 'c0000000-0000-4000-8000-000000000004')),
   (10,'deleted_at 있는 글', false,
-      pg_temp.visible_as((select id from t_ids where label='C'), 'c0000000-0000-4000-8000-000000000005'));
+      pg_temp.visible_as((select id from t_ids where label='C'), 'c0000000-0000-4000-8000-000000000005')),
+  (11,'본인의 deleted_at 있는 글 (soft delete 갱신에 필요)', true,
+      pg_temp.visible_as((select id from t_ids where label='A'), 'c0000000-0000-4000-8000-000000000005')),
+  (12,'본인 편물에 게시물 추가 (0002: 정책 순환)', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at)
+          values ('c0000000-0000-4000-8000-000000000012', 'a0000000-0000-4000-8000-000000000001',
+                  '11111111-1111-1111-1111-111111111111', 'a/12.jpg', 'a/12_t.jpg', 1440, 1440, now())$$)),
+  (13,'본인 게시물 soft delete (0003: SELECT 정책 재검사)', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$update posts set deleted_at = now() where id = 'c0000000-0000-4000-8000-000000000001'$$)),
+  (14,'타인(C)의 게시물 추가는 거부', false,
+      pg_temp.writes_as((select id from t_ids where label='C'),
+        $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at)
+          values ('c0000000-0000-4000-8000-000000000014', 'a0000000-0000-4000-8000-000000000001',
+                  '33333333-3333-3333-3333-333333333333', 'a/14.jpg', 'a/14_t.jpg', 1440, 1440, now())$$));
 
 -- 6번은 D가 만든 public 글이 A에게 보이는지로 확인한다 (차단 방향을 뒤집어 본다)
 insert into projects (id, owner_id, name, default_visibility)
@@ -102,6 +134,35 @@ values ('c0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-0000000
 update t_result
 set 실제 = pg_temp.visible_as((select id from t_ids where label='A'), 'c0000000-0000-4000-8000-000000000007')
 where no = 6;
+
+-- 0004 서버 함수: 권한과 원자성 ---------------------------------
+-- A의 편물 사진 상태 (호출 전 스냅샷)
+create temporary table t_before as
+select id, visibility, deleted_at from posts where project_id = 'a0000000-0000-4000-8000-000000000001';
+
+insert into t_result values
+  (15,'타인(C)이 A의 편물 삭제 함수 호출은 거부', false,
+      pg_temp.writes_as((select id from t_ids where label='C'),
+        $$select soft_delete_project('a0000000-0000-4000-8000-000000000001')$$)),
+  (16,'타인(C)이 A의 편물 공개 범위 함수 호출은 거부', false,
+      pg_temp.writes_as((select id from t_ids where label='C'),
+        $$select set_project_visibility('a0000000-0000-4000-8000-000000000001', 'private')$$));
+insert into t_result values
+  (17,'거부된 호출은 A의 사진을 하나도 바꾸지 않는다', true,
+      not exists (
+        (select id, visibility, deleted_at from posts where project_id = 'a0000000-0000-4000-8000-000000000001'
+         except select * from t_before)
+        union all
+        (select * from t_before
+         except select id, visibility, deleted_at from posts where project_id = 'a0000000-0000-4000-8000-000000000001')));
+insert into t_result values
+  (18,'본인(A) 편물 삭제 함수는 성공', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$select soft_delete_project('a0000000-0000-4000-8000-000000000001')$$));
+insert into t_result values
+  (19,'삭제 후 A의 편물·사진이 모두 deleted_at', true,
+      (select deleted_at is not null from projects where id = 'a0000000-0000-4000-8000-000000000001')
+      and not exists (select 1 from posts where project_id = 'a0000000-0000-4000-8000-000000000001' and deleted_at is null));
 
 -- 트리거 검증도 함께
 create temporary table t_trigger (항목 text, 기대 text, 실제 text);

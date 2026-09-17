@@ -53,6 +53,7 @@ export async function fetchFollowingFeed(cursor: string | null): Promise<FeedPag
     .select(FEED_SELECT)
     .in('owner_id', ids)
     .is('deleted_at', null)
+    .is('hidden_at', null)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
   if (cursor) q = q.lt('created_at', cursor);
@@ -69,6 +70,7 @@ export async function fetchExploreFeed(sort: 'recent' | 'popular', cursor: strin
     .select(FEED_SELECT)
     .eq('visibility', 'public')
     .is('deleted_at', null)
+    .is('hidden_at', null)
     .limit(PAGE_SIZE);
   q = sort === 'popular'
     ? q.order('like_count', { ascending: false }).order('created_at', { ascending: false })
@@ -83,7 +85,7 @@ export async function fetchExploreFeed(sort: 'recent' | 'popular', cursor: strin
 }
 
 export async function fetchPost(postId: string): Promise<{ post: FeedPost; url: string | null }> {
-  const { data, error } = await getSupabase().from('posts').select(FEED_SELECT).eq('id', postId).single();
+  const { data, error } = await getSupabase().from('posts').select(FEED_SELECT).eq('id', postId).is('deleted_at', null).is('hidden_at', null).single();
   if (error) throw new Error(error.message);
   const post = data as unknown as FeedPost;
   const urls = await signPhotoUrls([post.photo_path]);
@@ -97,6 +99,7 @@ export async function fetchUserPosts(userId: string, cursor: string | null): Pro
     .select(FEED_SELECT)
     .eq('owner_id', userId)
     .is('deleted_at', null)
+    .is('hidden_at', null)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
   if (cursor) q = q.lt('created_at', cursor);
@@ -248,6 +251,7 @@ export async function fetchComments(postId: string): Promise<(Comment & { profil
     .select('*, profiles!comments_author_id_fkey ( * )')
     .eq('post_id', postId)
     .is('deleted_at', null)
+    .is('hidden_at', null)
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as (Comment & { profiles: Profile })[];

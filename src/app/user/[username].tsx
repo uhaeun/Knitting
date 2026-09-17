@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/store';
@@ -16,6 +16,7 @@ import {
 } from '@/features/social/queries';
 import { ProfileHeader } from '@/features/social/ProfileHeader';
 import { ReportSheet } from '@/features/social/ReportSheet';
+import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
@@ -49,7 +50,7 @@ export default function UserScreen() {
   const followLabel = status === 'accepted' ? '팔로잉' : status === 'pending' ? '요청됨' : '팔로우';
 
   const confirmBlock = () => {
-    Alert.alert(`${user.display_name} 님을 차단할까요?`, '서로의 게시물이 보이지 않고 팔로우가 해제됩니다.', [
+    showAlert(`${user.display_name} 님을 차단할까요?`, '서로의 게시물이 보이지 않고 팔로우가 해제됩니다.', [
       { text: '취소', style: 'cancel' },
       {
         text: '차단',
@@ -78,7 +79,7 @@ export default function UserScreen() {
                 accessibilityLabel="더 보기"
                 disabled={isMe}
                 onPress={() =>
-                  Alert.alert('', user.display_name, [
+                  showAlert('', user.display_name, [
                     { text: '신고하기', onPress: () => setReporting(true) },
                     { text: '차단하기', style: 'destructive', onPress: confirmBlock },
                     { text: '취소', style: 'cancel' },

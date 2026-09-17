@@ -91,9 +91,12 @@ export default function SignInScreen() {
             </Pressable>
           </View>
 
-          <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.skip}>
-            <Text style={styles.skipText}>로그인 없이 내 기기에서만 쓰기</Text>
-          </Pressable>
+          {/* 웹은 사진을 서버에만 저장하므로 로그인 없이 쓰기를 두지 않는다 */}
+          {Platform.OS !== 'web' ? (
+            <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.skip}>
+              <Text style={styles.skipText}>로그인 없이 내 기기에서만 쓰기</Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

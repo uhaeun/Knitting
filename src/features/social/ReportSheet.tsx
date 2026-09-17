@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useReport, useToggleBlock } from '@/features/social/queries';
+import { showAlert } from '@/shared/lib/dialog';
 import type { ReportTarget } from '@/shared/types/remote';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
@@ -35,9 +36,9 @@ export function ReportSheet({ visible, target, targetId, authorId, onClose }: Pr
           }
           setReason(null);
           onClose();
-          Alert.alert('신고했어요', '검토 후 조치합니다. 같은 게시물이 3번 신고되면 자동으로 숨겨져요.');
+          showAlert('신고했어요', '검토 후 조치합니다. 같은 게시물이 3번 신고되면 자동으로 숨겨져요.');
         },
-        onError: (e) => Alert.alert('신고하지 못했어요', e instanceof Error ? e.message : String(e)),
+        onError: (e) => showAlert('신고하지 못했어요', e instanceof Error ? e.message : String(e)),
       },
     );
   };

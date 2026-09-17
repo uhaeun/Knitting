@@ -1,7 +1,7 @@
 # Knitting (닛팅)
 
 뜨개 편물을 같은 각도로 찍어 쌓고, 그 사진을 이어붙여 성장 영상을 만드는 앱.
-iOS · Android 동시. Expo + TypeScript.
+iOS · Android 동시 + 웹(같은 코드, 2026-09-17 추가). Expo + TypeScript.
 
 **이 파일은 매 세션의 상시 규칙이다. 작업 시작 전에 반드시 읽는다.**
 
@@ -16,13 +16,13 @@ MVP 범위 = 촬영·타임라인·영상 + 계정·동기화 + 피드·팔로�
 | | 상태 |
 |---|---|
 | 저장 위치 | **로컬 우선** (expo-sqlite + 파일) → Supabase로 push/pull |
-| 서버 | Supabase. `supabase/migrations/0001_init.sql` 적용 필요 |
+| 서버 | Supabase. `supabase/migrations/` 0001 → 0004 순서로 적용 |
 | 로그인 | 이메일+비밀번호. Apple·Google은 콘솔 설정 후 추가 |
 | 목표 | 양쪽 실기기에서 촬영·영상·피드·댓글이 동작하고 기기를 바꿔도 데이터가 따라옴 |
 
 ### 하지 말 것
 
-- 영상 인코딩은 `modules/video-encoder` (Swift AVAssetWriter / Kotlin MediaCodec) 한 곳에서만. 다른 라이브러리를 들이지 않는다
+- 영상 인코딩은 앱은 `modules/video-encoder` (Swift AVAssetWriter / Kotlin MediaCodec), 웹은 `src/features/media/makeVideo.web.ts` (WebCodecs + mp4-muxer)에서만. 다른 라이브러리를 들이지 않는다
 - **RLS 조건을 클라이언트에서 중복 작성하지 않는다.** 가시성 판정은 서버 정책이 한다
 - **피드에서 서명 URL을 개별 발급하지 않는다.** `createSignedUrls` 배치만
 - 대댓글·DM·알고리즘 추천·오프라인 업로드 큐는 v2
@@ -70,7 +70,22 @@ INSERT 실패 시 남은 고아 파일은 앱 시작 시 DB와 대조해 정리�
 - **Expo Go를 쓰지 않는다.** 네이티브 모듈 때문에 Development Build만 동작한다
 - Android는 `targetSdk 36`. **edge-to-edge가 강제되므로 카메라 오버레이 좌표는 반드시 safe area 기준으로 계산한다**
 - iOS 최소 16.4 / Android 최소 7.0
-- `localStorage` 등 브라우저 스토리지 API 사용 금지
+- `localStorage` 등 브라우저 스토리지 API를 직접 쓰지 않는다. 예외: 웹에서 Supabase 로그인 세션 보관 (AsyncStorage가 내부적으로 localStorage를 쓴다)
+
+### 웹
+
+앱과 같은 코드를 쓰고, 웹에서 다르게 동작해야 하는 파일만 같은 이름의 `.web.ts(x)`로 둔다. Metro가 웹 번들에서 자동으로 고른다.
+
+- **웹은 로컬 저장이 없다.** Supabase가 원본이고 로그인 필수. 브라우저 저장소는 Safari가 7일 뒤 지울 수 있어 사진 원본을 둘 수 없다
+- 웹 전용 파일: `features/project/repository.web.ts`, `features/capture/repository.web.ts`, `features/capture/Camera.web.tsx`, `features/sync/sync.web.ts`, `features/media/makeVideo.web.ts`, `features/media/useMakeVideo.web.ts`, `features/media/composeResult.web.ts`, `shared/lib/files.web.ts`, `shared/lib/dialog.web.ts`, `shared/lib/remote.web.ts`
+- 웹 저장소는 함수 이름이 같고 결과가 Promise다. **`repository.ts`에 함수를 추가하면 `.web.ts`에도 같은 이름으로 추가한다**
+- 웹에서 읽어 온 `Post.photo_path`·`thumb_path`, `ProjectSummary.cover_thumb_path`에는 Storage 키 대신 **서명 URL**이 들어 있다. 발급은 `remote.web.ts`의 `signPaths`로만 (만료 전 재사용)
+- 웹에서 여러 행을 읽는 쿼리는 1000행 제한에 걸린다. 끝까지 읽어야 하면 `readAllPages`, 집계는 서버 함수로
+- 여러 테이블을 함께 바꾸는 쓰기(편물 삭제·공개 범위)는 서버 함수(`0004`)로 한 트랜잭션에서
+- `Alert.alert`는 웹에서 아무것도 띄우지 않는다. **`@/shared/lib/dialog`의 `showAlert`만 쓴다**
+- 웹은 넓은 창에서도 폰 너비 한 칸(`size.webColumn`)으로 보인다. 사진 크기는 `useWindowDimensions` 대신 **`@/shared/ui/layout`의 `useContentWidth`·`useSquareSide`**로 계산한다 (앱은 기존과 같은 값)
+- 웹 빌드는 SPA(`app.json` → `web.output: "single"`). 배포 시 모든 경로를 `index.html`로 돌려야 하고, 카메라는 **HTTPS에서만** 열린다
+- 새 `.web.ts` 파일을 만든 뒤에는 `npx expo start --web --clear`로 다시 켠다 (watchman이 없으면 Metro가 새 파일을 못 본다)
 
 ### 코드
 

@@ -2,14 +2,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { useAuth } from '@/features/auth/store';
 import { cleanupOrphanFiles } from '@/features/capture/repository';
 import { syncInBackground } from '@/features/sync/store';
 import { supabaseConfigured } from '@/shared/lib/supabase';
-import { color } from '@/shared/ui/tokens';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { color, size } from '@/shared/ui/tokens';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -29,7 +30,11 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <StatusBar style="dark" />
-        <AuthGate />
+        <View style={Platform.OS === 'web' ? styles.webPage : styles.fill}>
+          <View style={Platform.OS === 'web' ? styles.webColumn : styles.fill}>
+            <AuthGate />
+          </View>
+        </View>
       </AuthProvider>
     </QueryClientProvider>
   );
@@ -54,6 +59,18 @@ function AuthGate() {
     );
   }
 
+  // 웹은 서버가 원본이다. 서버 설정 없이는 쓸 수 있는 것이 없다
+  if (Platform.OS === 'web' && !supabaseConfigured) {
+    return (
+      <View style={styles.splash}>
+        <EmptyState
+          title="서버 설정이 필요해요"
+          description="웹 버전은 사진을 서버에 저장합니다. .env에 EXPO_PUBLIC_SUPABASE_URL과 ANON_KEY를 넣어 주세요."
+        />
+      </View>
+    );
+  }
+
   const needsSignIn = supabaseConfigured && !session && !localOnly;
   const needsOnboarding = !!session && !profile;
 
@@ -73,10 +90,18 @@ function AuthGate() {
       <Stack.Screen name="settings/blocked" />
       <Stack.Screen name="settings/requests" />
       <Stack.Screen name="capture/[projectId]" options={{ presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="result/[projectId]" />
     </Stack>
   );
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  webPage: { flex: 1, backgroundColor: color.bg },
+  // 웹: 넓은 창에서도 폰 너비 한 칸 가운데에. 양옆은 경계선으로 구분 (그림자 금지)
+  webColumn: {
+    flex: 1, width: '100%', maxWidth: size.webColumn, alignSelf: 'center',
+    borderLeftWidth: size.hairline, borderRightWidth: size.hairline, borderColor: color.border,
+  },
   splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: color.bg },
 });
