@@ -1,31 +1,48 @@
-/** 순수 함수. 사진 수 → 프레임 계획. 브라우저 의존 없음 → 테스트 가능. */
+/** 성장 영상 시간 구간. 순수 함수 — 브라우저 의존 없음 → 테스트 가능. */
+import type { MediaItem } from '@/features/media/mediaItem';
 
 export const VIDEO_SIDE = 1080;
-export const VIDEO_FPS = 8;
-export const MIN_PHOTOS = 2;
+export const GROWTH_FPS = 30;
+export const MIN_RECORDS = 2;
+export const LAST_HOLD_MS = 1000;
 
-/**
- * 한 장을 몇 프레임 유지할지. 사진이 적으면 오래, 많으면 짧게.
- * 2~8장: 0.5초(4f) · 9~24장: 0.25초(2f) · 25장~: 0.125초(1f)
- */
-export function holdFrames(photoCount: number): number {
-  if (photoCount <= 8) return 4;
-  if (photoCount <= 24) return 2;
-  return 1;
+/** 사진 한 장이 머무는 시간. 기록이 적으면 오래, 많으면 짧게 (8fps 시절 4·2·1프레임과 같은 시간) */
+export function photoHoldMs(recordCount: number): number {
+  if (recordCount <= 8) return 500;
+  if (recordCount <= 24) return 250;
+  return 125;
 }
 
-/** 시간순 사진 경로 → 인코더에 넘길 프레임 경로 배열 (반복 포함). 마지막 장은 1초 더 머문다. */
-export function buildFrames(photoPaths: readonly string[]): string[] {
-  const hold = holdFrames(photoPaths.length);
-  const frames: string[] = [];
-  photoPaths.forEach((p, i) => {
-    const n = i === photoPaths.length - 1 ? hold + VIDEO_FPS : hold;
-    for (let k = 0; k < n; k += 1) frames.push(p);
+export type Segment = { item: MediaItem; startMs: number; durationMs: number };
+
+/** 사진은 머무는 시간, 영상은 클립 길이. 마지막 기록은 1초 더 (영상이면 마지막 장면 정지) */
+export function buildSegments(items: readonly MediaItem[]): Segment[] {
+  const hold = photoHoldMs(items.length);
+  let startMs = 0;
+  return items.map((item, i) => {
+    const base = item.kind === 'video' ? item.durationMs : hold;
+    const durationMs = i === items.length - 1 ? base + LAST_HOLD_MS : base;
+    const seg = { item, startMs, durationMs };
+    startMs += durationMs;
+    return seg;
   });
-  return frames;
 }
 
-export function estimateDurationMs(photoCount: number): number {
-  if (photoCount === 0) return 0;
-  return ((photoCount * holdFrames(photoCount) + VIDEO_FPS) * 1000) / VIDEO_FPS;
+export function totalDurationMs(segments: readonly Segment[]): number {
+  const last = segments[segments.length - 1];
+  return last ? last.startMs + last.durationMs : 0;
+}
+
+/** tMs가 속한 구간. 끝을 넘으면 마지막 구간. segments는 비어 있지 않아야 한다 */
+export function segmentAt(segments: readonly Segment[], tMs: number): Segment {
+  let found = segments[0] as Segment;
+  for (const s of segments) {
+    if (s.startMs <= tMs) found = s;
+    else break;
+  }
+  return found;
+}
+
+export function estimateDurationMs(items: readonly MediaItem[]): number {
+  return totalDurationMs(buildSegments(items));
 }

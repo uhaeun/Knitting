@@ -4,6 +4,7 @@
  * 그리기는 composeResult.ts(Canvas)가 이 장면(Scene)을 그대로 따른다.
  */
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { mediaOf, type MediaItem, type MediaPost } from '@/features/media/mediaItem';
 
 export type ResultKind = 'single' | 'beforeAfter' | 'triple';
 
@@ -16,6 +17,7 @@ export const RESULT_KINDS: readonly { kind: ResultKind; label: string; minPhotos
 /** 결과 이미지 한 변 (px) · JPEG 품질. 설계도: 1080×1080, q90 */
 export const RESULT_SIDE = 1080;
 export const RESULT_JPEG_QUALITY = 0.9;
+export const RESULT_VIDEO_FPS = 30;
 
 /** 1080 캔버스 기준 그리기 치수. UI 스타일이 아니라 출력 이미지 좌표라 tokens.ts가 아닌 여기에 둔다 */
 export const RESULT_METRICS = {
@@ -34,7 +36,7 @@ export type Rect = { x: number; y: number; width: number; height: number };
 
 type TimedPost = { taken_at: string; created_at: string };
 
-export type ScenePanel = { uri: string; dst: Rect; label: string | null };
+export type ScenePanel = { media: MediaItem; dst: Rect; label: string | null };
 export type Scene = {
   side: number;
   panels: ScenePanel[];
@@ -93,11 +95,10 @@ export function dayOf(startedAt: string, takenAt: string): number {
   return daysSince(startedAt, new Date(takenAt));
 }
 
-export function buildScene<T extends TimedPost>(input: {
+export function buildScene<T extends TimedPost & MediaPost>(input: {
   kind: ResultKind;
   project: { name: string; started_at: string };
   posts: readonly T[];
-  uriOf: (post: T) => string;
   side?: number;
 }): Scene {
   const side = input.side ?? RESULT_SIDE;
@@ -106,7 +107,7 @@ export function buildScene<T extends TimedPost>(input: {
   const labelOf = (p: T) => `${dayOf(input.project.started_at, p.taken_at)}일째`;
 
   const panels = picked.map((p, i) => ({
-    uri: input.uriOf(p),
+    media: mediaOf(p),
     dst: rects[i] as Rect,
     label: input.kind === 'single' ? null : labelOf(p),
   }));
@@ -121,6 +122,16 @@ export function buildScene<T extends TimedPost>(input: {
   };
 }
 
-export function resultFileName(projectId: string, kind: ResultKind): string {
-  return `knitting-${projectId.slice(0, 8)}-${kind}.jpg`;
+/** 칸 중 영상이 하나라도 있으면 MP4 */
+export function outputKindOf(scene: Scene): 'jpeg' | 'mp4' {
+  return scene.panels.some((p) => p.media.kind === 'video') ? 'mp4' : 'jpeg';
+}
+
+/** MP4 길이 = 칸 중 가장 긴 영상. 사진뿐이면 0 */
+export function sceneDurationMs(scene: Scene): number {
+  return Math.max(0, ...scene.panels.map((p) => (p.media.kind === 'video' ? p.media.durationMs : 0)));
+}
+
+export function resultFileName(projectId: string, kind: ResultKind, ext: 'jpg' | 'mp4'): string {
+  return `knitting-${projectId.slice(0, 8)}-${kind}.${ext}`;
 }

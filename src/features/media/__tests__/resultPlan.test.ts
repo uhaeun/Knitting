@@ -1,7 +1,13 @@
-import { buildScene, centerCropFor, dayOf, layoutPanels, pickPanels } from '@/features/media/resultPlan';
+import { buildScene, centerCropFor, dayOf, layoutPanels, outputKindOf, pickPanels, resultFileName, sceneDurationMs } from '@/features/media/resultPlan';
 
 const at = (day: number, hour = 12) => new Date(2026, 8, day, hour).toISOString();
-const post = (id: string, day: number, hour = 12) => ({ id, taken_at: at(day, hour), created_at: at(day, hour) });
+const post = (id: string, day: number, hour = 12) => ({
+  id, taken_at: at(day, hour), created_at: at(day, hour),
+  media_type: 'photo' as const, photo_path: `p:${id}`, video_path: null, duration_ms: null,
+});
+const vpost = (id: string, day: number, durationMs: number) => ({
+  ...post(id, day), media_type: 'video' as const, video_path: `v:${id}`, duration_ms: durationMs,
+});
 
 describe('pickPanels', () => {
   const posts = [post('a', 1), post('b', 2), post('c', 9), post('d', 10), post('e', 11)];
@@ -58,18 +64,36 @@ describe('centerCropFor', () => {
 describe('buildScene', () => {
   const project = { name: '회색 라글란', started_at: '2026-09-01' };
   const posts = [post('a', 1), post('b', 6), post('c', 12)];
-  const uriOf = (p: { id: string }) => `uri:${p.id}`;
 
   it('전체 1장: 칸 하나, 라벨 없음, 편물명과 경과일 캡션', () => {
-    const s = buildScene({ kind: 'single', project, posts, uriOf });
+    const s = buildScene({ kind: 'single', project, posts });
     expect(s.panels).toHaveLength(1);
-    expect(s.panels[0]).toMatchObject({ uri: 'uri:c', label: null, dst: { x: 0, y: 0, width: 1080, height: 1080 } });
+    expect(s.panels[0]).toMatchObject({ media: { kind: 'photo', uri: 'p:c' }, label: null, dst: { x: 0, y: 0, width: 1080, height: 1080 } });
     expect(s.caption).toEqual({ title: '회색 라글란', subtitle: '12일째 · 9월 12일' });
   });
   it('3분할: 칸마다 며칠째 라벨, 캡션 없음', () => {
-    const s = buildScene({ kind: 'triple', project, posts, uriOf });
+    const s = buildScene({ kind: 'triple', project, posts });
     expect(s.panels.map((p) => p.label)).toEqual(['1일째', '6일째', '12일째']);
     expect(s.caption).toBeNull();
+  });
+  it('모두 사진이면 JPEG, 길이 0', () => {
+    const s = buildScene({ kind: 'triple', project, posts });
+    expect(outputKindOf(s)).toBe('jpeg');
+    expect(sceneDurationMs(s)).toBe(0);
+  });
+  it('영상이 하나라도 있으면 MP4, 길이는 가장 긴 영상', () => {
+    const mixed = [vpost('a', 1, 4200), post('b', 6), vpost('c', 12, 2500)];
+    const s = buildScene({ kind: 'triple', project, posts: mixed });
+    expect(s.panels.map((p) => p.media.kind)).toEqual(['video', 'photo', 'video']);
+    expect(outputKindOf(s)).toBe('mp4');
+    expect(sceneDurationMs(s)).toBe(4200);
+  });
+});
+
+describe('resultFileName', () => {
+  it('확장자는 결과 종류를 따른다', () => {
+    expect(resultFileName('12345678-aaaa', 'triple', 'jpg')).toBe('knitting-12345678-triple.jpg');
+    expect(resultFileName('12345678-aaaa', 'triple', 'mp4')).toBe('knitting-12345678-triple.mp4');
   });
 });
 
