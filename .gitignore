@@ -49,3 +49,5 @@ example
 # local expo module build output
 modules/*/android/build/
 modules/*/ios/build/
+.vercel
+.env*

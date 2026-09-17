@@ -29,7 +29,7 @@
 1. Supabase 프로젝트 → `supabase/migrations/`의 0001 → 0004를 순서대로 SQL Editor에서 실행 (**실서버 적용 완료 2026-09-17**)
 2. Authentication → Email → **Confirm email 끄기** (도그푸딩 중, 적용 완료)
 3. 루트 `.env` (`.env.example` 참고, 로컬 설정 완료)
-4. 폰에서 쓰려면 HTTPS 배포 (**아직 안 함**)
+4. HTTPS 배포: **https://knitting-pied.vercel.app** (Vercel `knitting` 프로젝트, 2026-09-17). 환경변수 `EXPO_PUBLIC_SUPABASE_*`는 Vercel에 등록됨
 
 ## 확인한 것
 

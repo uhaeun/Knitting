@@ -9,7 +9,7 @@ Expo(react-native-web) + TypeScript + Supabase. 폰 브라우저가 주 사용�
 
 ## 지금 어느 단계인가
 
-> 이 절은 단계가 바뀔 때마다 갱신한다. **현재: 웹앱 전환 완료(2026-09-17). 다음은 HTTPS 배포와 iPhone Safari 실사용.**
+> 이 절은 단계가 바뀔 때마다 갱신한다. **현재: 웹앱 전환·배포 완료(2026-09-17, https://knitting-pied.vercel.app). 다음은 iPhone Safari 실사용.**
 
 **2026-09-17 결정: iOS·Android 네이티브 앱을 접고 웹앱 하나로 간다.** 혼자 개발하므로 네이티브 빌드·스토어·플랫폼별 인코더 유지 비용을 없앤다.
 네이티브 코드는 커밋 `a26640a`(PR #1 병합)까지 git 기록에 있다. 되살리지 말자는 결정이 아니라 **지금은 안 한다**는 결정이다.
@@ -125,7 +125,7 @@ INSERT가 실패하면 올린 파일을 지운다. 저장 실패 시 **재시도
 | 영상 | WebCodecs + mp4-muxer |
 | 결과 사진 | Canvas 2D |
 | 백엔드 | Supabase (Auth · Postgres + RLS · Storage) |
-| 배포 | 정적 호스팅 (`npm run build` → `dist/`) |
+| 배포 | Vercel (`npx vercel deploy --prod`, 설정은 `vercel.json`) |
 
 **쓰지 않기로 한 것**: Redux/MobX, ffmpeg 계열, NativeWind, 자체 API 서버, Skia, expo-sqlite, EAS Build.
 

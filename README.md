@@ -13,7 +13,11 @@ Supabase 설정은 [supabase/README.md](supabase/README.md).
 
 ## 빌드
 
-`npm run build` → `dist/`를 정적 호스팅에 올린다. 모든 경로를 `index.html`로 돌리고, 카메라 때문에 HTTPS가 필요하다.
+운영: **https://knitting-pied.vercel.app** (Vercel 프로젝트 `knitting`)
+
+- 배포: `npx vercel deploy --prod` — Vercel 서버가 `npx expo export -p web`으로 빌드한다 (`vercel.json`)
+- Supabase URL·공개 키는 Vercel 환경변수에 등록돼 있다. 바꾸면 `npx vercel env add … --force` 후 다시 배포
+- 모든 경로를 `index.html`로 돌린다(SPA). 카메라 때문에 HTTPS가 필요하다
 
 ## 테스트
 
