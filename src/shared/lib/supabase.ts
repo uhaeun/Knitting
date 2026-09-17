@@ -28,3 +28,6 @@ export function remotePhotoPath(ownerId: string, projectId: string, postId: stri
 export function remoteThumbPath(ownerId: string, projectId: string, postId: string): string {
   return `${ownerId}/${projectId}/${postId}_t.jpg`;
 }
+export function remoteVideoPath(ownerId: string, projectId: string, postId: string): string {
+  return `${ownerId}/${projectId}/${postId}.mp4`;
+}

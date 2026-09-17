@@ -1,7 +1,8 @@
 import { processCapture } from '@/features/capture/image';
+import { processClip } from '@/features/capture/videoPipeline';
 import { newId } from '@/shared/lib/id';
 import { readAllPages, requireUserId, signPaths } from '@/shared/lib/remote';
-import { getSupabase, PHOTOS_BUCKET, remotePhotoPath, remoteThumbPath } from '@/shared/lib/supabase';
+import { getSupabase, PHOTOS_BUCKET, remotePhotoPath, remoteThumbPath, remoteVideoPath } from '@/shared/lib/supabase';
 import type { Post } from '@/shared/types/models';
 import type { RemotePost } from '@/shared/types/remote';
 
@@ -115,6 +116,81 @@ export async function savePost(input: {
   return row;
 }
 
+/**
+ * 영상 기록 저장 — 순서 고정 (설계 2절):
+ * 변환 → 첫 장면 → 대표 사진·썸네일 → 업로드(영상 → 대표 사진 → 썸네일) → posts INSERT
+ * 중간 실패 시 올린 파일을 지운다. source(녹화 원본)는 호출자가 성공할 때까지 들고 있는다.
+ */
+export async function saveVideoPost(input: {
+  projectId: string;
+  source: Blob;
+  takenAt?: Date;
+  onProgress?: (stage: 'converting' | 'uploading', ratio: number) => void;
+}): Promise<{ post: Post; trimmed: boolean }> {
+  const sb = getSupabase();
+  const owner = requireUserId();
+  const clip = await processClip(input.source, (r) => input.onProgress?.('converting', r));
+  try {
+    const { photo, thumb } = await processCapture(clip.posterUri, 1080, 1080);
+
+    const { data: project, error: pe } = await sb
+      .from('projects').select('default_visibility').eq('id', input.projectId).maybeSingle();
+    if (pe) throw new Error(pe.message);
+
+    const id = newId();
+    const videoKey = remoteVideoPath(owner, input.projectId, id);
+    const photoKey = remotePhotoPath(owner, input.projectId, id);
+    const thumbKey = remoteThumbPath(owner, input.projectId, id);
+    const uploaded: string[] = [];
+    const bucket = sb.storage.from(PHOTOS_BUCKET);
+    const cleanup = async () => {
+      if (uploaded.length) await bucket.remove(uploaded);
+    };
+
+    try {
+      input.onProgress?.('uploading', 0);
+      await upload(videoKey, clip.mp4, 'video/mp4');
+      uploaded.push(videoKey);
+      input.onProgress?.('uploading', 0.8);
+      await upload(photoKey, photo.uri);
+      uploaded.push(photoKey);
+      await upload(thumbKey, thumb.uri);
+      uploaded.push(thumbKey);
+    } catch (e) {
+      await cleanup();
+      throw e;
+    }
+
+    const now = new Date().toISOString();
+    const row: Omit<RemotePost, 'like_count' | 'comment_count' | 'hidden_at' | 'caption'> = {
+      id,
+      project_id: input.projectId,
+      owner_id: owner,
+      media_type: 'video',
+      photo_path: photoKey,
+      thumb_path: thumbKey,
+      video_path: videoKey,
+      duration_ms: clip.durationMs,
+      width: photo.width,
+      height: photo.height,
+      taken_at: (input.takenAt ?? new Date()).toISOString(),
+      visibility: (project as { default_visibility: Post['visibility'] } | null)?.default_visibility ?? 'private',
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    };
+    const { error } = await sb.from('posts').insert(row);
+    if (error) {
+      await cleanup();
+      throw new Error(`영상을 저장하지 못했어요: ${error.message}`);
+    }
+    input.onProgress?.('uploading', 1);
+    return { post: row, trimmed: clip.trimmed };
+  } finally {
+    URL.revokeObjectURL(clip.posterUri);
+  }
+}
+
 export async function deletePost(id: string): Promise<void> {
   const now = new Date().toISOString();
   const { error } = await getSupabase().from('posts').update({ deleted_at: now, updated_at: now }).eq('id', id);
@@ -124,10 +200,8 @@ export async function deletePost(id: string): Promise<void> {
 /** 웹은 로컬 파일이 없다 */
 export const cleanupOrphanFiles = (): number => 0;
 
-async function upload(key: string, uri: string): Promise<void> {
-  const blob = await (await fetch(uri)).blob();
-  const { error } = await getSupabase().storage
-    .from(PHOTOS_BUCKET)
-    .upload(key, blob, { contentType: 'image/jpeg', upsert: false });
-  if (error) throw new Error(`사진을 올리지 못했어요 (${key}): ${error.message}`);
+async function upload(key: string, body: Blob | string, contentType: 'image/jpeg' | 'video/mp4' = 'image/jpeg'): Promise<void> {
+  const blob = typeof body === 'string' ? await (await fetch(body)).blob() : body;
+  const { error } = await getSupabase().storage.from(PHOTOS_BUCKET).upload(key, blob, { contentType, upsert: false });
+  if (error) throw new Error(`파일을 올리지 못했어요 (${key}): ${error.message}`);
 }
