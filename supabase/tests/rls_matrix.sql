@@ -153,7 +153,8 @@ insert into t_result values
       pg_temp.writes_as((select id from t_ids where label='A'),
         $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, visibility, media_type, video_path, duration_ms)
           values ('c0000000-0000-4000-8000-000000000021', 'a0000000-0000-4000-8000-000000000001',
-                  '11111111-1111-1111-1111-111111111111', 'a/21.jpg', 'a/21_t.jpg', 1080, 1080, now(), 'public', 'video', 'a/21.mp4', 4970)$$)),
+                  '11111111-1111-1111-1111-111111111111', 'a/21.jpg', 'a/21_t.jpg', 1080, 1080, now(), 'public', 'video',
+                  '11111111-1111-1111-1111-111111111111/21.mp4', 4970)$$)),
   (22,'영상인데 영상 경로 없음은 거부', false,
       pg_temp.writes_as((select id from t_ids where label='A'),
         $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, media_type, duration_ms)
@@ -171,17 +172,37 @@ insert into t_result values
                   '11111111-1111-1111-1111-111111111111', 'a/24.jpg', 'a/24_t.jpg', 1440, 1440, now(), 'a/24.mp4')$$));
 
 -- 파일 읽기: A의 공개 영상(21)과 비공개 영상(25)
+-- 파일 키의 첫 폴더는 실제 앱처럼 작성자 id다 (정책이 게시물 작성자 폴더의 파일만 열어 준다)
 insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, visibility, media_type, video_path, duration_ms)
 values ('c0000000-0000-4000-8000-000000000025', 'a0000000-0000-4000-8000-000000000001',
-        (select id from t_ids where label='A'), 'a/25.jpg', 'a/25_t.jpg', 1080, 1080, now(), 'private', 'video', 'a/25.mp4', 3000);
+        (select id from t_ids where label='A'), 'a/25.jpg', 'a/25_t.jpg', 1080, 1080, now(), 'private', 'video',
+        '11111111-1111-1111-1111-111111111111/25.mp4', 3000);
 insert into storage.objects (bucket_id, name, owner) values
-  ('photos', 'a/21.mp4', (select id from t_ids where label='A')),
-  ('photos', 'a/25.mp4', (select id from t_ids where label='A'));
+  ('photos', '11111111-1111-1111-1111-111111111111/21.mp4', (select id from t_ids where label='A')),
+  ('photos', '11111111-1111-1111-1111-111111111111/25.mp4', (select id from t_ids where label='A'));
 insert into t_result values
   (25,'타인(C)이 공개 영상 파일을 읽는다', true,
-      pg_temp.object_visible_as((select id from t_ids where label='C'), 'a/21.mp4')),
+      pg_temp.object_visible_as((select id from t_ids where label='C'), '11111111-1111-1111-1111-111111111111/21.mp4')),
   (26,'타인(C)은 비공개 영상 파일을 못 읽는다', false,
-      pg_temp.object_visible_as((select id from t_ids where label='C'), 'a/25.mp4'));
+      pg_temp.object_visible_as((select id from t_ids where label='C'), '11111111-1111-1111-1111-111111111111/25.mp4'));
+
+-- 경로 위조: C가 자기 공개 게시물의 video_path에 A의 비공개 파일 키를 적는다.
+-- 저장 자체는 막지 않지만(posts 정책은 작성자만 본다) 그 게시물로 A의 파일이 열리면 안 된다.
+insert into projects (id, owner_id, name, default_visibility)
+values ('e0000000-0000-4000-8000-000000000001',
+        (select id from t_ids where label='C'), 'C의 편물', 'public');
+create temporary table t_spoof as
+select pg_temp.writes_as((select id from t_ids where label='C'),
+  $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, visibility, media_type, video_path, duration_ms)
+    values ('c0000000-0000-4000-8000-000000000027', 'e0000000-0000-4000-8000-000000000001',
+            '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333/27.jpg',
+            '33333333-3333-3333-3333-333333333333/27_t.jpg', 1080, 1080, now(), 'public', 'video',
+            '11111111-1111-1111-1111-111111111111/25.mp4', 3000)$$) as inserted;
+insert into t_result values
+  (27,'C가 A의 비공개 파일 키를 넣은 자기 공개 게시물로 그 파일을 읽는다', false,
+      pg_temp.object_visible_as((select id from t_ids where label='C'), '11111111-1111-1111-1111-111111111111/25.mp4')),
+  (28,'A의 공개 영상 파일은 C가 여전히 읽는다 (회귀)', true,
+      pg_temp.object_visible_as((select id from t_ids where label='C'), '11111111-1111-1111-1111-111111111111/21.mp4'));
 
 -- 0004 서버 함수: 권한과 원자성 ---------------------------------
 -- A의 편물 사진 상태 (호출 전 스냅샷)
@@ -224,6 +245,10 @@ select '공개 계정 팔로우는 accepted', 'accepted',
        (select status::text from follows
         where follower_id = (select id from t_ids where label='C')
           and followee_id = (select id from t_ids where label='A'));
+
+-- 27번이 헛돌지 않게: 위조 게시물이 실제로 저장됐는지 (지금 정책에선 저장된다)
+insert into t_trigger
+select '27번 전제: C의 경로 위조 게시물이 저장됨', 'true', (select inserted::text from t_spoof);
 
 -- 결과 -------------------------------------------------------------
 select no, 케이스, 기대, 실제, (기대 = 실제) as pass from t_result order by no;

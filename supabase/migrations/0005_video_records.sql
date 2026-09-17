@@ -18,6 +18,8 @@ set allowed_mime_types = array['image/jpeg', 'video/mp4'], file_size_limit = 104
 where id = 'photos';
 
 -- 읽기: 본인 폴더이거나, 그 파일(사진·썸네일·영상)을 쓰는 게시물이 보일 때 (posts 정책 상속)
+-- 게시물은 작성자 폴더의 파일만 열어 준다. *_path는 아무 글자나 들어가므로, 남의 비공개 파일 키를
+-- 내 공개 게시물에 적어 읽어 가는 것을 막는다.
 drop policy if exists photos_select on storage.objects;
 create policy photos_select on storage.objects for select to authenticated
   using (
@@ -26,7 +28,8 @@ create policy photos_select on storage.objects for select to authenticated
       (storage.foldername(name))[1] = (select auth.uid())::text
       or exists (
         select 1 from public.posts p
-        where p.photo_path = name or p.thumb_path = name or p.video_path = name
+        where (p.photo_path = name or p.thumb_path = name or p.video_path = name)
+          and p.owner_id::text = (storage.foldername(name))[1]
       )
     )
   );
