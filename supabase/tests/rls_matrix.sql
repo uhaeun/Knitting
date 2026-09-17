@@ -1,7 +1,7 @@
 -- RLS 가시성 검증 매트릭스. 설계도 v1.1 4장의 조합표를 실행 가능한 형태로 고정한다.
 -- 정책은 눈으로 검증할 수 없다. 이 파일이 그 역할을 한다.
 --
--- 전제: migrations 0001~0004 적용.
+-- 전제: migrations 0001~0005 적용.
 -- 실행: Supabase SQL Editor에 통째로 붙여넣는다. 마지막 줄이 ALL PASS여야 한다.
 -- 전체가 rollback으로 끝나므로 데이터는 남지 않는다.
 -- ⚠️ auth.users에 임시 행을 넣으므로 개발 프로젝트에서만 실행할 것.
@@ -134,6 +134,54 @@ values ('c0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-0000000
 update t_result
 set 실제 = pg_temp.visible_as((select id from t_ids where label='A'), 'c0000000-0000-4000-8000-000000000007')
 where no = 6;
+
+-- 0005 영상 기록: 제약과 파일 읽기 ------------------------------
+-- 저장소 객체를 사용자로 가장해 읽을 수 있는지
+create or replace function pg_temp.object_visible_as(viewer uuid, object_name text)
+returns boolean language plpgsql as $$
+declare n int;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', viewer)::text, true);
+  select count(*) into n from storage.objects where bucket_id = 'photos' and name = object_name;
+  perform set_config('role', 'postgres', true);
+  return n > 0;
+end $$;
+
+insert into t_result values
+  (21,'영상 기록 저장 (경로·길이 있음)', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, visibility, media_type, video_path, duration_ms)
+          values ('c0000000-0000-4000-8000-000000000021', 'a0000000-0000-4000-8000-000000000001',
+                  '11111111-1111-1111-1111-111111111111', 'a/21.jpg', 'a/21_t.jpg', 1080, 1080, now(), 'public', 'video', 'a/21.mp4', 4970)$$)),
+  (22,'영상인데 영상 경로 없음은 거부', false,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, media_type, duration_ms)
+          values ('c0000000-0000-4000-8000-000000000022', 'a0000000-0000-4000-8000-000000000001',
+                  '11111111-1111-1111-1111-111111111111', 'a/22.jpg', 'a/22_t.jpg', 1080, 1080, now(), 'video', 3000)$$)),
+  (23,'영상 5.5초 초과는 거부', false,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, media_type, video_path, duration_ms)
+          values ('c0000000-0000-4000-8000-000000000023', 'a0000000-0000-4000-8000-000000000001',
+                  '11111111-1111-1111-1111-111111111111', 'a/23.jpg', 'a/23_t.jpg', 1080, 1080, now(), 'video', 'a/23.mp4', 5501)$$)),
+  (24,'사진인데 영상 경로 있음은 거부', false,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, video_path)
+          values ('c0000000-0000-4000-8000-000000000024', 'a0000000-0000-4000-8000-000000000001',
+                  '11111111-1111-1111-1111-111111111111', 'a/24.jpg', 'a/24_t.jpg', 1440, 1440, now(), 'a/24.mp4')$$));
+
+-- 파일 읽기: A의 공개 영상(21)과 비공개 영상(25)
+insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, visibility, media_type, video_path, duration_ms)
+values ('c0000000-0000-4000-8000-000000000025', 'a0000000-0000-4000-8000-000000000001',
+        (select id from t_ids where label='A'), 'a/25.jpg', 'a/25_t.jpg', 1080, 1080, now(), 'private', 'video', 'a/25.mp4', 3000);
+insert into storage.objects (bucket_id, name, owner) values
+  ('photos', 'a/21.mp4', (select id from t_ids where label='A')),
+  ('photos', 'a/25.mp4', (select id from t_ids where label='A'));
+insert into t_result values
+  (25,'타인(C)이 공개 영상 파일을 읽는다', true,
+      pg_temp.object_visible_as((select id from t_ids where label='C'), 'a/21.mp4')),
+  (26,'타인(C)은 비공개 영상 파일을 못 읽는다', false,
+      pg_temp.object_visible_as((select id from t_ids where label='C'), 'a/25.mp4'));
 
 -- 0004 서버 함수: 권한과 원자성 ---------------------------------
 -- A의 편물 사진 상태 (호출 전 스냅샷)
