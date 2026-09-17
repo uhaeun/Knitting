@@ -95,16 +95,27 @@ export default function CaptureScreen() {
     );
   };
 
+  // recordingSince(React state)는 연타 시 재렌더 전까지 낡은 값을 볼 수 있어 이중 stop을 못 막는다.
+  // 동기적으로 즉시 갱신되는 ref로 "이미 정지 처리 중"을 막는다.
+  const stoppingRef = useRef(false);
+
   const stopAndSave = async () => {
-    if (!camera.current || recordingSince === null) return;
+    if (!camera.current || recordingSince === null || stoppingRef.current) return;
+    stoppingRef.current = true;
     const took = Date.now() - recordingSince;
     setRecordingSince(null);
-    const blob = await camera.current.stopRecording();
-    if (!isLongEnough(took)) {
-      showAlert('1초 이상 찍어 주세요');
-      return;
+    try {
+      const blob = await camera.current.stopRecording();
+      if (!isLongEnough(took)) {
+        showAlert('1초 이상 찍어 주세요');
+        return;
+      }
+      persistVideo(blob);
+    } catch (e) {
+      showAlert('녹화하지 못했어요', e instanceof Error ? e.message : String(e));
+    } finally {
+      stoppingRef.current = false;
     }
-    persistVideo(blob);
   };
 
   const toggleRecording = () => {
@@ -131,7 +142,7 @@ export default function CaptureScreen() {
       if (shouldAutoStop(ms)) void stopAndSave();
     }, 100);
     return () => clearInterval(t);
-  });
+  }, [recordingSince]);
 
   const shoot = async () => {
     if (!camera.current || !ready || busy) return;
@@ -156,7 +167,12 @@ export default function CaptureScreen() {
     const a = res.assets?.[0];
     if (res.canceled || !a) return;
     if (mode === 'video') {
-      persistVideo(await (await fetch(a.uri)).blob());
+      try {
+        const blob = await (await fetch(a.uri)).blob();
+        persistVideo(blob);
+      } catch (e) {
+        showAlert('영상을 불러오지 못했어요', e instanceof Error ? e.message : String(e));
+      }
       return;
     }
     persist({ uri: a.uri, width: a.width, height: a.height });
@@ -235,7 +251,13 @@ export default function CaptureScreen() {
       <View style={styles.bottom}>
         <MediaModeToggle
           value={mode}
-          onChange={(m) => recordingSince === null && setMode(m)}
+          onChange={(m) => {
+            if (recordingSince !== null) return;
+            // 스트림을 다시 여는 동안(getUserMedia 진행 중) 셔터가 눌리지 않도록 준비 상태를 되돌린다.
+            // CameraView가 새 스트림 재생 후 onCameraReady를 다시 불러 true로 돌아온다.
+            setReady(false);
+            setMode(m);
+          }}
           videoDisabled={!videoSupported}
         />
         {isFirst ? (

@@ -80,6 +80,10 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
       });
     return () => {
       cancelled = true;
+      if (recorder.current) {
+        recorder.current.rec.stop();
+        recorder.current = null;
+      }
       for (const t of stream?.getTracks() ?? []) t.stop();
       streamRef.current = null;
     };
@@ -101,7 +105,8 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
     },
     startRecording: () => {
       const s = streamRef.current;
-      if (!s || recorder.current) return;
+      if (!s) throw new Error('카메라가 아직 준비되지 않았어요');
+      if (recorder.current) throw new Error('이미 녹화 중이에요');
       const mime = pickRecorderMime((m) => MediaRecorder.isTypeSupported(m));
       if (!mime) throw new Error('이 브라우저에서는 영상을 녹화할 수 없어요');
       const rec = new MediaRecorder(s, { mimeType: mime });
@@ -118,9 +123,10 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
     stopRecording: async () => {
       const r = recorder.current;
       if (!r) throw new Error('녹화 중이 아니에요');
+      // 재진입(중복 stop) 방지: await 전에 즉시 비워 둔다
+      recorder.current = null;
       if (r.rec.state !== 'inactive') r.rec.stop();
       await r.done;
-      recorder.current = null;
       return new Blob(r.chunks, { type: r.rec.mimeType });
     },
   }));
