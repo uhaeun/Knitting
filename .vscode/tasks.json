@@ -1,0 +1,29 @@
+{
+  // ⌘⇧P → "Tasks: Run Task" → "닛팅 웹 켜기"
+  // 켜진 뒤 ⌘⇧P → "Simple Browser: Show" → http://localhost:8099
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "닛팅 웹 켜기",
+      "type": "shell",
+      // 이미 켜져 있으면 새로 켜지 않는다 (포트 충돌 방지). .env의 Supabase로 연결된다
+      "command": "if lsof -ti:8099 >/dev/null; then echo '이미 켜져 있어요: http://localhost:8099'; else npx expo start --web --port 8099; fi",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "expo-web",
+        "pattern": { "regexp": "^__never_matches__$" },
+        "background": {
+          "beginsPattern": "Starting Metro|이미 켜져 있어요",
+          "endsPattern": "Logs for your project will appear|이미 켜져 있어요"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "닛팅 웹 끄기",
+      "type": "shell",
+      "command": "lsof -ti:8099 | xargs kill 2>/dev/null; echo '껐어요'",
+      "problemMatcher": []
+    }
+  ]
+}
