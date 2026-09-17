@@ -44,6 +44,11 @@ describe('trim', () => {
     expect(trimEndSec(4.98)).toBe(4.98);
     expect(isTrimmed(4.98)).toBe(false);
   });
+  it('자동 정지로 5초를 조금 넘긴 녹화는 잘렸다고 알리지 않는다 (0.5초 여유)', () => {
+    expect(trimEndSec(5.3)).toBe(5);
+    expect(isTrimmed(5.3)).toBe(false);
+    expect(isTrimmed(5.51)).toBe(true);
+  });
 });
 
 describe('녹화 시간', () => {

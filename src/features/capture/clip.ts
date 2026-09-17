@@ -8,6 +8,8 @@ export const CLIP_MIN_MS = 1000;
 export const CLIP_SIDE = 1080;
 export const CLIP_FPS = 30;
 export const CLIP_BITRATE = 4_000_000;
+/** 자동 정지(100ms 간격 확인)와 녹화기 마무리로 5초를 조금 넘기는 건 "잘렸다"고 알리지 않는다 */
+export const CLIP_TRIM_NOTICE_TOLERANCE_MS = 500;
 
 /** 코덱까지 명시한다. 'video/mp4'만 주면 브라우저마다 안에 넣는 코덱이 달라 다시 못 읽는 경우가 있다 */
 export const RECORDER_MIME_CANDIDATES = [
@@ -36,8 +38,9 @@ export function trimEndSec(durationSec: number): number {
   return Math.min(durationSec, CLIP_MAX_MS / 1000);
 }
 
+/** 원본이 5초보다 눈에 띄게 길 때만 true. 자르는 위치(trimEndSec)는 정확히 5초 그대로 */
 export function isTrimmed(durationSec: number): boolean {
-  return durationSec > CLIP_MAX_MS / 1000;
+  return durationSec * 1000 > CLIP_MAX_MS + CLIP_TRIM_NOTICE_TOLERANCE_MS;
 }
 
 export function shouldAutoStop(elapsedMs: number): boolean {
