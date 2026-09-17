@@ -2,7 +2,7 @@ import { useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,11 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CameraView, type WebCameraHandle } from '@/features/capture/Camera';
+import { formatClipTime, isLongEnough, shouldAutoStop } from '@/features/capture/clip';
 import { GhostToggle } from '@/features/capture/GhostToggle';
 import { GridOverlay } from '@/features/capture/GridOverlay';
-import { useLatestPost, useSavePost } from '@/features/capture/queries';
+import { MediaModeToggle } from '@/features/capture/MediaModeToggle';
+import { useLatestPost, useSavePost, useSaveVideoPost } from '@/features/capture/queries';
 import { postPhotoUri } from '@/features/capture/repository';
 import { useCaptureSettings } from '@/features/capture/store';
+import { canRecordVideo } from '@/features/capture/videoPipeline';
 import { useProject } from '@/features/project/queries';
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
@@ -40,7 +43,12 @@ export default function CaptureScreen() {
   const project = useProject(projectId);
   const latest = useLatestPost(projectId);
   const save = useSavePost(projectId);
-  const { ghost, grid, setGhost, toggleGrid } = useCaptureSettings();
+  const saveVideo = useSaveVideoPost(projectId);
+  const { ghost, grid, mode, setGhost, toggleGrid, setMode } = useCaptureSettings();
+  const videoSupported = canRecordVideo();
+  const [recordingSince, setRecordingSince] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [progress, setProgress] = useState<string | null>(null);
 
   const isFirst = latest.isSuccess && latest.data === null;
   const ghostUri = latest.data ? postPhotoUri(latest.data) : null;
@@ -62,6 +70,69 @@ export default function CaptureScreen() {
     );
   };
 
+  /** 녹화 원본(source)은 성공할 때까지 이 클로저가 들고 있어 "다시 시도"가 재촬영 없이 동작한다 */
+  const persistVideo = (source: Blob) => {
+    setProgress('변환 중 0%');
+    saveVideo.mutate(
+      {
+        source,
+        onProgress: (stage, r) => setProgress(stage === 'converting' ? `변환 중 ${Math.round(r * 100)}%` : '올리는 중'),
+      },
+      {
+        onSuccess: ({ trimmed }) => {
+          setProgress(null);
+          if (trimmed) showAlert('앞 5초만 저장했어요', '영상 기록은 5초까지예요.');
+          router.back();
+        },
+        onError: (e) => {
+          setProgress(null);
+          showAlert('영상을 저장하지 못했어요', e instanceof Error ? e.message : String(e), [
+            { text: '다시 시도', onPress: () => persistVideo(source) },
+            { text: '닫기', style: 'cancel' },
+          ]);
+        },
+      },
+    );
+  };
+
+  const stopAndSave = async () => {
+    if (!camera.current || recordingSince === null) return;
+    const took = Date.now() - recordingSince;
+    setRecordingSince(null);
+    const blob = await camera.current.stopRecording();
+    if (!isLongEnough(took)) {
+      showAlert('1초 이상 찍어 주세요');
+      return;
+    }
+    persistVideo(blob);
+  };
+
+  const toggleRecording = () => {
+    if (!camera.current || !ready) return;
+    if (recordingSince !== null) {
+      void stopAndSave();
+      return;
+    }
+    try {
+      camera.current.startRecording();
+      setElapsed(0);
+      setRecordingSince(Date.now());
+    } catch (e) {
+      showAlert('녹화하지 못했어요', e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  // 녹화 시간 표시와 5초 자동 정지
+  useEffect(() => {
+    if (recordingSince === null) return;
+    const t = setInterval(() => {
+      const ms = Date.now() - recordingSince;
+      setElapsed(ms);
+      if (shouldAutoStop(ms)) void stopAndSave();
+    }, 100);
+    return () => clearInterval(t);
+  });
+
   const shoot = async () => {
     if (!camera.current || !ready || busy) return;
     setBusy(true);
@@ -76,10 +147,18 @@ export default function CaptureScreen() {
   };
 
   const pickFromAlbum = async () => {
-    if (busy) return;
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, exif: false });
+    if (busy || recordingSince !== null) return;
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: [mode === 'video' ? 'videos' : 'images'],
+      quality: 1,
+      exif: false,
+    });
     const a = res.assets?.[0];
     if (res.canceled || !a) return;
+    if (mode === 'video') {
+      persistVideo(await (await fetch(a.uri)).blob());
+      return;
+    }
     persist({ uri: a.uri, width: a.width, height: a.height });
   };
 
@@ -103,7 +182,7 @@ export default function CaptureScreen() {
     );
   }
 
-  const saving = save.isPending;
+  const saving = save.isPending || saveVideo.isPending;
   const previewH = (screenW * 4) / 3; // iOS 기본 4:3 미리보기를 정사각에 가운데로 넣고 위아래를 자른다
 
   return (
@@ -121,6 +200,7 @@ export default function CaptureScreen() {
         <CameraView
           ref={camera}
           facing="back"
+          mode={mode}
           animateShutter={false}
           onCameraReady={() => setReady(true)}
           style={{ width: screenW, height: previewH, marginTop: (screenW - previewH) / 2 }}
@@ -139,15 +219,25 @@ export default function CaptureScreen() {
           </View>
         ) : null}
         {grid ? <GridOverlay /> : null}
+        {recordingSince !== null ? (
+          <View pointerEvents="none" style={styles.recBadge}>
+            <Text style={styles.recBadgeText}>● {formatClipTime(elapsed)} / 0:05</Text>
+          </View>
+        ) : null}
         {saving ? (
           <View style={styles.savingOverlay}>
             <ActivityIndicator color={color.onDark} />
-            <Text style={styles.savingText}>저장 중</Text>
+            <Text style={styles.savingText}>{progress ?? '저장 중'}</Text>
           </View>
         ) : null}
       </View>
 
       <View style={styles.bottom}>
+        <MediaModeToggle
+          value={mode}
+          onChange={(m) => recordingSince === null && setMode(m)}
+          videoDisabled={!videoSupported}
+        />
         {isFirst ? (
           <View style={styles.hint}>
             <View style={styles.hintBar} />
@@ -186,10 +276,15 @@ export default function CaptureScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="촬영"
-            onPress={shoot}
+            accessibilityLabel={mode === 'video' ? (recordingSince !== null ? '녹화 끝' : '녹화') : '촬영'}
+            onPress={mode === 'video' ? toggleRecording : shoot}
             disabled={!ready || busy || saving}
-            style={({ pressed }) => [styles.shutter, (pressed || busy) && styles.shutterPressed, !ready && styles.shutterDisabled]}
+            style={({ pressed }) => [
+              styles.shutter,
+              recordingSince !== null && styles.shutterRecording,
+              (pressed || busy) && styles.shutterPressed,
+              !ready && styles.shutterDisabled,
+            ]}
           >
             <View style={styles.shutterInner} />
           </Pressable>
@@ -219,8 +314,13 @@ const styles = StyleSheet.create({
   ghostBadgeText: { fontSize: fontSize.micro, color: color.onDark, fontVariant: ['tabular-nums'] },
   savingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: space.sm, backgroundColor: color.overlay },
   savingText: { fontSize: fontSize.caption, color: color.onDark },
+  recBadge: {
+    position: 'absolute', right: space.md, top: space.md,
+    paddingHorizontal: space.sm, paddingVertical: space.xs, borderRadius: radius.button, backgroundColor: color.recording,
+  },
+  recBadgeText: { fontSize: fontSize.caption, fontWeight: fontWeight.semibold, color: color.onDark, fontVariant: ['tabular-nums'] },
 
-  bottom: { flex: 1, justifyContent: 'space-between', paddingHorizontal: space.xl, paddingTop: space.xl },
+  bottom: { flex: 1, justifyContent: 'space-between', gap: space.md, paddingHorizontal: space.xl, paddingTop: space.xl },
   controls: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   controlLabel: { width: 52, fontSize: fontSize.caption, color: color.onDarkMuted },
   gridButton: {
@@ -248,6 +348,7 @@ const styles = StyleSheet.create({
   albumText: { fontSize: fontSize.micro, color: color.onDark },
   shutter: { width: size.shutter, height: size.shutter, borderRadius: radius.pill, borderWidth: 3, borderColor: color.onDark, padding: 5 },
   shutterInner: { flex: 1, borderRadius: radius.pill, backgroundColor: color.accent },
+  shutterRecording: { borderColor: color.recording },
   shutterPressed: { opacity: 0.7 },
   shutterDisabled: { opacity: 0.4 },
   cancel: { width: size.albumButton, height: size.albumButton, alignItems: 'center', justifyContent: 'center' },

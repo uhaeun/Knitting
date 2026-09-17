@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 
+import { pickRecorderMime } from '@/features/capture/clip';
 import { color, fontSize, space } from '@/shared/ui/tokens';
 
 /**
@@ -10,11 +11,19 @@ import { color, fontSize, space } from '@/shared/ui/tokens';
  */
 
 type Shot = { uri: string; width: number; height: number };
-export type WebCameraHandle = { takePictureAsync: (options?: object) => Promise<Shot> };
+export type WebCameraHandle = {
+  takePictureAsync: (options?: object) => Promise<Shot>;
+  /** 녹화 시작. 이미 녹화 중이면 무시 */
+  startRecording: () => void;
+  /** 녹화 끝. 녹화 원본 Blob */
+  stopRecording: () => Promise<Blob>;
+};
 
 type Props = {
   ref?: Ref<WebCameraHandle>;
   facing?: 'back' | 'front';
+  /** 영상 모드는 정사각 크기를 요청하지 않는다 (녹화 파일이 눌려 기록되는 것을 피함) */
+  mode?: 'photo' | 'video';
   onCameraReady?: () => void;
   style?: { width?: number; height?: number; marginTop?: number };
   animateShutter?: boolean;
@@ -23,10 +32,14 @@ type Props = {
 /** 짧은 변이 1440 이상 나오도록 넉넉히. 브라우저가 가능한 가장 가까운 값을 고른다 */
 const IDEAL_SIDE = 2560;
 const JPEG_QUALITY = 0.95;
+/** 영상 모드: 가로만 요청. 정사각 요청 시 iPhone 녹화본이 눌려 기록되는 문제를 피한다 (설계 0절) */
+const VIDEO_IDEAL_WIDTH = 1920;
 
-export function CameraView({ ref, facing = 'back', onCameraReady, style }: Props) {
+export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady, style }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; done: Promise<void> } | null>(null);
   // 화면이 매 렌더마다 새 콜백을 넘기므로 ref로 받아 스트림을 다시 열지 않는다
   const onReady = useRef(onCameraReady);
   useEffect(() => {
@@ -39,11 +52,14 @@ export function CameraView({ ref, facing = 'back', onCameraReady, style }: Props
     navigator.mediaDevices
       .getUserMedia({
         audio: false,
-        video: {
-          facingMode: { ideal: facing === 'back' ? 'environment' : 'user' },
-          width: { ideal: IDEAL_SIDE },
-          height: { ideal: IDEAL_SIDE },
-        },
+        video:
+          mode === 'video'
+            ? { facingMode: { ideal: facing === 'back' ? 'environment' : 'user' }, width: { ideal: VIDEO_IDEAL_WIDTH } }
+            : {
+                facingMode: { ideal: facing === 'back' ? 'environment' : 'user' },
+                width: { ideal: IDEAL_SIDE },
+                height: { ideal: IDEAL_SIDE },
+              },
       })
       .then(async (s) => {
         if (cancelled) {
@@ -51,6 +67,7 @@ export function CameraView({ ref, facing = 'back', onCameraReady, style }: Props
           return;
         }
         stream = s;
+        streamRef.current = s;
         const v = video.current;
         if (!v) return;
         v.srcObject = s;
@@ -64,8 +81,9 @@ export function CameraView({ ref, facing = 'back', onCameraReady, style }: Props
     return () => {
       cancelled = true;
       for (const t of stream?.getTracks() ?? []) t.stop();
+      streamRef.current = null;
     };
-  }, [facing]);
+  }, [facing, mode]);
 
   useImperativeHandle(ref, () => ({
     takePictureAsync: async () => {
@@ -80,6 +98,30 @@ export function CameraView({ ref, facing = 'back', onCameraReady, style }: Props
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY));
       if (!blob) throw new Error('사진을 만들지 못했어요');
       return { uri: URL.createObjectURL(blob), width: canvas.width, height: canvas.height };
+    },
+    startRecording: () => {
+      const s = streamRef.current;
+      if (!s || recorder.current) return;
+      const mime = pickRecorderMime((m) => MediaRecorder.isTypeSupported(m));
+      if (!mime) throw new Error('이 브라우저에서는 영상을 녹화할 수 없어요');
+      const rec = new MediaRecorder(s, { mimeType: mime });
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size) chunks.push(e.data);
+      };
+      const done = new Promise<void>((resolve) => {
+        rec.onstop = () => resolve();
+      });
+      rec.start(250);
+      recorder.current = { rec, chunks, done };
+    },
+    stopRecording: async () => {
+      const r = recorder.current;
+      if (!r) throw new Error('녹화 중이 아니에요');
+      if (r.rec.state !== 'inactive') r.rec.stop();
+      await r.done;
+      recorder.current = null;
+      return new Blob(r.chunks, { type: r.rec.mimeType });
     },
   }));
 
