@@ -25,6 +25,7 @@ export const color = {
   onDarkBorder: 'rgba(255,255,255,0.28)',
   onDarkHint: '#3E9A93', // 첫 촬영 안내 박스 세로선
   gridLine: 'rgba(255,255,255,0.5)',
+  photoLabelBg: 'rgba(11,12,10,0.55)', // 결과 사진 위 라벨 바탕. 밝은 편물 위에서도 흰 글씨가 읽히는 농도
 } as const;
 
 export const fontSize = {
@@ -77,6 +78,7 @@ export const size = {
   webPhotoMin: 200, // 창이 아주 낮아도 사진이 이보다 작아지지 않는다
   webTimelineChrome: 320, // 타임라인에서 사진 외 세로 공간 (헤더·날짜·스크러버·버튼 2개)
   webCaptureChrome: 260, // 촬영 화면에서 사진 외 세로 공간 (상단 바·겹치기 컨트롤·셔터 줄)
+  webResultChrome: 300, // 결과 사진 화면에서 미리보기 외 세로 공간 (헤더·종류 선택·버튼 2개)
 } as const;
 
 export const ghostOpacity = {

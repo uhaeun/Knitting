@@ -90,6 +90,7 @@ function AuthGate() {
       <Stack.Screen name="settings/blocked" />
       <Stack.Screen name="settings/requests" />
       <Stack.Screen name="capture/[projectId]" options={{ presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="result/[projectId]" />
     </Stack>
   );
 }

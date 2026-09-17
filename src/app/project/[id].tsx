@@ -40,6 +40,7 @@ export default function ProjectScreen() {
 
   const current = items[Math.min(index, Math.max(0, total - 1))];
   const goCapture = () => router.push({ pathname: '/capture/[projectId]', params: { projectId: id } });
+  const goResult = () => router.push({ pathname: '/result/[projectId]', params: { projectId: id } });
 
   const confirmDelete = () => {
     showAlert('편물을 삭제할까요?', '목록에서 사라집니다. 사진 파일은 남습니다.', [
@@ -136,13 +137,17 @@ export default function ProjectScreen() {
           <View style={styles.spacer} />
           <View style={styles.actions}>
             <Button label="사진 찍기" large onPress={goCapture} />
-            <Button
-              label={total < MIN_PHOTOS ? `영상 만들기 (사진 ${MIN_PHOTOS}장부터)` : '영상 만들기'}
-              variant="secondary"
-              large
-              disabled={total < MIN_PHOTOS}
-              onPress={video.start}
-            />
+            <View style={styles.actionRow}>
+              <Button label="결과 사진" variant="secondary" large onPress={goResult} style={styles.half} />
+              <Button
+                label={total < MIN_PHOTOS ? `영상 (${MIN_PHOTOS}장부터)` : '영상 만들기'}
+                variant="secondary"
+                large
+                disabled={total < MIN_PHOTOS}
+                onPress={video.start}
+                style={styles.half}
+              />
+            </View>
           </View>
         </>
       )}
@@ -176,4 +181,6 @@ const styles = StyleSheet.create({
   scrubber: { paddingHorizontal: space.xl, paddingTop: space.lg },
   spacer: { flex: 1 },
   actions: { paddingHorizontal: space.xl, paddingBottom: space.md, gap: space.sm },
+  actionRow: { flexDirection: 'row', gap: space.sm },
+  half: { flex: 1, paddingHorizontal: space.sm },
 });
