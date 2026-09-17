@@ -252,7 +252,8 @@ export default function CaptureScreen() {
         <MediaModeToggle
           value={mode}
           onChange={(m) => {
-            if (recordingSince !== null) return;
+            // 이미 고른 모드를 다시 누르면 스트림을 다시 열지 않아 onCameraReady가 오지 않는다 → 셔터가 꺼진 채 남지 않게 무시
+            if (recordingSince !== null || m === mode) return;
             // 스트림을 다시 여는 동안(getUserMedia 진행 중) 셔터가 눌리지 않도록 준비 상태를 되돌린다.
             // CameraView가 새 스트림 재생 후 onCameraReady를 다시 불러 true로 돌아온다.
             setReady(false);
