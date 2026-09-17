@@ -2,7 +2,6 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -10,7 +9,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,16 +23,18 @@ import {
   useToggleLike,
 } from '@/features/social/queries';
 import { ReportSheet } from '@/features/social/ReportSheet';
+import { showAlert } from '@/shared/lib/dialog';
 import { relativeTime } from '@/shared/lib/relativeTime';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { useContentWidth } from '@/shared/ui/layout';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
 /** 게시물 상세 + 댓글 */
 export default function PostScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const me = useAuth((s) => s.session?.user.id);
   const post = usePost(id);
   const comments = useComments(id);
@@ -62,7 +62,7 @@ export default function PostScreen() {
     if (!text) return;
     addComment.mutate(text, {
       onSuccess: () => setBody(''),
-      onError: (e) => Alert.alert('댓글을 달지 못했어요', e instanceof Error ? e.message : String(e)),
+      onError: (e) => showAlert('댓글을 달지 못했어요', e instanceof Error ? e.message : String(e)),
     });
   };
 
@@ -134,7 +134,7 @@ export default function PostScreen() {
                   accessibilityLabel={mine ? '삭제' : '신고'}
                   onPress={() =>
                     mine
-                      ? Alert.alert('댓글을 삭제할까요?', '', [
+                      ? showAlert('댓글을 삭제할까요?', '', [
                           { text: '취소', style: 'cancel' },
                           { text: '삭제', style: 'destructive', onPress: () => delComment.mutate(item.id) },
                         ])

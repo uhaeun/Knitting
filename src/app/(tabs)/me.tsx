@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/store';
@@ -61,6 +61,8 @@ export default function MeScreen() {
               </Pressable>
             </View>
             <ProfileHeader profile={profile} counts={counts.data} postCount={items.length} />
+            {/* 웹은 서버가 원본이라 동기화할 것이 없다 */}
+            {Platform.OS !== 'web' ? (
             <View style={styles.syncRow}>
               <Text style={styles.syncText}>
                 {sync.status === 'syncing'
@@ -78,6 +80,7 @@ export default function MeScreen() {
                 onPress={() => void sync.run(session.user.id)}
               />
             </View>
+            ) : null}
           </>
         }
         ListEmptyComponent={

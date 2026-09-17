@@ -1,6 +1,7 @@
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 
 import type { MakeVideoState } from '@/features/media/useMakeVideo';
+import { showAlert } from '@/shared/lib/dialog';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
 import { color, fontSize, fontWeight, radius, space } from '@/shared/ui/tokens';
@@ -16,7 +17,11 @@ type Props = {
 };
 
 const guard = (title: string, fn: () => Promise<void>) => () =>
-  fn().catch((e: unknown) => Alert.alert(title, e instanceof Error ? e.message : String(e)));
+  fn().catch((e: unknown) => showAlert(title, e instanceof Error ? e.message : String(e)));
+
+// 웹은 앨범 대신 파일로 내려받는다 (useMakeVideo.web.ts)
+const SAVE = Platform.OS === 'web' ? '파일로 저장' : '앨범에 저장';
+const SAVED = Platform.OS === 'web' ? '저장함' : '앨범에 저장됨';
 
 /** 영상 만들기 진행·결과 시트. 인코딩 중에는 닫히지 않는다. */
 export function MakeVideoSheet({ state, photoCount, estimateSec, onClose, onRetry, onSave, onShare }: Props) {
@@ -43,10 +48,10 @@ export function MakeVideoSheet({ state, photoCount, estimateSec, onClose, onRetr
           <Text style={styles.muted}>
             {(state.result.durationMs / 1000).toFixed(1)}초 · {state.result.frameCount}프레임 ·{' '}
             {(state.result.bytes / 1_000_000).toFixed(1)}MB
-            {state.savedToAlbum ? ' · 앨범에 저장됨' : ''}
+            {state.savedToAlbum ? ` · ${SAVED}` : ''}
           </Text>
           <Button
-            label={state.savedToAlbum ? '앨범에 저장됨' : '앨범에 저장'}
+            label={state.savedToAlbum ? SAVED : SAVE}
             large
             disabled={state.savedToAlbum}
             onPress={guard('저장하지 못했어요', onSave)}

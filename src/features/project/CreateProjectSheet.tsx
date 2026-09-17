@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useCreateProject } from '@/features/project/queries';
 import { formatMonthDay, todayIso } from '@/shared/lib/dates';
+import { showAlert } from '@/shared/lib/dialog';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
 import { Field } from '@/shared/ui/Field';
@@ -38,7 +39,7 @@ export function CreateProjectSheet({ visible, onClose, onCreated }: Props) {
           onClose();
           onCreated?.(p.id);
         },
-        onError: (e) => Alert.alert('저장하지 못했어요', e instanceof Error ? e.message : String(e)),
+        onError: (e) => showAlert('저장하지 못했어요', e instanceof Error ? e.message : String(e)),
       },
     );
   };

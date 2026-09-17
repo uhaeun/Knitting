@@ -21,7 +21,7 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
         style={styles.fill}
       >
         <Pressable style={styles.overlay} onPress={onClose} accessibilityLabel="닫기" />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space.xxl) }]}>
+        <View style={[styles.sheet, Platform.OS === 'web' && styles.webSheet, { paddingBottom: Math.max(insets.bottom, space.xxl) }]}>
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>
           {children}
@@ -44,6 +44,8 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
     gap: space.lg,
   },
+  // 웹: 앱 칸과 같은 폭으로 가운데에
+  webSheet: { width: '100%', maxWidth: size.webColumn, alignSelf: 'center' },
   handle: {
     alignSelf: 'center',
     width: 36,

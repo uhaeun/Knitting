@@ -1,6 +1,7 @@
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useToggleBlock } from '@/features/social/queries';
+import { showAlert } from '@/shared/lib/dialog';
 import type { FeedPost } from '@/shared/types/remote';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
@@ -20,7 +21,7 @@ export function PostActionsSheet({ post, isMine, onClose, onReport, onDelete }: 
   if (!post) return null;
 
   const confirmBlock = () => {
-    Alert.alert(`${post.profiles.display_name} 님을 차단할까요?`, '서로의 게시물이 보이지 않고 팔로우가 해제됩니다.', [
+    showAlert(`${post.profiles.display_name} 님을 차단할까요?`, '서로의 게시물이 보이지 않고 팔로우가 해제됩니다.', [
       { text: '취소', style: 'cancel' },
       {
         text: '차단',
@@ -30,7 +31,7 @@ export function PostActionsSheet({ post, isMine, onClose, onReport, onDelete }: 
             { userId: post.owner_id, blocked: false },
             {
               onSuccess: onClose,
-              onError: (e) => Alert.alert('차단하지 못했어요', e instanceof Error ? e.message : String(e)),
+              onError: (e) => showAlert('차단하지 못했어요', e instanceof Error ? e.message : String(e)),
             },
           ),
       },

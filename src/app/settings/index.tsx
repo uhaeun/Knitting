@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signOut } from '@/features/auth/api';
@@ -7,6 +7,7 @@ import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
 import { useSync } from '@/features/sync/store';
+import { showAlert } from '@/shared/lib/dialog';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 
 const SUPPORT_EMAIL = 'haeunmine@gmail.com';
@@ -43,7 +44,7 @@ export default function SettingsScreen() {
                 disabled={update.isPending}
                 onValueChange={(v) =>
                   update.mutate({ id: profile.id, patch: { is_private: v } }, {
-                    onError: (e) => Alert.alert('바꾸지 못했어요', e instanceof Error ? e.message : String(e)),
+                    onError: (e) => showAlert('바꾸지 못했어요', e instanceof Error ? e.message : String(e)),
                   })
                 }
                 trackColor={{ true: color.accent, false: color.border }}
@@ -81,7 +82,7 @@ export default function SettingsScreen() {
               label="계정 삭제"
               danger
               onPress={() =>
-                Alert.alert(
+                showAlert(
                   '계정을 삭제할까요?',
                   `아직 앱에서 바로 지울 수 없어요. ${SUPPORT_EMAIL}로 요청하시면 처리해 드립니다.`,
                   [

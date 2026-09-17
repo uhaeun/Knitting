@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActionSheetIOS, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePosts } from '@/features/capture/queries';
@@ -12,15 +12,17 @@ import { postPhotoUri } from '@/features/capture/repository';
 import { Scrubber } from '@/features/project/Scrubber';
 import { useDeleteProject, useProject, useSetVisibility } from '@/features/project/queries';
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { useSquareSide } from '@/shared/ui/layout';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 
 /** 시안 1e — 타임라인 (편물 상세) */
 export default function ProjectScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { width: screenW } = useWindowDimensions();
+  const photoSide = useSquareSide(size.webTimelineChrome);
   const project = useProject(id);
   const posts = usePosts(id);
   const del = useDeleteProject();
@@ -40,7 +42,7 @@ export default function ProjectScreen() {
   const goCapture = () => router.push({ pathname: '/capture/[projectId]', params: { projectId: id } });
 
   const confirmDelete = () => {
-    Alert.alert('편물을 삭제할까요?', '목록에서 사라집니다. 사진 파일은 남습니다.', [
+    showAlert('편물을 삭제할까요?', '목록에서 사라집니다. 사진 파일은 남습니다.', [
       { text: '취소', style: 'cancel' },
       { text: '삭제', style: 'destructive', onPress: () => del.mutate(id, { onSuccess: () => router.back() }) },
     ]);
@@ -58,7 +60,7 @@ export default function ProjectScreen() {
         (i) => i > 0 && apply(i - 1),
       );
     } else {
-      Alert.alert('이 편물의 사진을 누가 볼까요?', undefined, [
+      showAlert('이 편물의 사진을 누가 볼까요?', undefined, [
         ...labels.map((l, i) => ({ text: l, onPress: () => apply(i) })),
         { text: '취소', style: 'cancel' as const },
       ]);
@@ -75,7 +77,7 @@ export default function ProjectScreen() {
         },
       );
     } else {
-      Alert.alert(p?.name ?? '편물', undefined, [
+      showAlert(p?.name ?? '편물', undefined, [
         { text: '공개 범위 바꾸기', onPress: chooseVisibility },
         { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
         { text: '취소', style: 'cancel' },
@@ -121,7 +123,7 @@ export default function ProjectScreen() {
         />
       ) : (
         <>
-          <View style={[styles.photo, { width: screenW, height: screenW }]}>
+          <View style={[styles.photo, { width: photoSide, height: photoSide }]}>
             {current ? <Image source={{ uri: postPhotoUri(current) }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
           </View>
           <View style={styles.captionRow}>
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
   name: { fontSize: fontSize.heading, fontWeight: fontWeight.semibold, color: color.text },
   meta: { fontSize: fontSize.caption, color: color.textMuted },
   more: { fontSize: fontSize.heading, color: color.textMuted },
-  photo: { backgroundColor: color.border },
+  photo: { alignSelf: 'center', backgroundColor: color.border },
   captionRow: { paddingHorizontal: space.xl, paddingTop: space.lg, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   date: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
   counter: { fontSize: fontSize.caption, color: color.textMuted, fontVariant: ['tabular-nums'] },

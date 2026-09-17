@@ -72,6 +72,11 @@ export const size = {
   tabBarHeight: 52,
   tick: { width: 2, height: 11, gap: 2 }, // 편물 카드 "쌓임" 눈금
   hairline: 1,
+  // 웹 전용: 넓은 창(데스크톱·VS Code)에서도 폰 너비 한 칸으로 보여 준다
+  webColumn: 480,
+  webPhotoMin: 200, // 창이 아주 낮아도 사진이 이보다 작아지지 않는다
+  webTimelineChrome: 320, // 타임라인에서 사진 외 세로 공간 (헤더·날짜·스크러버·버튼 2개)
+  webCaptureChrome: 260, // 촬영 화면에서 사진 외 세로 공간 (상단 바·겹치기 컨트롤·셔터 줄)
 } as const;
 
 export const ghostOpacity = {
