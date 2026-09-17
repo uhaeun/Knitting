@@ -1,36 +1,61 @@
-import { getDb } from '@/shared/lib/db';
-import { deleteIfExists, moveInto, photoDir, pruneOrphans, relPath, thumbDir, toUri } from '@/shared/lib/files';
-import { newId } from '@/shared/lib/id';
-import type { Post } from '@/shared/types/models';
 import { processCapture } from '@/features/capture/image';
+import { newId } from '@/shared/lib/id';
+import { readAllPages, requireUserId, signPaths } from '@/shared/lib/remote';
+import { getSupabase, PHOTOS_BUCKET, remotePhotoPath, remoteThumbPath } from '@/shared/lib/supabase';
+import type { Post } from '@/shared/types/models';
+import type { RemotePost } from '@/shared/types/remote';
 
-/** 사진(post) 데이터 접근은 이 파일에서만. */
+/**
+ * 사진(post) 데이터 접근은 이 파일에서만. Supabase가 원본이다.
+ * 읽어 온 Post의 photo_path·thumb_path에는 Storage 키 대신 서명 URL(1시간, 만료 15분 전까지 재사용)이 들어간다.
+ */
 
-export function listPosts(projectId: string): Post[] {
-  return getDb().getAllSync<Post>(
-    `SELECT * FROM posts WHERE project_id = ? AND deleted_at IS NULL
-     ORDER BY taken_at ASC, created_at ASC`,
-    projectId,
+async function withUrls(rows: RemotePost[]): Promise<Post[]> {
+  const urls = await signPaths(rows.flatMap((r) => [r.photo_path, r.thumb_path]));
+  return rows.map((r) => ({
+    id: r.id,
+    project_id: r.project_id,
+    photo_path: urls.get(r.photo_path) ?? '',
+    thumb_path: urls.get(r.thumb_path) ?? '',
+    width: r.width,
+    height: r.height,
+    taken_at: r.taken_at,
+    visibility: r.visibility,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+    deleted_at: r.deleted_at,
+  }));
+}
+
+/** 1000장이 넘는 편물도 끝까지 읽는다 (PostgREST 행 제한) */
+export async function listPosts(projectId: string): Promise<Post[]> {
+  const rows = await readAllPages<RemotePost>((from, to) =>
+    getSupabase()
+      .from('posts').select('*').eq('project_id', projectId).is('deleted_at', null)
+      .order('taken_at', { ascending: true }).order('created_at', { ascending: true }).order('id', { ascending: true })
+      .range(from, to),
   );
+  return withUrls(rows);
 }
 
 /** 고스트 레이어용. 없으면 null = 첫 촬영 */
-export function latestPost(projectId: string): Post | null {
-  return getDb().getFirstSync<Post>(
-    `SELECT * FROM posts WHERE project_id = ? AND deleted_at IS NULL
-     ORDER BY taken_at DESC, created_at DESC LIMIT 1`,
-    projectId,
-  );
+export async function latestPost(projectId: string): Promise<Post | null> {
+  const { data, error } = await getSupabase()
+    .from('posts').select('*').eq('project_id', projectId).is('deleted_at', null)
+    .order('taken_at', { ascending: false }).order('created_at', { ascending: false }).limit(1);
+  if (error) throw new Error(error.message);
+  const [post] = await withUrls((data ?? []) as RemotePost[]);
+  return post ?? null;
 }
 
-export const postPhotoUri = (p: Post): string => toUri(p.photo_path);
-export const postThumbUri = (p: Post): string => toUri(p.thumb_path);
+export const postPhotoUri = (p: Post): string => p.photo_path;
+export const postThumbUri = (p: Post): string => p.thumb_path;
 
 /**
- * 저장 파이프라인 — 순서 고정 (CLAUDE.md):
- * 촬영 → EXIF 정규화 → 정사각 크롭 → 1440 리사이즈 → 썸네일 → 파일 저장 → DB INSERT → 임시파일 삭제
- * 파일이 DB보다 먼저다. INSERT 실패 시 옮긴 파일을 되돌려 지운다.
- * 원본(sourceUri)은 여기서 지우지 않는다. 호출부가 성공 확인 후 처리한다.
+ * 저장 파이프라인 — 순서는 앱과 같다:
+ * 촬영 → EXIF 정규화 → 정사각 크롭 → 1440 리사이즈 → 썸네일 → 파일 업로드 → DB INSERT
+ * 업로드가 INSERT보다 먼저다. INSERT 실패 시 올린 파일을 지운다.
+ * 원본(sourceUri)은 브라우저 메모리의 data/blob URL이라 지울 것이 없다.
  */
 export async function savePost(input: {
   projectId: string;
@@ -39,89 +64,63 @@ export async function savePost(input: {
   height: number;
   takenAt?: Date;
 }): Promise<Post> {
+  const sb = getSupabase();
+  const owner = requireUserId();
   const { photo, thumb } = await processCapture(input.sourceUri, input.width, input.height);
 
-  const id = newId();
-  const photoName = `${id}.jpg`;
-  const photoRel = relPath('photos', photoName);
-  const thumbRel = relPath('thumbs', photoName);
+  const { data: project, error: pe } = await sb
+    .from('projects').select('default_visibility').eq('id', input.projectId).maybeSingle();
+  if (pe) throw new Error(pe.message);
 
-  await moveInto(photo.uri, photoDir(), photoName);
+  const id = newId();
+  const photoKey = remotePhotoPath(owner, input.projectId, id);
+  const thumbKey = remoteThumbPath(owner, input.projectId, id);
+  const bucket = sb.storage.from(PHOTOS_BUCKET);
+
+  await upload(photoKey, photo.uri);
   try {
-    await moveInto(thumb.uri, thumbDir(), photoName);
+    await upload(thumbKey, thumb.uri);
   } catch (e) {
-    deleteIfExists(photoRel);
+    await bucket.remove([photoKey]);
     throw e;
   }
 
   const now = new Date().toISOString();
-  const projectVis = getDb().getFirstSync<{ default_visibility: Post['visibility'] }>(
-    'SELECT default_visibility FROM projects WHERE id = ?', input.projectId,
-  );
-  const post: Post = {
+  const row: Omit<RemotePost, 'like_count' | 'comment_count' | 'hidden_at' | 'caption'> = {
     id,
     project_id: input.projectId,
-    photo_path: photoRel,
-    thumb_path: thumbRel,
+    owner_id: owner,
+    photo_path: photoKey,
+    thumb_path: thumbKey,
     width: photo.width,
     height: photo.height,
     taken_at: (input.takenAt ?? new Date()).toISOString(),
-    visibility: projectVis?.default_visibility ?? 'private',
+    visibility: (project as { default_visibility: Post['visibility'] } | null)?.default_visibility ?? 'private',
     created_at: now,
     updated_at: now,
     deleted_at: null,
-    synced_at: null,
   };
-
-  try {
-    getDb().runSync(
-      `INSERT INTO posts (id, project_id, photo_path, thumb_path, width, height, taken_at, visibility, created_at, updated_at, deleted_at, synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
-      post.id, post.project_id, post.photo_path, post.thumb_path,
-      post.width, post.height, post.taken_at, post.visibility, post.created_at, post.updated_at,
-    );
-  } catch (e) {
-    deleteIfExists(photoRel);
-    deleteIfExists(thumbRel);
-    throw e;
+  const { error } = await sb.from('posts').insert(row);
+  if (error) {
+    await bucket.remove([photoKey, thumbKey]);
+    throw new Error(`사진을 저장하지 못했어요: ${error.message}`);
   }
-  return post;
+  return row;
 }
 
-export function deletePost(id: string): void {
+export async function deletePost(id: string): Promise<void> {
   const now = new Date().toISOString();
-  getDb().runSync('UPDATE posts SET deleted_at = ?, updated_at = ?, synced_at = NULL WHERE id = ?', now, now, id);
+  const { error } = await getSupabase().from('posts').update({ deleted_at: now, updated_at: now }).eq('id', id);
+  if (error) throw new Error(error.message);
 }
 
-/** 동기화용: 서버에 올릴 것이 있는 행 (삭제 포함) */
-export function unsyncedPosts(): Post[] {
-  return getDb().getAllSync<Post>('SELECT * FROM posts WHERE synced_at IS NULL ORDER BY created_at ASC');
-}
-export function markPostSynced(id: string, at: string): void {
-  getDb().runSync('UPDATE posts SET synced_at = ? WHERE id = ?', at, id);
-}
-/** 서버에서 받은 행을 로컬에 넣는다 (이미 있으면 무시). 파일은 호출부가 먼저 내려받는다. */
-export function insertPostFromRemote(p: Post): void {
-  getDb().runSync(
-    `INSERT OR IGNORE INTO posts (id, project_id, photo_path, thumb_path, width, height, taken_at, visibility, created_at, updated_at, deleted_at, synced_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    p.id, p.project_id, p.photo_path, p.thumb_path, p.width, p.height, p.taken_at, p.visibility,
-    p.created_at, p.updated_at, p.deleted_at, p.synced_at,
-  );
-}
-export function postExists(id: string): boolean {
-  return !!getDb().getFirstSync<{ id: string }>('SELECT id FROM posts WHERE id = ?', id);
-}
+/** 웹은 로컬 파일이 없다 */
+export const cleanupOrphanFiles = (): number => 0;
 
-/** 앱 시작 시 한 번. DB에 없는 파일 정리. soft-deleted 것은 보존. */
-export function cleanupOrphanFiles(): number {
-  const rows = getDb().getAllSync<{ photo_path: string; thumb_path: string }>(
-    'SELECT photo_path, thumb_path FROM posts',
-  );
-  const keep = new Set<string>();
-  for (const r of rows) {
-    keep.add(r.photo_path);
-    keep.add(r.thumb_path);
-  }
-  return pruneOrphans(keep);
+async function upload(key: string, uri: string): Promise<void> {
+  const blob = await (await fetch(uri)).blob();
+  const { error } = await getSupabase().storage
+    .from(PHOTOS_BUCKET)
+    .upload(key, blob, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw new Error(`사진을 올리지 못했어요 (${key}): ${error.message}`);
 }

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSignIn, useSignUp } from '@/features/auth/queries';
@@ -33,7 +33,7 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+      <View style={styles.fill}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
             <View style={styles.growing}>
@@ -91,14 +91,8 @@ export default function SignInScreen() {
             </Pressable>
           </View>
 
-          {/* 웹은 사진을 서버에만 저장하므로 로그인 없이 쓰기를 두지 않는다 */}
-          {Platform.OS !== 'web' ? (
-            <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.skip}>
-              <Text style={styles.skipText}>로그인 없이 내 기기에서만 쓰기</Text>
-            </Pressable>
-          ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }

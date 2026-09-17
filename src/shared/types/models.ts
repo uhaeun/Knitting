@@ -1,4 +1,4 @@
-/** 로컬 SQLite 스키마와 1:1. 서버(Supabase) 스키마와 컬럼명을 맞춘다 — 동기화 시 그대로 upsert. */
+/** 화면이 쓰는 편물·사진. 서버(Supabase) 행에서 owner_id 등을 뺀 모양. 원본 행 타입은 remote.ts */
 
 export type Visibility = 'private' | 'followers' | 'public';
 
@@ -12,13 +12,12 @@ export type Project = {
   created_at: string; // ISO
   updated_at: string;
   deleted_at: string | null;
-  synced_at: string | null; // 서버에 마지막으로 올린 시각. NULL = 올릴 것 있음
 };
 
 export type Post = {
   id: string;
   project_id: string;
-  photo_path: string; // 문서 디렉터리 기준 상대 경로. 절대 URI 저장 금지(앱 재설치 시 바뀜)
+  photo_path: string; // 읽어 온 값은 서명 URL. DB에는 Storage 키가 들어 있다 (repository.ts)
   thumb_path: string;
   width: number;
   height: number;
@@ -27,7 +26,6 @@ export type Post = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  synced_at: string | null;
 };
 
 /** 목록 화면용. projects + 집계 */

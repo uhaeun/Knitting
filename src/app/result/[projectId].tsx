@@ -1,30 +1,28 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RESULT_KINDS } from '@/features/media/resultPlan';
 import { useResultPhoto } from '@/features/media/useResultPhoto';
 import { showAlert } from '@/shared/lib/dialog';
+import { canShareFiles } from '@/shared/lib/saveFile';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { useSquareSide } from '@/shared/ui/layout';
 import { Segmented } from '@/shared/ui/Segmented';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 
-// 웹은 앨범 대신 파일로 내려받는다 (composeResult.web.ts)
-const SAVE = Platform.OS === 'web' ? '파일로 저장' : '앨범에 저장';
-const SAVED = Platform.OS === 'web' ? '저장함' : '앨범에 저장됨';
-
 const guard = (title: string, fn: () => Promise<void>) => () =>
   fn().catch((e: unknown) => showAlert(title, e instanceof Error ? e.message : String(e)));
 
-/** 결과 사진: 전체 1장 · 전후 2분할 · 3분할 (설계도 6장). 기기 안에서 합성한다. */
+/** 결과 사진: 전체 1장 · 전후 2분할 · 3분할. 브라우저 안에서 합성한다. */
 export default function ResultScreen() {
   const { projectId } = useLocalSearchParams<{ projectId: string }>();
   const router = useRouter();
   const side = useSquareSide(size.webResultChrome);
   const r = useResultPhoto(projectId);
+  const share = canShareFiles();
 
   const header = (
     <View style={styles.header}>
@@ -88,8 +86,8 @@ export default function ResultScreen() {
 
       <View style={styles.spacer} />
       <View style={styles.actions}>
-        <Button label={r.saved ? SAVED : SAVE} large disabled={!ready || r.saved} onPress={guard('저장하지 못했어요', r.save)} />
-        <Button label="공유" variant="secondary" large disabled={!ready} onPress={guard('공유하지 못했어요', r.share)} />
+        {share ? <Text style={styles.hint}>열리는 공유 창에서 "이미지 저장"을 누르세요. 인스타그램 등으로 바로 보낼 수도 있어요.</Text> : null}
+        <Button label={share ? '사진첩에 저장' : '파일로 저장'} large disabled={!ready} onPress={guard('저장하지 못했어요', r.save)} />
       </View>
     </SafeAreaView>
   );

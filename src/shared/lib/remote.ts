@@ -2,7 +2,7 @@ import { useAuth } from '@/features/auth/store';
 import { getSupabase, PHOTOS_BUCKET } from '@/shared/lib/supabase';
 
 /**
- * 웹 전용 공통 헬퍼. 웹은 로컬 DB·파일 없이 Supabase를 원본으로 쓴다.
+ * Supabase 공통 헬퍼. 로컬 DB·파일 없이 Supabase가 원본이다.
  * (브라우저 저장소는 Safari가 7일 뒤 지울 수 있어 사진 원본을 둘 수 없다)
  */
 

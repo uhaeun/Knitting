@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActionSheetIOS, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePosts } from '@/features/capture/queries';
@@ -55,35 +55,18 @@ export default function ProjectScreen() {
       const v = values[i];
       if (v) setVis.mutate({ id, visibility: v });
     };
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['취소', ...labels], cancelButtonIndex: 0, title: '이 편물의 사진을 누가 볼까요?' },
-        (i) => i > 0 && apply(i - 1),
-      );
-    } else {
-      showAlert('이 편물의 사진을 누가 볼까요?', undefined, [
-        ...labels.map((l, i) => ({ text: l, onPress: () => apply(i) })),
-        { text: '취소', style: 'cancel' as const },
-      ]);
-    }
+    showAlert('이 편물의 사진을 누가 볼까요?', undefined, [
+      ...labels.map((l, i) => ({ text: l, onPress: () => apply(i) })),
+      { text: '취소', style: 'cancel' as const },
+    ]);
   };
 
   const openMenu = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['취소', '공개 범위 바꾸기', '편물 삭제'], cancelButtonIndex: 0, destructiveButtonIndex: 2 },
-        (i) => {
-          if (i === 1) chooseVisibility();
-          if (i === 2) confirmDelete();
-        },
-      );
-    } else {
-      showAlert(p?.name ?? '편물', undefined, [
-        { text: '공개 범위 바꾸기', onPress: chooseVisibility },
-        { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
-        { text: '취소', style: 'cancel' },
-      ]);
-    }
+    showAlert(p?.name ?? '편물', undefined, [
+      { text: '공개 범위 바꾸기', onPress: chooseVisibility },
+      { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
+      { text: '취소', style: 'cancel' },
+    ]);
   };
 
   if (project.isSuccess && project.data === null) {
@@ -158,8 +141,7 @@ export default function ProjectScreen() {
         estimateSec={estimateDurationMs(total) / 1000}
         onClose={video.reset}
         onRetry={video.start}
-        onSave={video.saveToAlbum}
-        onShare={video.share}
+        onSave={video.save}
       />
     </SafeAreaView>
   );

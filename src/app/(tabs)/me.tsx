@@ -1,23 +1,19 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/store';
 import { flattenFeed, useFollowCounts, useUserPosts } from '@/features/social/queries';
 import { ProfileHeader } from '@/features/social/ProfileHeader';
-import { useSync } from '@/features/sync/store';
-import { supabaseConfigured } from '@/shared/lib/supabase';
-import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 
 /** 내 프로필. 로그인 안 했으면 로그인 유도. */
 export default function MeScreen() {
   const router = useRouter();
-  const { session, profile, setLocalOnly } = useAuth();
-  const sync = useSync();
+  const { session, profile } = useAuth();
   const posts = useUserPosts(session?.user.id);
   const { posts: items, urls } = useMemo(() => flattenFeed(posts.data), [posts.data]);
   const counts = useFollowCounts(session?.user.id);
@@ -26,21 +22,10 @@ export default function MeScreen() {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
         <EmptyState
-          title={supabaseConfigured ? '로그인하면 더 할 수 있어요' : '서버 설정이 아직 없어요'}
-          description={
-            supabaseConfigured
-              ? '기기가 바뀌어도 편물이 따라오고, 다른 사람의 편물도 볼 수 있어요.'
-              : '.env에 EXPO_PUBLIC_SUPABASE_URL과 ANON_KEY를 넣으면 계정과 피드가 켜집니다.'
-          }
-          actionLabel={supabaseConfigured ? '로그인' : undefined}
-          onAction={
-            supabaseConfigured
-              ? () => {
-                  setLocalOnly(false);
-                  router.replace('/(auth)/sign-in');
-                }
-              : undefined
-          }
+          title="로그인이 필요해요"
+          description="로그인하면 내 편물과 다른 사람의 편물을 볼 수 있어요."
+          actionLabel="로그인"
+          onAction={() => router.replace('/(auth)/sign-in')}
         />
       </SafeAreaView>
     );
@@ -61,26 +46,6 @@ export default function MeScreen() {
               </Pressable>
             </View>
             <ProfileHeader profile={profile} counts={counts.data} postCount={items.length} />
-            {/* 웹은 서버가 원본이라 동기화할 것이 없다 */}
-            {Platform.OS !== 'web' ? (
-            <View style={styles.syncRow}>
-              <Text style={styles.syncText}>
-                {sync.status === 'syncing'
-                  ? '동기화 중…'
-                  : sync.pending > 0
-                    ? `서버에 올릴 것 ${sync.pending}개`
-                    : sync.status === 'error'
-                      ? `동기화 실패: ${sync.message ?? ''}`
-                      : '서버와 같음'}
-              </Text>
-              <Button
-                label="지금 동기화"
-                variant="secondary"
-                disabled={sync.status === 'syncing'}
-                onPress={() => void sync.run(session.user.id)}
-              />
-            </View>
-            ) : null}
           </>
         }
         ListEmptyComponent={
@@ -113,11 +78,6 @@ const styles = StyleSheet.create({
   title: { fontSize: fontSize.title, fontWeight: fontWeight.semibold, color: color.text, letterSpacing: -0.5 },
   gear: { minHeight: size.tap, justifyContent: 'center', paddingHorizontal: space.sm },
   gearText: { fontSize: fontSize.caption, color: color.textMuted },
-  syncRow: {
-    flexDirection: 'row', alignItems: 'center', gap: space.md,
-    paddingHorizontal: space.xl, paddingBottom: space.lg,
-  },
-  syncText: { flex: 1, fontSize: fontSize.caption, color: color.textMuted },
   cell: { flex: 1 / 3, aspectRatio: 1, backgroundColor: color.border, margin: 1 },
   empty: { padding: space.xl, fontSize: fontSize.caption, color: color.textMuted, textAlign: 'center' },
 });

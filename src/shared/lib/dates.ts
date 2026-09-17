@@ -1,4 +1,4 @@
-/** 순수 함수만. 네이티브 의존 없음 → 단위 테스트 가능. */
+/** 순수 함수만. 브라우저 의존 없음 → 단위 테스트 가능. */
 
 export function todayIso(): string {
   return toDateOnly(new Date());
