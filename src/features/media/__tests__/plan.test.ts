@@ -1,4 +1,4 @@
-import { buildSegments, estimateDurationMs, LAST_HOLD_MS, photoHoldMs, segmentAt, totalDurationMs } from '@/features/media/plan';
+import { buildSegments, clipCapMs, estimateDurationMs, LAST_HOLD_MS, MAX_GROWTH_MS, MIN_CLIP_MS, photoHoldMs, segmentAt, totalDurationMs } from '@/features/media/plan';
 import type { MediaItem } from '@/features/media/mediaItem';
 
 const photo = (uri: string): MediaItem => ({ kind: 'photo', uri });
@@ -47,5 +47,38 @@ describe('estimateDurationMs', () => {
   it('구간 합과 같다', () => {
     expect(estimateDurationMs([photo('a'), photo('b'), photo('c')])).toBe(2500);
     expect(estimateDurationMs([])).toBe(0);
+  });
+});
+
+describe('clipCapMs', () => {
+  it('예산 안이면 자르지 않는다', () => {
+    expect(clipCapMs([3000, 5000], 8000)).toBe(Infinity);
+  });
+  it('넘으면 모든 클립에 같은 상한 (짧은 클립은 그대로)', () => {
+    // 1000은 그대로, 남은 5000을 두 클립이 2500씩
+    expect(clipCapMs([5000, 1000, 5000], 6000)).toBe(2500);
+  });
+  it('상한은 MIN_CLIP_MS 아래로 내려가지 않는다', () => {
+    expect(clipCapMs([5000, 5000], 100)).toBe(MIN_CLIP_MS);
+  });
+});
+
+describe('buildSegments 전체 길이 상한', () => {
+  const clips = (n: number) => Array.from({ length: n }, (_, i) => video(`v${i}`, 5000));
+  it(`영상이 많아도 전체 ${MAX_GROWTH_MS / 1000}초 이하`, () => {
+    const s = buildSegments(clips(50));
+    expect(totalDurationMs(s)).toBeLessThanOrEqual(MAX_GROWTH_MS);
+    expect(totalDurationMs(s)).toBeGreaterThan(MAX_GROWTH_MS - 50);
+  });
+  it('잘린 클립은 playMs만큼 재생, 마지막 클립은 거기서 1초 정지', () => {
+    const s = buildSegments(clips(20));
+    const last = s[s.length - 1]!;
+    expect(s[0]!.playMs).toBeLessThan(5000);
+    expect(s[0]!.durationMs).toBe(s[0]!.playMs);
+    expect(last.durationMs).toBe(last.playMs + LAST_HOLD_MS);
+  });
+  it('상한 안이면 클립 전체 재생, 사진 playMs는 0', () => {
+    const s = buildSegments([photo('a'), video('b', 3200)]);
+    expect(s.map((x) => x.playMs)).toEqual([0, 3200]);
   });
 });
