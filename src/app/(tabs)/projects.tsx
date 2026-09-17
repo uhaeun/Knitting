@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,22 +9,22 @@ import { daysSince, formatMonthDay } from '@/shared/lib/dates';
 import { toUri } from '@/shared/lib/files';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ProjectCard } from '@/shared/ui/ProjectCard';
-import { TabBar } from '@/shared/ui/TabBar';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
 /** 시안 1a / 1b — 편물 목록 (홈) */
 export default function HomeScreen() {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { create } = useLocalSearchParams<{ create?: string }>();
+
+  // 편물이 없을 때 탭바 촬영 버튼이 ?create=1로 보낸다
+  useEffect(() => {
+    if (create !== '1') return;
+    setSheetOpen(true);
+    router.setParams({ create: undefined });
+  }, [create, router]);
   const projects = useProjects();
   const items = projects.data ?? [];
-
-  // 탭바 촬영: 가장 최근 편물로. 편물이 없으면 만들기 시트.
-  const captureLatest = () => {
-    const first = items[0];
-    if (first) router.push({ pathname: '/capture/[projectId]', params: { projectId: first.id } });
-    else setSheetOpen(true);
-  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -66,8 +66,6 @@ export default function HomeScreen() {
           )}
         />
       )}
-
-      <TabBar onCapture={captureLatest} />
 
       <CreateProjectSheet
         visible={sheetOpen}

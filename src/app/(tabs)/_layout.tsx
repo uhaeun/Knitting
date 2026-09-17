@@ -58,7 +58,7 @@ function CaptureButton(_props: object) {
   const go = () => {
     const first = projects.data?.[0];
     if (first) router.push({ pathname: '/capture/[projectId]', params: { projectId: first.id } });
-    else router.push('/projects');
+    else router.push({ pathname: '/projects', params: { create: '1' } });
   };
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="촬영" onPress={go} style={styles.captureButton}>
