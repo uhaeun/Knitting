@@ -12,6 +12,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { useSquareSide } from '@/shared/ui/layout';
 import { Segmented } from '@/shared/ui/Segmented';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
+import { VideoPlayer } from '@/shared/ui/VideoPlayer';
 
 const guard = (title: string, fn: () => Promise<void>) => () =>
   fn().catch((e: unknown) => showAlert(title, e instanceof Error ? e.message : String(e)));
@@ -58,11 +59,15 @@ export default function ResultScreen() {
       {header}
 
       <View style={[styles.preview, { width: side, height: side }]}>
-        {r.uri ? <Image source={{ uri: r.uri }} contentFit="cover" style={StyleSheet.absoluteFill} accessibilityLabel="결과 사진 미리보기" /> : null}
+        {r.uri && r.output === 'mp4' ? (
+          <VideoPlayer key={r.uri} uri={r.uri} label="결과 영상 미리보기" />
+        ) : r.uri ? (
+          <Image source={{ uri: r.uri }} contentFit="cover" style={StyleSheet.absoluteFill} accessibilityLabel="결과 사진 미리보기" />
+        ) : null}
         {r.composing || r.loadingPhotos ? (
           <View style={styles.busy}>
             <ActivityIndicator color={color.onDark} />
-            <Text style={styles.busyText}>만드는 중</Text>
+            <Text style={styles.busyText}>{r.progress !== null ? `만드는 중 ${Math.round(r.progress * 100)}%` : '만드는 중'}</Text>
           </View>
         ) : null}
         {r.error ? (
@@ -86,7 +91,7 @@ export default function ResultScreen() {
 
       <View style={styles.spacer} />
       <View style={styles.actions}>
-        {share ? <Text style={styles.hint}>열리는 공유 창에서 "이미지 저장"을 누르세요. 인스타그램 등으로 바로 보낼 수도 있어요.</Text> : null}
+        {share ? <Text style={styles.hint}>열리는 공유 창에서 {r.output === 'mp4' ? '"비디오 저장"' : '"이미지 저장"'}을 누르세요. 인스타그램 등으로 바로 보낼 수도 있어요.</Text> : null}
         <Button label={share ? '사진첩에 저장' : '파일로 저장'} large disabled={!ready} onPress={guard('저장하지 못했어요', r.save)} />
       </View>
     </SafeAreaView>

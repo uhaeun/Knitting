@@ -2,9 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { usePosts } from '@/features/capture/queries';
-import { postPhotoUri } from '@/features/capture/repository';
 import { composeResult } from '@/features/media/composeResult';
-import { buildScene, minPhotosFor, resultFileName, type ResultKind } from '@/features/media/resultPlan';
+import { buildScene, minPhotosFor, type ResultKind } from '@/features/media/resultPlan';
 import { useProject } from '@/features/project/queries';
 import { saveOrShare } from '@/shared/lib/saveFile';
 
@@ -15,6 +14,7 @@ export function useResultPhoto(projectId: string) {
   const photoCount = posts.data?.length ?? 0;
   // 고르기 전에는 사진 수에 맞는 가장 풍부한 종류 (사진을 다 불러온 뒤에 정해져야 해서 state 초기값으로 두지 않는다)
   const [chosen, setChosen] = useState<ResultKind | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const kind: ResultKind = chosen ?? (photoCount >= 3 ? 'triple' : photoCount === 2 ? 'beforeAfter' : 'single');
 
   const lastPostId = posts.data?.[photoCount - 1]?.id ?? null;
@@ -24,10 +24,15 @@ export function useResultPhoto(projectId: string) {
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0, // blob을 오래 들고 있지 않는다
     retry: false,
-    queryFn: () => {
+    queryFn: async () => {
       if (!project.data || !posts.data) throw new Error('편물을 불러오는 중이에요');
-      const scene = buildScene({ kind, project: project.data, posts: posts.data, uriOf: postPhotoUri });
-      return composeResult(scene, resultFileName(projectId, kind));
+      const scene = buildScene({ kind, project: project.data, posts: posts.data });
+      setProgress(0);
+      try {
+        return await composeResult(scene, projectId, kind, (r) => setProgress(r));
+      } finally {
+        setProgress(null);
+      }
     },
   });
 
@@ -51,6 +56,8 @@ export function useResultPhoto(projectId: string) {
     kind,
     choose: setChosen,
     uri,
+    output: result.data?.output ?? null,
+    progress,
     composing: result.isFetching,
     error: result.error ? (result.error instanceof Error ? result.error.message : String(result.error)) : null,
     retry: () => void result.refetch(),
