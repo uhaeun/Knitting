@@ -72,6 +72,9 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
         if (!v) return;
         v.srcObject = s;
         await v.play();
+        // 재생을 기다리는 사이 모드가 바뀌어 이 스트림이 정리됐으면 준비 완료를 알리지 않는다
+        // (늦게 온 알림이 새 스트림이 붙기 전에 셔터를 켜 "카메라가 아직 준비되지 않았어요"가 났다)
+        if (cancelled) return;
         onReady.current?.();
       })
       .catch((e: unknown) => {
