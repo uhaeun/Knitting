@@ -5,8 +5,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CameraView } from '@/features/capture/Camera';
+import { CameraView, type WebCameraHandle } from '@/features/capture/Camera';
 import { GhostToggle } from '@/features/capture/GhostToggle';
 import { GridOverlay } from '@/features/capture/GridOverlay';
 import { useLatestPost, useSavePost } from '@/features/capture/queries';
@@ -33,9 +31,9 @@ type Shot = { uri: string; width: number; height: number };
 export default function CaptureScreen() {
   const { projectId } = useLocalSearchParams<{ projectId: string }>();
   const router = useRouter();
-  const screenW = useSquareSide(size.webCaptureChrome); // 정사각 촬영 영역 한 변 (앱은 화면 너비)
+  const screenW = useSquareSide(size.webCaptureChrome); // 정사각 촬영 영역 한 변
   const [permission, requestPermission] = useCameraPermissions();
-  const camera = useRef<CameraView>(null);
+  const camera = useRef<WebCameraHandle>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -95,17 +93,10 @@ export default function CaptureScreen() {
           <Text style={styles.permissionBody}>
             {permission.canAskAgain
               ? '편물을 같은 각도로 찍으려면 카메라 권한이 필요합니다.'
-              : Platform.OS === 'web'
-                ? '브라우저 주소창의 카메라 권한을 허용한 뒤 다시 시도해 주세요. 카메라 없이 앨범에서 가져올 수도 있어요.'
-                : '설정에서 Knitting의 카메라 권한을 켜 주세요.'}
+              : '브라우저 주소창의 카메라 권한을 허용한 뒤 다시 시도해 주세요. 카메라 없이 앨범에서 가져올 수도 있어요.'}
           </Text>
-          <Button
-            label={permission.canAskAgain ? '권한 허용' : Platform.OS === 'web' ? '다시 시도' : '설정 열기'}
-            onPress={() =>
-              permission.canAskAgain || Platform.OS === 'web' ? requestPermission() : Linking.openSettings()
-            }
-          />
-          {Platform.OS === 'web' ? <Button label="앨범에서 가져오기" variant="secondary" onPress={pickFromAlbum} /> : null}
+          <Button label={permission.canAskAgain ? '권한 허용' : '다시 시도'} onPress={() => void requestPermission()} />
+          <Button label="앨범에서 가져오기" variant="secondary" onPress={pickFromAlbum} />
           <Button label="닫기" variant="secondary" onPress={() => router.back()} />
         </View>
       </SafeAreaView>

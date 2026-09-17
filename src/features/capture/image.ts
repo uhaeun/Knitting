@@ -24,9 +24,9 @@ export function centerSquare(width: number, height: number): {
 export type ProcessedImage = { photo: ImageResult; thumb: ImageResult };
 
 /**
- * 원본 URI → 정사각 사진 + 썸네일 (둘 다 캐시 디렉터리의 임시 파일).
+ * 원본 URI → 정사각 사진 + 썸네일 (둘 다 브라우저 메모리의 임시 이미지).
  * ImageManipulator는 렌더 시 EXIF 방향을 적용해 픽셀을 다시 쓰므로 정규화가 여기서 끝난다.
- * width/height는 EXIF 적용 후 값을 넘겨야 한다 (expo-camera 결과가 그렇다).
+ * width/height는 EXIF 적용 후 값을 넘겨야 한다 (Camera.tsx·앨범 선택 결과가 그렇다).
  */
 export async function processCapture(
   uri: string,

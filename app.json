@@ -3,99 +3,27 @@
     "name": "Knitting",
     "slug": "knitting",
     "version": "1.0.0",
-    "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "knitting",
-    "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.uhaeun.knitting"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO"
-      ],
-      "package": "com.uhaeun.knitting"
-    },
+    "userInterfaceStyle": "light",
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "닛팅",
+      "shortName": "닛팅",
+      "lang": "ko",
+      "themeColor": "#1F5F5B",
+      "backgroundColor": "#F7F6F3"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
-            "buildToolsVersion": "36.0.0"
-          }
-        }
-      ],
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
-        }
-      ],
-      "expo-sharing",
-      "expo-asset",
-      "expo-sqlite",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "편물을 같은 각도로 촬영하기 위해 카메라를 사용합니다."
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "앨범에서 편물 사진을 가져오기 위해 사용합니다."
-        }
-      ],
-      [
-        "expo-media-library",
-        {
-          "savePhotosPermission": "만든 영상을 앨범에 저장하기 위해 사용합니다.",
-          "photosPermission": "앨범에서 편물 사진을 가져오기 위해 사용합니다.",
-          "granularPermissions": [
-            "photo",
-            "video"
-          ]
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "c375c210-e1f9-4685-85bf-8f665bd22ea8"
-      }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/c375c210-e1f9-4685-85bf-8f665bd22ea8"
+      "router": {}
     }
   }
 }

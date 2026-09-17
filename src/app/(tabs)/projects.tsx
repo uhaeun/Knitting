@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
 import { useProjects } from '@/features/project/queries';
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
-import { toUri } from '@/shared/lib/files';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ProjectCard } from '@/shared/ui/ProjectCard';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
@@ -60,7 +59,7 @@ export default function HomeScreen() {
               name={item.name}
               subtitle={`${daysSince(item.started_at)}일째 · ${formatMonthDay(item.started_at)} 시작`}
               photoCount={item.photo_count}
-              thumbUri={item.cover_thumb_path ? toUri(item.cover_thumb_path) : undefined}
+              thumbUri={item.cover_thumb_path ?? undefined}
               onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}
             />
           )}

@@ -1,7 +1,7 @@
 /**
- * 결과 사진 계획. 순수 함수만 — 네이티브 의존 없음 → 테스트 가능.
+ * 결과 사진 계획. 순수 함수만 — 브라우저 의존 없음 → 테스트 가능.
  * 설계도 6장: 전체 1장(현재 + 편물명·경과일) · 전후 2분할(첫 | 현재) · 3분할(첫 | 시간 기준 중간 | 현재).
- * 그리기는 composeResult.ts(앱, Skia) · composeResult.web.ts(웹, Canvas)가 이 장면(Scene)을 그대로 따른다.
+ * 그리기는 composeResult.ts(Canvas)가 이 장면(Scene)을 그대로 따른다.
  */
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
 

@@ -3,8 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -68,7 +66,7 @@ export default function PostScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+      <View style={styles.fill}>
         <View style={styles.header}>
           <Pressable accessibilityRole="button" accessibilityLabel="뒤로" onPress={() => router.back()} style={styles.tap}>
             <View style={styles.chevron} />
@@ -162,7 +160,7 @@ export default function PostScreen() {
           />
           <Button label="등록" disabled={!body.trim() || addComment.isPending} onPress={submit} />
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <ReportSheet
         visible={!!reportTarget}

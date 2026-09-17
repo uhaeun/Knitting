@@ -6,7 +6,6 @@ import { signOut } from '@/features/auth/api';
 import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
-import { useSync } from '@/features/sync/store';
 import { showAlert } from '@/shared/lib/dialog';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 
@@ -16,7 +15,6 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
   const update = useUpdateProfile();
-  const sync = useSync();
   const requests = usePendingRequests();
 
   return (
@@ -58,14 +56,6 @@ export default function SettingsScreen() {
             <Link label="차단한 사람" onPress={() => router.push('/settings/blocked')} />
           </Section>
         ) : null}
-
-        <Section title="데이터">
-          <Row
-            label="동기화 상태"
-            value={sync.pending > 0 ? `올릴 것 ${sync.pending}개` : sync.status === 'error' ? '실패' : '서버와 같음'}
-          />
-          {session ? <Link label="지금 동기화" onPress={() => void sync.run(session.user.id)} /> : null}
-        </Section>
 
         <Section title="약관과 문의">
           <Text style={styles.policy}>

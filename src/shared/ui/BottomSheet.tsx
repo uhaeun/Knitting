@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
@@ -16,17 +16,14 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.fill}
-      >
+      <View style={styles.fill}>
         <Pressable style={styles.overlay} onPress={onClose} accessibilityLabel="닫기" />
-        <View style={[styles.sheet, Platform.OS === 'web' && styles.webSheet, { paddingBottom: Math.max(insets.bottom, space.xxl) }]}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space.xxl) }]}>
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>
           {children}
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -43,9 +40,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
     paddingTop: space.md,
     gap: space.lg,
+    // 앱 칸과 같은 폭으로 가운데에
+    width: '100%',
+    maxWidth: size.webColumn,
+    alignSelf: 'center',
   },
-  // 웹: 앱 칸과 같은 폭으로 가운데에
-  webSheet: { width: '100%', maxWidth: size.webColumn, alignSelf: 'center' },
   handle: {
     alignSelf: 'center',
     width: 36,

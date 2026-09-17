@@ -18,7 +18,7 @@ export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { name: string; started_at: string; default_visibility?: Visibility }) =>
-      Promise.resolve(createProject(input)),
+      createProject(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: projectKeys.all }),
   });
 }
@@ -27,7 +27,7 @@ export function useSetVisibility() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { id: string; visibility: Visibility }) =>
-      Promise.resolve(setProjectVisibility(v.id, v.visibility)),
+      setProjectVisibility(v.id, v.visibility),
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: projectKeys.all });
       qc.invalidateQueries({ queryKey: projectKeys.posts(v.id) });
@@ -38,7 +38,7 @@ export function useSetVisibility() {
 export function useDeleteProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => Promise.resolve(deleteProject(id)),
+    mutationFn: (id: string) => deleteProject(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: projectKeys.all }),
   });
 }
