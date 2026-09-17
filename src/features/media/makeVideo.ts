@@ -39,7 +39,7 @@ export async function makeVideo(projectId: string, onProgress?: (p: EncodeProgre
           ? { segment, bitmap: null, clip: await openClip(segment.item.uri, VIDEO_SIDE) }
           : { segment, bitmap: await loadBitmap(segment.item.uri), clip: null };
       }
-      const image = current.clip ? await current.clip.cursor.frameAt((tMs - segment.startMs) / 1000) : current.bitmap;
+      const image = current.clip ? await current.clip.cursor.frameAt((tMs - segment.startMs) / 1000 + 1e-6) : current.bitmap;
       if (image) writer.ctx.drawImage(image, 0, 0, VIDEO_SIDE, VIDEO_SIDE);
       await writer.add(f * dt, dt);
       onProgress?.({ progress: (f + 1) / frameCount, frame: f + 1, total: frameCount });

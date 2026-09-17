@@ -80,7 +80,7 @@ INSERT가 실패하면 올린 파일을 지운다. 저장 실패 시 **재시도
 
 - 카메라는 **HTTPS에서만** 열린다 (localhost 제외). 폰 테스트는 배포 주소로
 - 카메라는 `src/features/capture/Camera.tsx`(getUserMedia, 높은 해상도 요청). expo-camera의 뷰는 640×480밖에 안 받아서 쓰지 않는다 (권한 훅만 사용)
-- 영상은 WebCodecs H.264 + mp4-muxer (`makeVideo.ts`). 사진은 한 장씩만 메모리에 둔다
+- 영상은 Mediabunny H.264 30fps (`makeVideo.ts`, 쓰기·클립 읽기는 `mediaWriter.ts`). 사진 한 장 또는 클립 하나씩만 메모리에 둔다
 - 결과 사진은 Canvas 2D (`composeResult.ts`). 장면 계산은 `resultPlan.ts` 순수 함수
 - 대상: iOS Safari 16.4+, Android Chrome 최신. 데스크톱은 확인용
 - 브라우저 저장소는 **로그인 세션 보관**(supabase-js 기본 localStorage)과 화면 편의 설정에만 쓴다. 사진·기록 원본은 두지 않는다
@@ -122,7 +122,7 @@ INSERT가 실패하면 올린 파일을 지운다. 저장 실패 시 **재시도
 | 로컬 상태 | Zustand v5 |
 | 카메라 | getUserMedia (`Camera.tsx`) + expo-camera 권한 훅 |
 | 이미지 | expo-image, expo-image-manipulator, expo-image-picker |
-| 영상 | WebCodecs + mp4-muxer |
+| 영상 | WebCodecs + Mediabunny |
 | 결과 사진 | Canvas 2D |
 | 백엔드 | Supabase (Auth · Postgres + RLS · Storage) |
 | 배포 | Vercel (`npx vercel deploy --prod`, 설정은 `vercel.json`) |

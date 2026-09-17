@@ -58,7 +58,9 @@ export async function openClip(url: string, side: number): Promise<OpenClip> {
     async function* frames(): AsyncGenerator<ClipFrame<HTMLCanvasElement | OffscreenCanvas>> {
       for await (const w of sink.canvases()) yield { timestamp: w.timestamp - first, image: w.canvas };
     }
-    return { cursor: new ClipCursor(frames()), close: () => input.dispose() };
+    const it = frames();
+    // 중간에 멈춘 클립도 디코더·미리 푼 프레임을 놓게 제너레이터를 먼저 끝낸다
+    return { cursor: new ClipCursor(it), close: () => { void it.return(undefined); input.dispose(); } };
   } catch (e) {
     input.dispose();
     throw e;
