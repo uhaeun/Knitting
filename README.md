@@ -1,56 +1,26 @@
-# Welcome to your Expo app 👋
+# 닛팅 (Knitting)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+뜨개 편물을 같은 각도로 찍어 쌓고, 성장 영상과 결과 사진(전체 · 전후 · 3분할)을 만드는 웹앱.
+Expo(react-native-web) + TypeScript + Supabase.
 
-## Get started
+## 켜기
 
-1. Install dependencies
+1. `npm install`
+2. `.env` 만들기 (`.env.example` 참고): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+3. `npm run web -- --port 8099` → http://localhost:8099 (VS Code에서는 Tasks → **닛팅 웹 켜기**)
 
-   ```bash
-   npm install
-   ```
+Supabase 설정은 [supabase/README.md](supabase/README.md).
 
-2. Start the app
+## 빌드
 
-   ```bash
-   npx expo start
-   ```
+`npm run build` → `dist/`를 정적 호스팅에 올린다. 모든 경로를 `index.html`로 돌리고, 카메라 때문에 HTTPS가 필요하다.
 
-In the output, you'll find options to open the app in a
+## 테스트
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- 단위: `npm test`
+- RLS·서버 함수: `supabase/tests/rls_matrix.sql` (마지막 줄 `ALL PASS`)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 문서
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [CLAUDE.md](CLAUDE.md) — 개발 규칙 (웹 전환 결정 포함)
+- [docs/MVP_상태.md](docs/MVP_상태.md) — 되는 것, 확인한 것, 한계
