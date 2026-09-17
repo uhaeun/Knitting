@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePosts } from '@/features/capture/queries';
 import { MakeVideoSheet } from '@/features/media/MakeVideoSheet';
-import { estimateDurationMs, MIN_PHOTOS } from '@/features/media/plan';
+import { mediaOf } from '@/features/media/mediaItem';
+import { estimateDurationMs, MIN_RECORDS } from '@/features/media/plan';
 import { useMakeVideo } from '@/features/media/useMakeVideo';
 import { postPhotoUri } from '@/features/capture/repository';
 import { Scrubber } from '@/features/project/Scrubber';
@@ -130,10 +131,10 @@ export default function ProjectScreen() {
             <View style={styles.actionRow}>
               <Button label="결과 사진" variant="secondary" large onPress={goResult} style={styles.half} />
               <Button
-                label={total < MIN_PHOTOS ? `영상 (${MIN_PHOTOS}장부터)` : '영상 만들기'}
+                label={total < MIN_RECORDS ? `영상 (${MIN_RECORDS}개부터)` : '영상 만들기'}
                 variant="secondary"
                 large
-                disabled={total < MIN_PHOTOS}
+                disabled={total < MIN_RECORDS}
                 onPress={video.start}
                 style={styles.half}
               />
@@ -144,8 +145,8 @@ export default function ProjectScreen() {
 
       <MakeVideoSheet
         state={video.state}
-        photoCount={total}
-        estimateSec={estimateDurationMs(total) / 1000}
+        recordCount={total}
+        estimateSec={estimateDurationMs(items.map(mediaOf)) / 1000}
         onClose={video.reset}
         onRetry={video.start}
         onSave={video.save}

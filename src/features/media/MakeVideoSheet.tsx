@@ -9,7 +9,7 @@ import { color, fontSize, fontWeight, radius, space } from '@/shared/ui/tokens';
 
 type Props = {
   state: MakeVideoState;
-  photoCount: number;
+  recordCount: number;
   estimateSec: number;
   onClose: () => void;
   onRetry: () => void;
@@ -21,7 +21,7 @@ const guard = (title: string, fn: () => Promise<void>) => () =>
 
 
 /** 영상 만들기 진행·결과 시트. 인코딩 중에는 닫히지 않는다. */
-export function MakeVideoSheet({ state, photoCount, estimateSec, onClose, onRetry, onSave }: Props) {
+export function MakeVideoSheet({ state, recordCount, estimateSec, onClose, onRetry, onSave }: Props) {
   const encoding = state.status === 'encoding';
   const share = canShareFiles();
   return (
@@ -34,7 +34,7 @@ export function MakeVideoSheet({ state, photoCount, estimateSec, onClose, onRetr
           <View style={styles.row}>
             <ActivityIndicator color={color.accent} />
             <Text style={styles.muted}>
-              사진 {photoCount}장 → 약 {estimateSec.toFixed(1)}초 · {Math.round(state.progress * 100)}%
+              기록 {recordCount}개 → 약 {estimateSec.toFixed(1)}초 · {Math.round(state.progress * 100)}%
             </Text>
           </View>
         </View>

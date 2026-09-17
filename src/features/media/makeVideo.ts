@@ -1,100 +1,61 @@
-import { ArrayBufferTarget, Muxer } from 'mp4-muxer';
-
-import { listPosts, postPhotoUri } from '@/features/capture/repository';
-import { buildFrames, MIN_PHOTOS, VIDEO_FPS, VIDEO_SIDE } from '@/features/media/plan';
+import { listPosts } from '@/features/capture/repository';
+import { mediaOf } from '@/features/media/mediaItem';
+import { createMp4Writer, loadBitmap, openClip, type OpenClip } from '@/features/media/mediaWriter';
+import { buildSegments, GROWTH_FPS, MIN_RECORDS, segmentAt, totalDurationMs, VIDEO_SIDE, type Segment } from '@/features/media/plan';
 
 /**
- * 편물 하나의 사진 전부 → H.264 MP4 (WebCodecs + mp4-muxer). 프레임 계획은 plan.ts.
- * 결과는 blob URL과 저장용 File (페이지를 닫으면 사라져도 됨).
+ * 편물 하나의 기록 전부 → 30fps H.264 MP4. 사진은 머무는 시간만큼, 영상은 클립을 끝까지, 마지막 기록 +1초.
+ * 한 번에 한 기록만 메모리에 둔다 (사진 비트맵 하나 또는 열린 클립 하나).
  */
 
 export type EncodeProgress = { progress: number; frame: number; total: number }; // progress 0..1
 export type EncodeResult = { uri: string; file: File; frameCount: number; durationMs: number; bytes: number };
 
-const BITRATE = 6_000_000;
-/** High → Main → Baseline 순으로 브라우저가 되는 것을 쓴다. 전부 1080×1080을 담는 레벨 4.0 */
-const CODECS = ['avc1.640028', 'avc1.4d0028', 'avc1.420028'] as const;
+type Current = { segment: Segment; bitmap: ImageBitmap | null; clip: OpenClip | null };
 
-export async function makeVideo(
-  projectId: string,
-  onProgress?: (p: EncodeProgress) => void,
-): Promise<EncodeResult> {
-  if (typeof VideoEncoder === 'undefined') {
-    throw new Error('이 브라우저는 영상 만들기를 지원하지 않아요. 최신 Chrome이나 Safari(16.4 이상)에서 열어 주세요.');
-  }
+export async function makeVideo(projectId: string, onProgress?: (p: EncodeProgress) => void): Promise<EncodeResult> {
   const posts = await listPosts(projectId);
-  if (posts.length < MIN_PHOTOS) throw new Error(`사진이 ${MIN_PHOTOS}장 이상 있어야 영상을 만들 수 있어요`);
+  if (posts.length < MIN_RECORDS) throw new Error(`기록이 ${MIN_RECORDS}개 이상 있어야 영상을 만들 수 있어요`);
 
-  const codec = await pickCodec();
-  const frames = buildFrames(posts.map(postPhotoUri));
+  const segments = buildSegments(posts.map(mediaOf));
+  const durationMs = totalDurationMs(segments);
+  const frameCount = Math.ceil((durationMs * GROWTH_FPS) / 1000);
+  const dt = 1 / GROWTH_FPS;
+  const writer = await createMp4Writer(VIDEO_SIDE, GROWTH_FPS);
 
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target,
-    video: { codec: 'avc', width: VIDEO_SIDE, height: VIDEO_SIDE, frameRate: VIDEO_FPS },
-    fastStart: 'in-memory',
-  });
-
-  let encodeError: Error | null = null;
-  const encoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => {
-      encodeError = e instanceof Error ? e : new Error(String(e));
-    },
-  });
-  encoder.configure({ codec, width: VIDEO_SIDE, height: VIDEO_SIDE, bitrate: BITRATE, framerate: VIDEO_FPS, avc: { format: 'avc' } });
-
-  const canvas = new OffscreenCanvas(VIDEO_SIDE, VIDEO_SIDE);
-  const ctx = canvas.getContext('2d', { alpha: false });
-  if (!ctx) throw new Error('영상 캔버스를 만들지 못했어요');
-
-  const frameDurationUs = 1_000_000 / VIDEO_FPS;
-  // 사진은 한 번에 한 장만 메모리에 둔다 (1440² 한 장 ≈ 8MB. 전부 미리 풀면 iOS Safari 탭이 죽는다)
-  let current = null as { url: string; bitmap: ImageBitmap } | null; // as: 루프 안 재할당을 TS가 null로 좁히지 않게
-  try {
-    for (let i = 0; i < frames.length; i += 1) {
-      if (encodeError) throw encodeError;
-      const url = frames[i] ?? '';
-      if (current?.url !== url) {
-        current?.bitmap.close();
-        current = { url, bitmap: await loadBitmap(url) };
-      }
-      ctx.drawImage(current.bitmap, 0, 0, VIDEO_SIDE, VIDEO_SIDE);
-      const frame = new VideoFrame(canvas, { timestamp: Math.round(i * frameDurationUs), duration: Math.round(frameDurationUs) });
-      encoder.encode(frame, { keyFrame: i % (VIDEO_FPS * 2) === 0 });
-      frame.close();
-      // 인코더 대기열이 쌓이면 잠시 비운다 (메모리)
-      if (encoder.encodeQueueSize > 8) await encoder.flush();
-      onProgress?.({ progress: (i + 1) / frames.length, frame: i + 1, total: frames.length });
-    }
-    await encoder.flush();
-    if (encodeError) throw encodeError;
-  } finally {
-    if (encoder.state !== 'closed') encoder.close();
-    current?.bitmap.close();
-  }
-
-  muxer.finalize();
-  const blob = new Blob([target.buffer], { type: 'video/mp4' });
-  return {
-    uri: URL.createObjectURL(blob),
-    file: new File([blob], `knitting-${projectId.slice(0, 8)}.mp4`, { type: 'video/mp4' }),
-    frameCount: frames.length,
-    durationMs: (frames.length * 1000) / VIDEO_FPS,
-    bytes: blob.size,
+  let current = null as Current | null; // as: 루프 안 재할당을 TS가 null로 좁히지 않게
+  const release = (c: Current | null) => {
+    c?.bitmap?.close();
+    c?.clip?.close();
   };
-}
 
-async function pickCodec(): Promise<string> {
-  for (const codec of CODECS) {
-    const { supported } = await VideoEncoder.isConfigSupported({ codec, width: VIDEO_SIDE, height: VIDEO_SIDE, bitrate: BITRATE, framerate: VIDEO_FPS });
-    if (supported) return codec;
+  try {
+    for (let f = 0; f < frameCount; f += 1) {
+      const tMs = (f * 1000) / GROWTH_FPS;
+      const segment = segmentAt(segments, tMs);
+      if (current?.segment !== segment) {
+        release(current);
+        current = segment.item.kind === 'video'
+          ? { segment, bitmap: null, clip: await openClip(segment.item.uri, VIDEO_SIDE) }
+          : { segment, bitmap: await loadBitmap(segment.item.uri), clip: null };
+      }
+      const image = current.clip ? await current.clip.cursor.frameAt((tMs - segment.startMs) / 1000) : current.bitmap;
+      if (image) writer.ctx.drawImage(image, 0, 0, VIDEO_SIDE, VIDEO_SIDE);
+      await writer.add(f * dt, dt);
+      onProgress?.({ progress: (f + 1) / frameCount, frame: f + 1, total: frameCount });
+    }
+    const blob = await writer.finish();
+    return {
+      uri: URL.createObjectURL(blob),
+      file: new File([blob], `knitting-${projectId.slice(0, 8)}.mp4`, { type: 'video/mp4' }),
+      frameCount,
+      durationMs,
+      bytes: blob.size,
+    };
+  } catch (e) {
+    await writer.cancel().catch(() => {});
+    throw e;
+  } finally {
+    release(current);
   }
-  throw new Error('이 브라우저에서는 H.264 영상을 만들 수 없어요');
-}
-
-async function loadBitmap(url: string): Promise<ImageBitmap> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`사진을 내려받지 못했어요 (${res.status})`);
-  return createImageBitmap(await res.blob());
 }
