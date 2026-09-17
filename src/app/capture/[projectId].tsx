@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CameraView, type WebCameraHandle } from '@/features/capture/Camera';
-import { formatClipTime, isLongEnough, shouldAutoStop } from '@/features/capture/clip';
+import { ClipTooShortError, formatClipTime, isLongEnough, shouldAutoStop } from '@/features/capture/clip';
 import { GhostToggle } from '@/features/capture/GhostToggle';
 import { GridOverlay } from '@/features/capture/GridOverlay';
 import { MediaModeToggle } from '@/features/capture/MediaModeToggle';
@@ -49,6 +49,9 @@ export default function CaptureScreen() {
   const [recordingSince, setRecordingSince] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [progress, setProgress] = useState<string | null>(null);
+
+  // 저장 중에 두 번째 mutate가 들어가면 첫 호출의 콜백이 사라지고 게시물이 둘 생길 수 있어 입력을 막는다
+  const saving = save.isPending || saveVideo.isPending;
 
   const isFirst = latest.isSuccess && latest.data === null;
   const ghostUri = latest.data ? postPhotoUri(latest.data) : null;
@@ -86,6 +89,11 @@ export default function CaptureScreen() {
         },
         onError: (e) => {
           setProgress(null);
+          if (e instanceof ClipTooShortError) {
+            // 다시 시도해도 같은 영상이라 결과가 같다
+            showAlert('영상을 저장하지 못했어요', e.message, [{ text: '닫기', style: 'cancel' }]);
+            return;
+          }
           showAlert('영상을 저장하지 못했어요', e instanceof Error ? e.message : String(e), [
             { text: '다시 시도', onPress: () => persistVideo(source) },
             { text: '닫기', style: 'cancel' },
@@ -164,7 +172,7 @@ export default function CaptureScreen() {
   };
 
   const pickFromAlbum = async () => {
-    if (busy || recordingSince !== null) return;
+    if (busy || saving || recordingSince !== null) return;
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: [mode === 'video' ? 'videos' : 'images'],
       quality: 1,
@@ -173,12 +181,17 @@ export default function CaptureScreen() {
     const a = res.assets?.[0];
     if (res.canceled || !a) return;
     if (mode === 'video') {
+      let blob: Blob;
       try {
-        const blob = await (await fetch(a.uri)).blob();
-        persistVideo(blob);
+        blob = await (await fetch(a.uri)).blob();
       } catch (e) {
         showAlert('영상을 불러오지 못했어요', e instanceof Error ? e.message : String(e));
+        return;
+      } finally {
+        // Blob으로 읽었으니 앨범 파일 URL은 더 필요 없다 (다시 시도는 blob을 쓴다)
+        URL.revokeObjectURL(a.uri);
       }
+      persistVideo(blob);
       return;
     }
     persist({ uri: a.uri, width: a.width, height: a.height });
@@ -197,20 +210,19 @@ export default function CaptureScreen() {
               : '브라우저 주소창의 카메라 권한을 허용한 뒤 다시 시도해 주세요. 카메라 없이 앨범에서 가져올 수도 있어요.'}
           </Text>
           <Button label={permission.canAskAgain ? '권한 허용' : '다시 시도'} onPress={() => void requestPermission()} />
-          <Button label="앨범에서 가져오기" variant="secondary" onPress={pickFromAlbum} />
-          <Button label="닫기" variant="secondary" onPress={() => router.back()} />
+          <Button label="앨범에서 가져오기" variant="secondary" onPress={pickFromAlbum} disabled={saving} />
+          <Button label="닫기" variant="secondary" onPress={() => router.back()} disabled={saving} />
         </View>
       </SafeAreaView>
     );
   }
 
-  const saving = save.isPending || saveVideo.isPending;
   const previewH = (screenW * 4) / 3; // iOS 기본 4:3 미리보기를 정사각에 가운데로 넣고 위아래를 자른다
 
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="닫기" onPress={() => router.back()} style={styles.tap}>
+        <Pressable accessibilityRole="button" accessibilityLabel="닫기" onPress={() => router.back()} disabled={saving} style={styles.tap}>
           <View style={[styles.x, styles.xA]} />
           <View style={[styles.x, styles.xB]} />
         </Pressable>
@@ -267,6 +279,7 @@ export default function CaptureScreen() {
             setMode(m);
           }}
           videoDisabled={!videoSupported}
+          disabled={saving}
         />
         {isFirst ? (
           <View style={styles.hint}>
@@ -301,7 +314,7 @@ export default function CaptureScreen() {
         )}
 
         <View style={styles.shutterRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel="앨범에서 가져오기" onPress={pickFromAlbum} style={styles.album}>
+          <Pressable accessibilityRole="button" accessibilityLabel="앨범에서 가져오기" onPress={pickFromAlbum} disabled={saving} style={styles.album}>
             <Text style={styles.albumText}>앨범</Text>
           </Pressable>
           <Pressable
@@ -318,7 +331,7 @@ export default function CaptureScreen() {
           >
             <View style={styles.shutterInner} />
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.cancel}>
+          <Pressable accessibilityRole="button" onPress={() => router.back()} disabled={saving} style={styles.cancel}>
             <Text style={styles.cancelText}>취소</Text>
           </Pressable>
         </View>

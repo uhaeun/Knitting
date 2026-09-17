@@ -19,6 +19,16 @@ export const RECORDER_MIME_CANDIDATES = [
   'video/webm;codecs=vp9',
 ] as const;
 
+/** 1초 미만 영상. 다시 시도해도 같은 결과라 화면은 "다시 시도"를 내지 않는다 */
+export class ClipTooShortError extends Error {
+  constructor(message = '1초 이상인 영상을 골라 주세요') {
+    super(message);
+    this.name = 'ClipTooShortError';
+    // 클래스가 ES5로 옮겨져도 instanceof가 맞도록
+    Object.setPrototypeOf(this, ClipTooShortError.prototype);
+  }
+}
+
 export function pickRecorderMime(isSupported: (mime: string) => boolean): string | null {
   return RECORDER_MIME_CANDIDATES.find((m) => isSupported(m)) ?? null;
 }

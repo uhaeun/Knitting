@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CaptureMode } from '@/features/capture/store';
 import { color, fontSize, fontWeight, radius, size } from '@/shared/ui/tokens';
 
-type Props = { value: CaptureMode; onChange: (m: CaptureMode) => void; videoDisabled?: boolean };
+type Props = { value: CaptureMode; onChange: (m: CaptureMode) => void; videoDisabled?: boolean; disabled?: boolean };
 
 const OPTIONS: { key: CaptureMode; label: string }[] = [
   { key: 'photo', label: '사진' },
@@ -11,12 +11,12 @@ const OPTIONS: { key: CaptureMode; label: string }[] = [
 ];
 
 /** 촬영 화면(어두운 배경)용 [사진 | 영상]. 선택 상태는 aria-checked (react-native-web이 accessibilityState를 옮기지 않음) */
-export function MediaModeToggle({ value, onChange, videoDisabled }: Props) {
+export function MediaModeToggle({ value, onChange, videoDisabled, disabled: allDisabled }: Props) {
   return (
     <View style={styles.group} accessibilityRole="radiogroup">
       {OPTIONS.map((o, i) => {
         const on = o.key === value;
-        const disabled = o.key === 'video' && videoDisabled;
+        const disabled = allDisabled || (o.key === 'video' && videoDisabled);
         return (
           <Pressable
             key={o.key}

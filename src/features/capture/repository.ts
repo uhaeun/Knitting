@@ -1,4 +1,4 @@
-import { CLIP_MIN_MS } from '@/features/capture/clip';
+import { CLIP_MIN_MS, ClipTooShortError } from '@/features/capture/clip';
 import { processCapture } from '@/features/capture/image';
 import { processClip } from '@/features/capture/videoPipeline';
 import { newId } from '@/shared/lib/id';
@@ -133,7 +133,7 @@ export async function saveVideoPost(input: {
   const clip = await processClip(input.source, (r) => input.onProgress?.('converting', r));
   if (clip.durationMs < CLIP_MIN_MS) {
     URL.revokeObjectURL(clip.posterUri);
-    throw new Error('1초 이상인 영상을 골라 주세요');
+    throw new ClipTooShortError();
   }
   try {
     const { photo, thumb } = await processCapture(clip.posterUri, 1080, 1080);

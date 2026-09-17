@@ -1,5 +1,6 @@
 import {
   CLIP_MAX_MS,
+  ClipTooShortError,
   formatClipTime,
   isLongEnough,
   isTrimmed,
@@ -64,5 +65,14 @@ describe('녹화 시간', () => {
     expect(formatClipTime(0)).toBe('0:00');
     expect(formatClipTime(3400)).toBe('0:03');
     expect(formatClipTime(5000)).toBe('0:05');
+  });
+});
+
+describe('ClipTooShortError', () => {
+  it('화면이 instanceof로 알아본다', () => {
+    const e: unknown = new ClipTooShortError();
+    expect(e instanceof ClipTooShortError).toBe(true);
+    expect(e instanceof Error).toBe(true);
+    expect((e as Error).message).toBe('1초 이상인 영상을 골라 주세요');
   });
 });
