@@ -50,7 +50,9 @@ const browser = await chromium.launch({
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['camera'] });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-page.on('dialog', async (d) => { console.log('[dialog]', d.message()); await d.accept(); });
+/** 뜬 대화상자 전부. 구간마다 몇 개가 떴는지 본다 */
+const dialogs = [];
+page.on('dialog', async (d) => { console.log('[dialog]', d.message()); dialogs.push(d.message()); await d.accept(); });
 const stamp = Date.now().toString(36);
 const email = `vid_${stamp}@example.com`;
 
@@ -78,7 +80,7 @@ try {
   await page.getByText('1 / 1').waitFor({ timeout: 120000 });
 
   const owner = sql(`select id from auth.users where email = '${email}'`);
-  const rec = sql(`select media_type || '|' || duration_ms || '|' || video_path || '|' || photo_path from posts where owner_id = '${owner}' order by created_at desc limit 1`).split('|');
+  const rec = sql(`select media_type || '|' || duration_ms || '|' || video_path || '|' || photo_path || '|' || thumb_path from posts where owner_id = '${owner}' order by created_at desc limit 1`).split('|');
   check('DB 영상 기록', rec[0] === 'video' && Number(rec[1]) >= 2500 && Number(rec[1]) <= 5000, rec.slice(0, 2).join(' '));
   const recInfo = await inspect(rec[2]);
   const v = recInfo.probe.streams.find((s) => s.codec_type === 'video');
@@ -86,8 +88,10 @@ try {
   check('녹화 파일 오디오 없음', !recInfo.probe.streams.some((s) => s.codec_type === 'audio'));
   check('녹화 원이 원으로 남음 (0.95~1.05)', recInfo.ratio > 0.95 && recInfo.ratio < 1.05, recInfo.ratio.toFixed(3));
   check('대표 사진 존재', sql(`select count(*) from storage.objects where name = '${rec[3]}'`) === '1');
+  check('썸네일 존재', sql(`select count(*) from storage.objects where name = '${rec[4]}'`) === '1', rec[4]);
 
   console.log('\n== 앨범 8초 세로 영상');
+  const albumDialogsFrom = dialogs.length;
   await page.getByRole('button', { name: '사진 찍기' }).click({ timeout: 30000 });
   await page.getByRole('radio', { name: '영상' }).click();
   const [chooser] = await Promise.all([
@@ -100,6 +104,8 @@ try {
   check('앨범 영상 5초로 잘림', Number(alb[0]) >= 4900 && Number(alb[0]) <= 5000, alb[0]);
   const albInfo = await inspect(alb[1]);
   check('앨범 회전 영상 원이 원으로 남음', albInfo.ratio > 0.95 && albInfo.ratio < 1.05, albInfo.ratio.toFixed(3));
+  const albumDialogs = dialogs.slice(albumDialogsFrom);
+  check('앨범 8초 영상은 잘렸다고 알림', albumDialogs.some((m) => m.includes('앞 5초만 저장했어요')), JSON.stringify(albumDialogs));
 
   console.log('\n== 사진 모드 회귀');
   await page.getByRole('button', { name: '사진 찍기' }).click({ timeout: 30000 });
@@ -108,6 +114,24 @@ try {
   await page.getByRole('button', { name: '촬영' }).click();
   await page.getByText('3 / 3').waitFor({ timeout: 60000 });
   check('사진 기록은 photo', sql(`select media_type from posts where owner_id = '${owner}' order by created_at desc limit 1`) === 'photo');
+
+  console.log('\n== 녹화 끝을 누르지 않고 5초 자동 정지');
+  await page.getByRole('button', { name: '사진 찍기' }).click({ timeout: 30000 });
+  await page.getByRole('radio', { name: '영상' }).click();
+  await page.waitForFunction(() => (document.querySelector('video')?.videoWidth ?? 0) > 0, null, { timeout: 30000 });
+  const autoDialogsFrom = dialogs.length;
+  const startedAt = Date.now();
+  await page.getByRole('button', { name: '녹화', exact: true }).click();
+  await page.getByRole('button', { name: '녹화 끝' }).waitFor({ timeout: 5000 });
+  // 5초에 스스로 멈춰야 한다 (여유 포함 6.5초 안에 '녹화 끝' 버튼이 사라짐)
+  await page.getByRole('button', { name: '녹화 끝' }).waitFor({ state: 'detached', timeout: 6500 });
+  const stoppedAfter = Date.now() - startedAt;
+  check('5초에 자동 정지', stoppedAfter >= 4900 && stoppedAfter <= 6500, `${stoppedAfter}ms`);
+  await page.getByText('4 / 4').waitFor({ timeout: 120000 });
+  const auto = sql(`select media_type || '|' || duration_ms from posts where owner_id = '${owner}' order by created_at desc limit 1`).split('|');
+  check('자동 정지 영상 기록 (5초 이하)', auto[0] === 'video' && Number(auto[1]) >= 4500 && Number(auto[1]) <= 5000, auto.join(' '));
+  const autoDialogs = dialogs.slice(autoDialogsFrom);
+  check('자동 정지 녹화에는 대화상자가 뜨지 않음', autoDialogs.length === 0, JSON.stringify(autoDialogs));
 } catch (e) {
   failed += 1;
   console.log('ERROR', e.message);
