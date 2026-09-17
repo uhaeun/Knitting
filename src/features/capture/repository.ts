@@ -11,12 +11,16 @@ import type { RemotePost } from '@/shared/types/remote';
  */
 
 async function withUrls(rows: RemotePost[]): Promise<Post[]> {
-  const urls = await signPaths(rows.flatMap((r) => [r.photo_path, r.thumb_path]));
+  const keys = rows.flatMap((r) => (r.video_path ? [r.photo_path, r.thumb_path, r.video_path] : [r.photo_path, r.thumb_path]));
+  const urls = await signPaths(keys);
   return rows.map((r) => ({
     id: r.id,
     project_id: r.project_id,
+    media_type: r.media_type,
     photo_path: urls.get(r.photo_path) ?? '',
     thumb_path: urls.get(r.thumb_path) ?? '',
+    video_path: r.video_path ? (urls.get(r.video_path) ?? null) : null,
+    duration_ms: r.duration_ms,
     width: r.width,
     height: r.height,
     taken_at: r.taken_at,
@@ -89,6 +93,9 @@ export async function savePost(input: {
   const row: Omit<RemotePost, 'like_count' | 'comment_count' | 'hidden_at' | 'caption'> = {
     id,
     project_id: input.projectId,
+    media_type: 'photo',
+    video_path: null,
+    duration_ms: null,
     owner_id: owner,
     photo_path: photoKey,
     thumb_path: thumbKey,

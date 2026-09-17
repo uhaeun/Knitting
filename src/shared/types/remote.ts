@@ -2,7 +2,7 @@
  * 서버(Supabase) 행 타입. supabase/migrations/0001_init.sql과 1:1.
  * TODO: CLI가 연결되면 `supabase gen types`로 database.ts를 생성하고 이 파일을 대체한다.
  */
-import type { Visibility } from '@/shared/types/models';
+import type { MediaType, Visibility } from '@/shared/types/models';
 
 export type Profile = {
   id: string;
@@ -34,6 +34,9 @@ export type RemotePost = {
   id: string;
   project_id: string;
   owner_id: string;
+  media_type: MediaType;
+  video_path: string | null; // 'photos' 버킷 내 .mp4 경로. 사진이면 null
+  duration_ms: number | null;
   photo_path: string; // 'photos' 버킷 내 경로
   thumb_path: string;
   width: number;

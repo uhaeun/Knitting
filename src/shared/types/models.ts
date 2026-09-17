@@ -2,6 +2,8 @@
 
 export type Visibility = 'private' | 'followers' | 'public';
 
+export type MediaType = 'photo' | 'video';
+
 export type Project = {
   id: string; // UUID v4
   name: string;
@@ -17,6 +19,9 @@ export type Project = {
 export type Post = {
   id: string;
   project_id: string;
+  media_type: MediaType;
+  video_path: string | null; // 영상 기록만. 읽어 온 값은 서명 URL
+  duration_ms: number | null; // 영상 기록만. 최대 5000(+인코딩 여유)
   photo_path: string; // 읽어 온 값은 서명 URL. DB에는 Storage 키가 들어 있다 (repository.ts)
   thumb_path: string;
   width: number;
