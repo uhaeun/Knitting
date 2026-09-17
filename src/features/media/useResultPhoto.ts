@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { usePosts } from '@/features/capture/queries';
 import { composeResult } from '@/features/media/composeResult';
-import { buildScene, minPhotosFor, type ResultKind } from '@/features/media/resultPlan';
+import { buildScene, minPhotosFor, outputKindOf, type ResultKind } from '@/features/media/resultPlan';
 import { useProject } from '@/features/project/queries';
 import { saveOrShare } from '@/shared/lib/saveFile';
 
@@ -28,7 +28,8 @@ export function useResultPhoto(projectId: string) {
       if (!project.data || !posts.data) throw new Error('편물을 불러오는 중이에요');
       const scene = buildScene({ kind, project: project.data, posts: posts.data });
       // 종류를 바꾸면 React Query가 signal로 이전 합성을 취소한다. 취소된 합성은 진행률을 건드리지 않는다
-      setProgress(0);
+      // 진행률은 MP4만 (JPEG는 한 번에 끝나 0%에 멈춰 보인다)
+      setProgress(outputKindOf(scene) === 'mp4' ? 0 : null);
       try {
         return await composeResult(scene, projectId, kind, (r) => {
           if (!signal.aborted) setProgress(r);

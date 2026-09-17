@@ -111,12 +111,12 @@ export default function ProjectScreen() {
       ) : (
         <>
           <View style={[styles.photo, { width: photoSide, height: photoSide }]}>
-            {current?.media_type === 'video' && current.video_path ? (
+            {current?.media_type === 'video' && current.video_path && video.state.status !== 'encoding' ? (
               <VideoPlayer key={current.id} uri={current.video_path} poster={postPhotoUri(current)} label="영상 기록" />
             ) : current ? (
               <Image source={{ uri: postPhotoUri(current) }} contentFit="cover" style={StyleSheet.absoluteFill} />
             ) : null}
-            {current?.media_type === 'video' ? <VideoBadge durationMs={current.duration_ms} /> : null}
+            {current?.media_type === 'video' && current.video_path ? <VideoBadge durationMs={current.duration_ms} /> : null}
           </View>
           <View style={styles.captionRow}>
             <Text style={styles.date}>{current ? formatMonthDay(current.taken_at) : ''}</Text>

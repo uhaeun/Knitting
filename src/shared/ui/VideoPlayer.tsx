@@ -19,7 +19,7 @@ export function VideoPlayer({ uri, poster, label }: Props) {
         <div
           role="status"
           style={{
-            position: 'absolute', left: 0, right: 0, bottom: 0, padding: space.md,
+            position: 'absolute', left: 0, right: 0, top: 0, padding: space.md, // 위쪽: 아래 왼쪽의 ▶ 배지와 겹치지 않게
             background: color.photoLabelBg, color: color.onDark, fontSize: fontSize.caption, textAlign: 'center',
           }}
         >

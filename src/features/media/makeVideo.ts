@@ -13,8 +13,13 @@ export type EncodeResult = { uri: string; file: File; frameCount: number; durati
 
 type Current = { segment: Segment; bitmap: ImageBitmap | null; clip: OpenClip | null };
 
-export async function makeVideo(projectId: string, onProgress?: (p: EncodeProgress) => void): Promise<EncodeResult> {
+export async function makeVideo(
+  projectId: string,
+  onProgress?: (p: EncodeProgress) => void,
+  signal?: AbortSignal,
+): Promise<EncodeResult> {
   const posts = await listPosts(projectId);
+  signal?.throwIfAborted();
   if (posts.length < MIN_RECORDS) throw new Error(`기록이 ${MIN_RECORDS}개 이상 있어야 영상을 만들 수 있어요`);
 
   const segments = buildSegments(posts.map(mediaOf));
@@ -31,6 +36,7 @@ export async function makeVideo(projectId: string, onProgress?: (p: EncodeProgre
 
   try {
     for (let f = 0; f < frameCount; f += 1) {
+      signal?.throwIfAborted();
       const tMs = (f * 1000) / GROWTH_FPS;
       const segment = segmentAt(segments, tMs);
       if (current?.segment !== segment) {
@@ -45,6 +51,7 @@ export async function makeVideo(projectId: string, onProgress?: (p: EncodeProgre
       onProgress?.({ progress: (f + 1) / frameCount, frame: f + 1, total: frameCount });
     }
     const blob = await writer.finish();
+    signal?.throwIfAborted();
     return {
       uri: URL.createObjectURL(blob),
       file: new File([blob], `knitting-${projectId.slice(0, 8)}.mp4`, { type: 'video/mp4' }),

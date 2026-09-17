@@ -83,11 +83,15 @@ async function composeVideo(
   const clips = new Map<number, OpenClip>();
   let blob: Blob;
   try {
-    for (const [i, p] of scene.panels.entries()) {
-      signal?.throwIfAborted();
-      if (p.media.kind === 'video') clips.set(i, await openClip(p.media.uri, scene.side));
-      else bitmaps.set(i, await loadBitmap(p.media.uri));
-    }
+    // 칸을 동시에 연다. 하나라도 실패하면 열린 것은 finally에서 닫힌다
+    const opened = await Promise.allSettled(
+      scene.panels.map(async (p, i) => {
+        if (p.media.kind === 'video') clips.set(i, await openClip(p.media.uri, scene.side));
+        else bitmaps.set(i, await loadBitmap(p.media.uri));
+      }),
+    );
+    const openFailed = opened.find((s) => s.status === 'rejected');
+    if (openFailed) throw openFailed.reason;
     const frameCount = Math.max(1, Math.ceil((sceneDurationMs(scene) * RESULT_VIDEO_FPS) / 1000));
     const dt = 1 / RESULT_VIDEO_FPS;
     for (let f = 0; f < frameCount; f += 1) {

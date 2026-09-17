@@ -1,6 +1,7 @@
 // 영상 기록 3~5단계 E2E: 타임라인·상세 재생, 섞인 결과 MP4, 영상 섞인 성장 영상.
 // 실행 전: 로컬 Supabase(0001~0005), 웹 서버 8098 --clear. SUPABASE_SERVICE_KEY 필요 없음 (파일은 브라우저가 내려받는다)
-import { execFileSync } from 'node:child_process';
+// 필요한 명령: psql, ffmpeg, ffprobe
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,8 +23,15 @@ const probe = (file) => {
   return { v, duration: Number(j.format.duration) };
 };
 
-const circle = "geq=r='if(lt(hypot(X-960,Y-540),300),0,255)':g='if(lt(hypot(X-960,Y-540),300),0,255)':b=255";
-run('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=white:s=1920x1080:r=30:d=6', '-vf', circle, '-pix_fmt', 'yuv420p', join(dir, 'cam.y4m')]);
+// 움직이는 화면 (영상 칸이 실제로 재생되는지·마지막 1초가 멈추는지 보려고)
+run('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=1920x1080:r=30:d=8', '-pix_fmt', 'yuv420p', join(dir, 'cam.y4m')]);
+/** 두 프레임(번호)의 PSNR dB. 같은 화면이면 매우 높고(inf), 움직였으면 낮다. H.264 재인코딩 오차를 견디려고 해시 대신 쓴다 */
+const psnr = (file, a, b) => {
+  const pick = (i, n) => `[${n}]trim=start_frame=${i}:end_frame=${i + 1},setpts=PTS-STARTPTS[f${n}]`;
+  const r = spawnSync('ffmpeg', ['-i', file, '-i', file, '-lavfi', `${pick(a, 0)};${pick(b, 1)};[f0][f1]psnr`, '-f', 'null', '-']);
+  const m = /average:(inf|[\d.]+)/.exec(r.stderr.toString());
+  return m ? (m[1] === 'inf' ? Infinity : Number(m[1])) : NaN;
+};
 
 const browser = await chromium.launch({
   args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-video-capture=${join(dir, 'cam.y4m')}`],
@@ -78,7 +86,8 @@ try {
   const [videoPostId, clipMs] = sql(`select id || '|' || duration_ms from posts where owner_id = '${owner}' and media_type = 'video'`).split('|');
 
   console.log('\n== 타임라인 재생');
-  await page.waitForTimeout(2000);
+  const playingLabel = () => [...document.querySelectorAll('video')].some((x) => x.getAttribute('aria-label') === '영상 기록' && x.currentTime > 0.3);
+  await page.waitForFunction(playingLabel, null, { timeout: 15000 }).catch(() => {});
   const tl = await page.evaluate(() => {
     const v = [...document.querySelectorAll('video')].find((x) => x.getAttribute('aria-label') === '영상 기록');
     return v ? { playing: v.currentTime > 0.3, muted: v.muted, loop: v.loop, poster: !!v.getAttribute('poster') } : null;
@@ -88,11 +97,7 @@ try {
 
   console.log('\n== 게시물 상세 재생');
   await page.goto(`${BASE}/post/${videoPostId}`);
-  await page.waitForTimeout(3000);
-  const detail = await page.evaluate(() => {
-    const v = [...document.querySelectorAll('video')].find((x) => x.getAttribute('aria-label') === '영상 기록');
-    return v ? v.currentTime > 0.3 : false;
-  });
+  const detail = await page.waitForFunction(playingLabel, null, { timeout: 15000 }).then(() => true, () => false);
   check('게시물 상세 영상 재생', detail);
   await page.goBack();
 
@@ -109,6 +114,10 @@ try {
   check('미리보기가 영상', await page.evaluate(() => [...document.querySelectorAll('video')].some((x) => x.getAttribute('aria-label') === '결과 영상 미리보기')));
 
   console.log('\n== 결과: 전체 1장이 영상이면 MP4, 전후도 MP4');
+  await page.getByRole('radio', { name: '전체' }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('[role="button"]')].some((b) => b.textContent === '파일로 저장' && b.getAttribute('aria-disabled') !== 'true'), null, { timeout: 180000 });
+  const single = probe(await download('파일로 저장', 'single.mp4'));
+  check('전체(최근 기록 = 영상) MP4', single.v?.codec_name === 'h264' && single.v?.width === 1080, JSON.stringify(single.v));
   await page.getByRole('radio', { name: '전후' }).click();
   await page.waitForFunction(() => [...document.querySelectorAll('[role="button"]')].some((b) => b.textContent === '파일로 저장' && b.getAttribute('aria-disabled') !== 'true'), null, { timeout: 180000 });
   const ba = probe(await download('파일로 저장', 'beforeAfter.mp4'));
@@ -122,6 +131,12 @@ try {
   const expected = 500 + 500 + Number(clipMs) + 1000;
   check('성장 영상 1080 h264 30fps', growth.v?.width === 1080 && growth.v?.codec_name === 'h264' && growth.v?.r_frame_rate === '30/1', JSON.stringify(growth.v));
   check('성장 영상 길이 = 구간 계산', Math.abs(growth.duration * 1000 - expected) < 150, `${growth.duration}s vs ${expected}ms`);
+  const growthFile = join(dir, 'growth.mp4');
+  const frames = Math.round((expected * 30) / 1000);
+  const moving = psnr(growthFile, 35, 65); // 사진 2장(1초, 30프레임) 뒤 클립 안의 1초 간격
+  const frozen = psnr(growthFile, frames - 29, frames - 1); // 마지막 1초의 처음과 끝
+  check('성장 영상 속 클립이 움직인다', moving < 30, `PSNR ${moving}dB`);
+  check('성장 영상 마지막 1초는 멈춘 화면', frozen > 35, `PSNR ${frozen}dB`);
 } catch (e) {
   failed += 1;
   console.log('ERROR', e.message);
