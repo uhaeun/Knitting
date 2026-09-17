@@ -96,7 +96,7 @@ export default function PostScreen() {
                 ) : post.data?.url ? (
                   <Image source={{ uri: post.data.url }} contentFit="cover" style={StyleSheet.absoluteFill} />
                 ) : null}
-                {post.data?.videoUrl ? <VideoBadge durationMs={p.duration_ms} /> : null}
+                {post.data?.videoUrl ? <VideoBadge durationMs={p?.duration_ms} /> : null}
               </View>
               <View style={styles.meta}>
                 <Pressable
