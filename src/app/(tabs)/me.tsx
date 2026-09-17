@@ -9,6 +9,7 @@ import { flattenFeed, useFollowCounts, useUserPosts } from '@/features/social/qu
 import { ProfileHeader } from '@/features/social/ProfileHeader';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
+import { VideoBadge } from '@/shared/ui/VideoBadge';
 
 /** 내 프로필. 로그인 안 했으면 로그인 유도. */
 export default function MeScreen() {
@@ -62,6 +63,7 @@ export default function MeScreen() {
             {urls.get(item.thumb_path) ? (
               <Image source={{ uri: urls.get(item.thumb_path) }} contentFit="cover" style={StyleSheet.absoluteFill} />
             ) : null}
+            {item.media_type === 'video' ? <VideoBadge /> : null}
           </Pressable>
         )}
       />

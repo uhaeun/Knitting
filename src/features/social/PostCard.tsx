@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { relativeTime } from '@/shared/lib/relativeTime';
 import type { FeedPost } from '@/shared/types/remote';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
+import { VideoBadge } from '@/shared/ui/VideoBadge';
 
 type Props = {
   post: FeedPost;
@@ -43,6 +44,7 @@ export function PostCard({ post, photoUrl, liked, onToggleLike, onMore }: Props)
       <Pressable accessibilityRole="button" onPress={openPost}>
         <View style={styles.photo}>
           {photoUrl ? <Image source={{ uri: photoUrl }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
+          {post.media_type === 'video' ? <VideoBadge /> : null}
         </View>
       </Pressable>
 

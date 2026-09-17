@@ -20,6 +20,7 @@ import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
+import { VideoBadge } from '@/shared/ui/VideoBadge';
 
 /** 타 사용자 프로필. 비공개 계정이면 승인 전까지 사진이 안 보인다 (RLS가 판정). */
 export default function UserScreen() {
@@ -125,6 +126,7 @@ export default function UserScreen() {
             {urls.get(item.thumb_path) ? (
               <Image source={{ uri: urls.get(item.thumb_path) }} contentFit="cover" style={StyleSheet.absoluteFill} />
             ) : null}
+            {item.media_type === 'video' ? <VideoBadge /> : null}
           </Pressable>
         )}
       />

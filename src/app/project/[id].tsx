@@ -17,6 +17,8 @@ import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { useSquareSide } from '@/shared/ui/layout';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
+import { VideoBadge } from '@/shared/ui/VideoBadge';
+import { VideoPlayer } from '@/shared/ui/VideoPlayer';
 
 /** 시안 1e — 타임라인 (편물 상세) */
 export default function ProjectScreen() {
@@ -108,7 +110,12 @@ export default function ProjectScreen() {
       ) : (
         <>
           <View style={[styles.photo, { width: photoSide, height: photoSide }]}>
-            {current ? <Image source={{ uri: postPhotoUri(current) }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
+            {current?.media_type === 'video' && current.video_path ? (
+              <VideoPlayer key={current.id} uri={current.video_path} poster={postPhotoUri(current)} label="영상 기록" />
+            ) : current ? (
+              <Image source={{ uri: postPhotoUri(current) }} contentFit="cover" style={StyleSheet.absoluteFill} />
+            ) : null}
+            {current?.media_type === 'video' ? <VideoBadge durationMs={current.duration_ms} /> : null}
           </View>
           <View style={styles.captionRow}>
             <Text style={styles.date}>{current ? formatMonthDay(current.taken_at) : ''}</Text>

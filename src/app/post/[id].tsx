@@ -27,6 +27,8 @@ import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { useContentWidth } from '@/shared/ui/layout';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
+import { VideoBadge } from '@/shared/ui/VideoBadge';
+import { VideoPlayer } from '@/shared/ui/VideoPlayer';
 
 /** 게시물 상세 + 댓글 */
 export default function PostScreen() {
@@ -89,9 +91,12 @@ export default function PostScreen() {
           ListHeaderComponent={
             <View>
               <View style={[styles.photo, { width, height: width }]}>
-                {post.data?.url ? (
+                {post.data?.videoUrl ? (
+                  <VideoPlayer key={post.data.videoUrl} uri={post.data.videoUrl} poster={post.data.url ?? undefined} label="영상 기록" />
+                ) : post.data?.url ? (
                   <Image source={{ uri: post.data.url }} contentFit="cover" style={StyleSheet.absoluteFill} />
                 ) : null}
+                {p?.media_type === 'video' ? <VideoBadge durationMs={p.duration_ms} /> : null}
               </View>
               <View style={styles.meta}>
                 <Pressable

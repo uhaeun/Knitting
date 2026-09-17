@@ -84,12 +84,16 @@ export async function fetchExploreFeed(sort: 'recent' | 'popular', cursor: strin
   return sort === 'popular' ? { ...page, nextCursor: null } : page;
 }
 
-export async function fetchPost(postId: string): Promise<{ post: FeedPost; url: string | null }> {
+export async function fetchPost(postId: string): Promise<{ post: FeedPost; url: string | null; videoUrl: string | null }> {
   const { data, error } = await getSupabase().from('posts').select(FEED_SELECT).eq('id', postId).is('deleted_at', null).is('hidden_at', null).single();
   if (error) throw new Error(error.message);
   const post = data as unknown as FeedPost;
-  const urls = await signPhotoUrls([post.photo_path]);
-  return { post, url: urls.get(post.photo_path) ?? null };
+  const urls = await signPhotoUrls(post.video_path ? [post.photo_path, post.video_path] : [post.photo_path]);
+  return {
+    post,
+    url: urls.get(post.photo_path) ?? null,
+    videoUrl: post.video_path ? (urls.get(post.video_path) ?? null) : null,
+  };
 }
 
 /** 특정 사용자의 게시물. 프로필 화면 그리드. */
