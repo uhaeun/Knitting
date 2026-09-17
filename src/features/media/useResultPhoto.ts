@@ -24,14 +24,17 @@ export function useResultPhoto(projectId: string) {
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0, // blob을 오래 들고 있지 않는다
     retry: false,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!project.data || !posts.data) throw new Error('편물을 불러오는 중이에요');
       const scene = buildScene({ kind, project: project.data, posts: posts.data });
+      // 종류를 바꾸면 React Query가 signal로 이전 합성을 취소한다. 취소된 합성은 진행률을 건드리지 않는다
       setProgress(0);
       try {
-        return await composeResult(scene, projectId, kind, (r) => setProgress(r));
+        return await composeResult(scene, projectId, kind, (r) => {
+          if (!signal.aborted) setProgress(r);
+        }, signal);
       } finally {
-        setProgress(null);
+        if (!signal.aborted) setProgress(null);
       }
     },
   });

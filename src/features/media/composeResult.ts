@@ -28,11 +28,25 @@ export async function composeResult(
   projectId: string,
   kind: ResultKind,
   onProgress?: (ratio: number) => void,
+  signal?: AbortSignal,
 ): Promise<ComposedResult> {
-  return outputKindOf(scene) === 'mp4' ? composeVideo(scene, projectId, kind, onProgress) : composeJpeg(scene, projectId, kind);
+  return outputKindOf(scene) === 'mp4'
+    ? composeVideo(scene, projectId, kind, onProgress, signal)
+    : composeJpeg(scene, projectId, kind, signal);
 }
 
-async function composeJpeg(scene: Scene, projectId: string, kind: ResultKind): Promise<ComposedResult> {
+/** 취소됐으면 blob URL을 만들지 않고(만들었으면 해제하고) 취소 사유를 던진다 */
+function toResult(blob: Blob, output: 'jpeg' | 'mp4', fileName: string, signal?: AbortSignal): ComposedResult {
+  signal?.throwIfAborted();
+  const uri = URL.createObjectURL(blob);
+  if (signal?.aborted) {
+    URL.revokeObjectURL(uri);
+    throw signal.reason;
+  }
+  return { output, uri, file: new File([blob], fileName, { type: blob.type }) };
+}
+
+async function composeJpeg(scene: Scene, projectId: string, kind: ResultKind, signal?: AbortSignal): Promise<ComposedResult> {
   const canvas = document.createElement('canvas');
   canvas.width = scene.side;
   canvas.height = scene.side;
@@ -46,39 +60,49 @@ async function composeJpeg(scene: Scene, projectId: string, kind: ResultKind): P
     throw failed.reason;
   }
   try {
+    signal?.throwIfAborted();
     drawFrame(ctx, scene, images);
   } finally {
     for (const b of images) b.close();
   }
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', RESULT_JPEG_QUALITY));
   if (!blob) throw new Error('결과 사진을 만들지 못했어요');
-  return { output: 'jpeg', uri: URL.createObjectURL(blob), file: new File([blob], resultFileName(projectId, kind, 'jpg'), { type: 'image/jpeg' }) };
+  return toResult(blob, 'jpeg', resultFileName(projectId, kind, 'jpg'), signal);
 }
 
-async function composeVideo(scene: Scene, projectId: string, kind: ResultKind, onProgress?: (ratio: number) => void): Promise<ComposedResult> {
+async function composeVideo(
+  scene: Scene,
+  projectId: string,
+  kind: ResultKind,
+  onProgress?: (ratio: number) => void,
+  signal?: AbortSignal,
+): Promise<ComposedResult> {
+  signal?.throwIfAborted();
   const writer = await createMp4Writer(scene.side, RESULT_VIDEO_FPS);
   const bitmaps = new Map<number, ImageBitmap>();
   const clips = new Map<number, OpenClip>();
+  let blob: Blob;
   try {
     for (const [i, p] of scene.panels.entries()) {
+      signal?.throwIfAborted();
       if (p.media.kind === 'video') clips.set(i, await openClip(p.media.uri, scene.side));
       else bitmaps.set(i, await loadBitmap(p.media.uri));
     }
     const frameCount = Math.max(1, Math.ceil((sceneDurationMs(scene) * RESULT_VIDEO_FPS) / 1000));
     const dt = 1 / RESULT_VIDEO_FPS;
     for (let f = 0; f < frameCount; f += 1) {
+      signal?.throwIfAborted();
       const t = f * dt;
       const images: (Drawable | null)[] = [];
       for (const i of scene.panels.keys()) {
         const clip = clips.get(i);
-        images.push(clip ? await clip.cursor.frameAt(t) : (bitmaps.get(i) ?? null));
+        images.push(clip ? await clip.cursor.frameAt(t + 1e-6) : (bitmaps.get(i) ?? null));
       }
       drawFrame(writer.ctx, scene, images);
       await writer.add(t, dt);
       onProgress?.((f + 1) / frameCount);
     }
-    const blob = await writer.finish();
-    return { output: 'mp4', uri: URL.createObjectURL(blob), file: new File([blob], resultFileName(projectId, kind, 'mp4'), { type: 'video/mp4' }) };
+    blob = await writer.finish();
   } catch (e) {
     await writer.cancel().catch(() => {});
     throw e;
@@ -86,6 +110,7 @@ async function composeVideo(scene: Scene, projectId: string, kind: ResultKind, o
     for (const b of bitmaps.values()) b.close();
     for (const c of clips.values()) c.close();
   }
+  return toResult(blob, 'mp4', resultFileName(projectId, kind, 'mp4'), signal);
 }
 
 /** 칸 이미지 + 라벨 + 캡션을 한 프레임으로. 이미지가 없는 칸(아직 프레임 없음)은 바탕색 */
