@@ -45,6 +45,8 @@ export default function ExploreScreen() {
 
       {searching ? (
         <FlatList
+          // key: 격자(3칸)와 목록(1칸)이 같은 자리라 key가 없으면 FlatList가 재사용돼 numColumns가 바뀌며 터진다
+          key="people"
           data={people.data ?? []}
           keyExtractor={(p) => p.id}
           ListEmptyComponent={
@@ -74,6 +76,7 @@ export default function ExploreScreen() {
         <EmptyState title="아직 공개된 편물이 없어요" description="첫 번째로 편물을 전체 공개해 보세요." />
       ) : (
         <FlatList
+          key="grid"
           data={posts}
           keyExtractor={(p) => p.id}
           numColumns={3}
