@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { makeVideo, type EncodeResult } from '@/features/media/makeVideo';
+import { showAlert } from '@/shared/lib/dialog';
 import { saveOrShare } from '@/shared/lib/saveFile';
 
 export type MakeVideoState =
@@ -60,7 +61,8 @@ export function useMakeVideo(projectId: string) {
   /** 폰: 공유 창 → "비디오 저장". 공유 창이 없는 브라우저: 파일 내려받기 */
   const save = useCallback(async () => {
     if (state.status !== 'done') return;
-    await saveOrShare(state.result.file, state.result.uri);
+    const outcome = await saveOrShare(state.result.file, state.result.uri);
+    if (outcome === 'saved') showAlert('사진첩에 저장했어요');
   }, [state]);
 
   const reset = useCallback(() => {

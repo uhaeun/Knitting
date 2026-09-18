@@ -39,8 +39,7 @@ yarn-error.*
 example
 
 # generated native folders
-/ios
-/android
+# ios/ android/ 는 Capacitor 앱 껍데기라 저장소에 둔다 (빌드 산출물은 각 폴더의 .gitignore가 거른다)
 
 # env (secrets)
 .env

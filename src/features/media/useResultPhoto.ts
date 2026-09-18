@@ -5,6 +5,7 @@ import { usePosts } from '@/features/capture/queries';
 import { composeResult } from '@/features/media/composeResult';
 import { buildScene, minPhotosFor, outputKindOf, type ResultKind } from '@/features/media/resultPlan';
 import { useProject } from '@/features/project/queries';
+import { showAlert } from '@/shared/lib/dialog';
 import { saveOrShare } from '@/shared/lib/saveFile';
 
 /** 결과 사진 화면의 상태. 종류를 고르면 합성하고, 같은 종류·같은 사진이면 다시 합성하지 않는다. */
@@ -50,7 +51,8 @@ export function useResultPhoto(projectId: string) {
   /** 폰: 공유 창 → "이미지 저장". 공유 창이 없는 브라우저: 파일 내려받기 */
   const save = async () => {
     if (!result.data) return;
-    await saveOrShare(result.data.file, result.data.uri);
+    const outcome = await saveOrShare(result.data.file, result.data.uri);
+    if (outcome === 'saved') showAlert('사진첩에 저장했어요');
   };
 
   return {

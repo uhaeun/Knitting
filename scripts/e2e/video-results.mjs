@@ -2,7 +2,7 @@
 // 실행 전: 로컬 Supabase(0001~0005), 웹 서버 8098 --clear. SUPABASE_SERVICE_KEY 필요 없음 (파일은 브라우저가 내려받는다)
 // 필요한 명령: psql, ffmpeg, ffprobe
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
@@ -37,6 +37,7 @@ const browser = await chromium.launch({
   args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-video-capture=${join(dir, 'cam.y4m')}`],
 });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['camera'], acceptDownloads: true });
+await ctx.addInitScript(() => { try { localStorage.setItem('knitting.tourSeen', '1'); } catch {} }); // 사용법 안내는 tour.mjs가 따로 본다
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 page.on('dialog', async (d) => { console.log('[dialog]', d.message()); await d.accept(); });
@@ -143,6 +144,8 @@ try {
   await page.screenshot({ path: join(dir, 'failure.png') });
   console.log('스크린샷:', join(dir, 'failure.png'));
 } finally {
+  // 시험용 카메라 영상(y4m)이 700MB라 남기면 디스크가 찬다. 실패 스크린샷을 보려면 KEEP_TMP=1
+  if (!process.env.KEEP_TMP) rmSync(dir, { recursive: true, force: true });
   await browser.close();
   console.log(failed === 0 ? '\nRESULT: PASS' : `\nRESULT: FAIL (${failed})`);
   process.exitCode = failed === 0 ? 0 : 1;

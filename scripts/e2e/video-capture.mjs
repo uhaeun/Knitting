@@ -1,7 +1,7 @@
 // 영상 기록 E2E: 로컬 웹(8098) + 로컬 Supabase + Chromium 가짜 카메라(원 그림 y4m).
 // 실행 전: 로컬 Supabase에 0005 적용, 웹 서버 --clear로 실행.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
@@ -48,6 +48,7 @@ const browser = await chromium.launch({
   args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-video-capture=${join(dir, 'cam.y4m')}`],
 });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['camera'] });
+await ctx.addInitScript(() => { try { localStorage.setItem('knitting.tourSeen', '1'); } catch {} }); // 사용법 안내는 tour.mjs가 따로 본다
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 /** 뜬 대화상자 전부. 구간마다 몇 개가 떴는지 본다 */
@@ -138,6 +139,8 @@ try {
   await page.screenshot({ path: join(dir, 'failure.png') });
   console.log('스크린샷:', join(dir, 'failure.png'));
 } finally {
+  // 시험용 카메라 영상(y4m)이 700MB라 남기면 디스크가 찬다. 실패 스크린샷을 보려면 KEEP_TMP=1
+  if (!process.env.KEEP_TMP) rmSync(dir, { recursive: true, force: true });
   await browser.close();
   console.log(failed === 0 ? '\nRESULT: PASS' : `\nRESULT: FAIL (${failed})`);
   process.exitCode = failed === 0 ? 0 : 1;

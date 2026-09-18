@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import type { MakeVideoState } from '@/features/media/useMakeVideo';
 import { showAlert } from '@/shared/lib/dialog';
-import { canShareFiles } from '@/shared/lib/saveFile';
+import { saveHint, saveLabel } from '@/shared/lib/saveFile';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
 import { color, fontSize, fontWeight, radius, space } from '@/shared/ui/tokens';
@@ -23,7 +23,6 @@ const guard = (title: string, fn: () => Promise<void>) => () =>
 /** 영상 만들기 진행·결과 시트. 인코딩 중에는 닫히지 않는다. */
 export function MakeVideoSheet({ state, recordCount, estimateSec, onClose, onRetry, onSave }: Props) {
   const encoding = state.status === 'encoding';
-  const share = canShareFiles();
   return (
     <BottomSheet visible={state.status !== 'idle'} title="영상 만들기" onClose={encoding ? () => {} : onClose}>
       {state.status === 'encoding' ? (
@@ -47,8 +46,8 @@ export function MakeVideoSheet({ state, recordCount, estimateSec, onClose, onRet
             {(state.result.durationMs / 1000).toFixed(1)}초 · {state.result.frameCount}프레임 ·{' '}
             {(state.result.bytes / 1_000_000).toFixed(1)}MB
           </Text>
-          <Button label={share ? '사진첩에 저장' : '파일로 저장'} large onPress={guard('저장하지 못했어요', onSave)} />
-          {share ? <Text style={styles.muted}>열리는 공유 창에서 "비디오 저장"을 누르세요. 인스타그램 등으로 바로 보낼 수도 있어요.</Text> : null}
+          <Button label={saveLabel()} large onPress={guard('저장하지 못했어요', onSave)} />
+          {saveHint('video') ? <Text style={styles.muted}>{saveHint('video')}</Text> : null}
         </View>
       ) : null}
 

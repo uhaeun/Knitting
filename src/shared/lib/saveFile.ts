@@ -5,9 +5,27 @@
  * file은 버튼을 누르기 전에 만들어 둔다. iPhone Safari는 누른 직후가 아니면 공유 창을 막는데,
  * 누른 뒤에 파일을 내려받느라 await하면 그 "직후"가 지나가 버린다.
  */
-export type SaveOutcome = 'shared' | 'downloaded' | 'cancelled';
+import { Media } from '@capacitor-community/media';
+
+import { isNativeApp } from '@/shared/lib/platform';
+
+export type SaveOutcome = 'shared' | 'downloaded' | 'cancelled' | 'saved';
+
+/** 앱에서는 사진첩에 바로 넣는다. 공유 창을 한 번 더 누르지 않아도 된다 */
+async function saveToLibrary(file: File): Promise<SaveOutcome> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('파일을 읽지 못했어요'));
+    r.readAsDataURL(file);
+  });
+  if (file.type.startsWith('video')) await Media.saveVideo({ path: dataUrl });
+  else await Media.savePhoto({ path: dataUrl });
+  return 'saved';
+}
 
 export async function saveOrShare(file: File, uri: string): Promise<SaveOutcome> {
+  if (isNativeApp()) return saveToLibrary(file);
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] });
@@ -24,11 +42,23 @@ export async function saveOrShare(file: File, uri: string): Promise<SaveOutcome>
   return 'downloaded';
 }
 
-/** 공유 창을 쓸 수 있는 브라우저인가 (안내 문구용) */
+/** 공유 창을 쓸 수 있는가 (안내 문구용). 앱에서는 공유 창 없이 바로 저장한다 */
 export function canShareFiles(): boolean {
+  if (isNativeApp()) return false;
   try {
     return !!navigator.canShare?.({ files: [new File([], 'probe.jpg', { type: 'image/jpeg' })] });
   } catch {
     return false;
   }
+}
+
+/** 저장 버튼 문구. 앱과 공유 창이 있는 폰은 사진첩, 나머지는 파일 */
+export function saveLabel(): string {
+  return isNativeApp() || canShareFiles() ? '사진첩에 저장' : '파일로 저장';
+}
+
+/** 저장 버튼 아래 안내. 앱은 바로 저장되므로 안내가 없다 */
+export function saveHint(kind: 'image' | 'video'): string | null {
+  if (isNativeApp() || !canShareFiles()) return null;
+  return `열리는 공유 창에서 "${kind === 'video' ? '비디오' : '이미지'} 저장"을 누르세요. 인스타그램 등으로 바로 보낼 수도 있어요.`;
 }

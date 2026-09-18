@@ -14,7 +14,7 @@ type Props = {
 };
 
 /**
- * 겉뜨기 코(왼쪽을 향한 꺾쇠)로 기록을 센다. 기록 하나 = 코 하나.
+ * 겉뜨기 코(오른쪽을 향한 꺾쇠 >)로 기록을 센다. 기록 하나 = 코 하나.
  * 지나온 코는 진하게, 아직 안 온 코는 흐리게, 보고 있는 코는 강조색.
  * 진행률 막대가 아니라 '쌓임'이다 — 목표치가 없다.
  */
@@ -42,7 +42,7 @@ export function StitchRow({ total, index, unit = 10, perRow = 12 }: Props) {
   );
 }
 
-/** 겉뜨기 한 코. 왼쪽을 향한 꺾쇠 < 모양 */
+/** 겉뜨기 한 코. 오른쪽을 향한 꺾쇠 > 모양 — 기록이 쌓이는 방향으로 나아간다 */
 function Stitch({ unit, tint }: { unit: number; tint: string }) {
   const stroke = Math.max(1.5, unit * 0.22);
   const side = unit * 0.62; // 45도로 돌리면 대각선이 unit 높이가 된다
@@ -51,8 +51,8 @@ function Stitch({ unit, tint }: { unit: number; tint: string }) {
       style={{
         width: side,
         height: side,
-        borderLeftWidth: stroke,
-        borderBottomWidth: stroke,
+        borderTopWidth: stroke,
+        borderRightWidth: stroke,
         borderColor: tint,
         transform: [{ rotate: '45deg' }],
       }}

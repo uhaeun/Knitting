@@ -8,6 +8,7 @@ let failed = 0;
 const check = (n, ok, d = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${n} ${d}`); if (!ok) failed += 1; };
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: IPHONE_UA });
+await ctx.addInitScript(() => { try { localStorage.setItem('knitting.tourSeen', '1'); } catch {} }); // 사용법 안내는 tour.mjs가 따로 본다
 const page = await ctx.newPage();
 page.on('dialog', (d) => d.accept());
 try {

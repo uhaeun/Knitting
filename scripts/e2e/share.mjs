@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 const BASE = 'http://localhost:8098'; const stamp = Date.now().toString(36);
 const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['camera'] });
+await ctx.addInitScript(() => { try { localStorage.setItem('knitting.tourSeen', '1'); } catch {} }); // 사용법 안내는 tour.mjs가 따로 본다
 await ctx.addInitScript(() => {
   window.__shared = [];
   navigator.canShare = (d) => !!d?.files?.length;

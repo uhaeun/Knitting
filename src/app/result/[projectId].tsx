@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RESULT_KINDS } from '@/features/media/resultPlan';
 import { useResultPhoto } from '@/features/media/useResultPhoto';
 import { showAlert } from '@/shared/lib/dialog';
-import { canShareFiles } from '@/shared/lib/saveFile';
+import { saveHint, saveLabel } from '@/shared/lib/saveFile';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { useSquareSide } from '@/shared/ui/layout';
@@ -23,7 +23,6 @@ export default function ResultScreen() {
   const router = useRouter();
   const side = useSquareSide(size.webResultChrome);
   const r = useResultPhoto(projectId);
-  const share = canShareFiles();
 
   const header = (
     <View style={styles.header}>
@@ -91,8 +90,10 @@ export default function ResultScreen() {
 
       <View style={styles.spacer} />
       <View style={styles.actions}>
-        {share && ready ? <Text style={styles.hint}>열리는 공유 창에서 {r.output === 'mp4' ? '"비디오 저장"' : '"이미지 저장"'}을 누르세요. 인스타그램 등으로 바로 보낼 수도 있어요.</Text> : null}
-        <Button label={share ? '사진첩에 저장' : '파일로 저장'} large disabled={!ready} onPress={guard('저장하지 못했어요', r.save)} />
+        {ready && saveHint(r.output === 'mp4' ? 'video' : 'image') ? (
+          <Text style={styles.hint}>{saveHint(r.output === 'mp4' ? 'video' : 'image')}</Text>
+        ) : null}
+        <Button label={saveLabel()} large disabled={!ready} onPress={guard('저장하지 못했어요', r.save)} />
       </View>
     </SafeAreaView>
   );

@@ -1,0 +1,24 @@
+{
+  "appId": "app.knitting.web",
+  "appName": "닛팅",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": false,
+    "backgroundColor": "#F8F6F1"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#F8F6F1"
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#F8F6F1"
+    }
+  },
+  "backgroundColor": "#F8F6F1"
+}
