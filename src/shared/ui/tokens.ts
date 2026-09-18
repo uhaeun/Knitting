@@ -6,16 +6,17 @@
 
 export const color = {
   // 밝은 화면 (목록, 타임라인, 시트)
-  bg: '#F7F6F3', // 거의 흰색. 노랑 기운 최소
+  // 강조색은 하은의 손글씨 로고에서 뽑은 주황. 새로 만들지 않았다
+  bg: '#F8F6F1', // 종이빛. 흰색보다 눈이 덜 부시다
   surface: '#FFFFFF', // 카드, 시트
-  text: '#1A1C18', // 순수 검정 아님
-  textMuted: '#6B6F68',
-  border: '#E2E1DC', // 1px 헤어라인
-  accent: '#1F5F5B', // 깊은 청록. 셔터, 선택 상태, 주요 버튼
-  accentPressed: '#164543',
-  danger: '#A3452A', // 삭제 등. 거의 안 씀
-  tickInactive: '#D3D2CC', // 스크러버 미도달 눈금
-  overlay: 'rgba(26,28,24,0.32)', // 시트 뒤 딤
+  text: '#23211D', // 따뜻한 먹색. 순수 검정 아님
+  textMuted: '#6E6B63',
+  border: '#E3DFD6', // 1px 헤어라인
+  accent: '#C8523C', // 로고 주황. 셔터, 선택 상태, 주요 버튼
+  accentPressed: '#A8422F',
+  danger: '#8F3A24', // 삭제 등. 주황과 헷갈리지 않게 더 어둡게
+  tickInactive: '#D8D3C7', // 스크러버 미도달 눈금
+  overlay: 'rgba(35,33,29,0.34)', // 시트 뒤 딤
 
   // 어두운 화면 (촬영)
   cameraBg: '#0B0C0A',
@@ -23,7 +24,7 @@ export const color = {
   onDarkMuted: 'rgba(255,255,255,0.6)',
   onDarkSecondary: 'rgba(255,255,255,0.72)',
   onDarkBorder: 'rgba(255,255,255,0.28)',
-  onDarkHint: '#3E9A93', // 첫 촬영 안내 박스 세로선
+  onDarkHint: '#E08A6F', // 첫 촬영 안내 박스 세로선
   gridLine: 'rgba(255,255,255,0.5)',
   recording: '#D6453D', // 녹화 중 셔터 테두리·REC 배지
   photoLabelBg: 'rgba(11,12,10,0.55)', // 결과 사진 위 라벨 바탕. 밝은 편물 위에서도 흰 글씨가 읽히는 농도
