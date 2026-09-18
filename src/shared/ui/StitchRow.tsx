@@ -14,7 +14,7 @@ type Props = {
 };
 
 /**
- * 겉뜨기 V 모양으로 기록을 센다. 기록 하나 = 코 하나.
+ * 겉뜨기 코(왼쪽을 향한 꺾쇠)로 기록을 센다. 기록 하나 = 코 하나.
  * 지나온 코는 진하게, 아직 안 온 코는 흐리게, 보고 있는 코는 강조색.
  * 진행률 막대가 아니라 '쌓임'이다 — 목표치가 없다.
  */
@@ -29,7 +29,7 @@ export function StitchRow({ total, index, unit = 10, perRow = 12 }: Props) {
   return (
     <View style={styles.wrap} accessibilityLabel={`기록 ${total}개`}>
       {rows.map((row) => (
-        <View key={row[0]} style={[styles.row, { gap: unit * 0.22 }]}>
+        <View key={row[0]} style={[styles.row, { gap: unit * 0.3, height: unit }]}>
           {row.map((i) => {
             const current = index === i;
             const done = index === undefined || i <= index;
@@ -42,21 +42,25 @@ export function StitchRow({ total, index, unit = 10, perRow = 12 }: Props) {
   );
 }
 
-/** 겉뜨기 한 코. 두 획이 아래에서 만나는 V */
+/** 겉뜨기 한 코. 왼쪽을 향한 꺾쇠 < 모양 */
 function Stitch({ unit, tint }: { unit: number; tint: string }) {
-  const stroke = Math.max(1.5, unit * 0.2);
-  const leg = { width: stroke, height: unit, backgroundColor: tint, borderRadius: stroke / 2 };
+  const stroke = Math.max(1.5, unit * 0.22);
+  const side = unit * 0.62; // 45도로 돌리면 대각선이 unit 높이가 된다
   return (
-    <View style={{ width: unit * 0.78, height: unit, position: 'relative' }}>
-      <View style={[leg, styles.legLeft, { transform: [{ rotate: '18deg' }] }]} />
-      <View style={[leg, styles.legRight, { transform: [{ rotate: '-18deg' }] }]} />
-    </View>
+    <View
+      style={{
+        width: side,
+        height: side,
+        borderLeftWidth: stroke,
+        borderBottomWidth: stroke,
+        borderColor: tint,
+        transform: [{ rotate: '45deg' }],
+      }}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: 3 },
-  row: { flexDirection: 'row', alignItems: 'flex-end' },
-  legLeft: { position: 'absolute', left: 0, bottom: 0 },
-  legRight: { position: 'absolute', right: 0, bottom: 0 },
+  row: { flexDirection: 'row', alignItems: 'center' },
 });
