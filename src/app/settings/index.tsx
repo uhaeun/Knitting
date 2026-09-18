@@ -7,6 +7,8 @@ import { signOut } from '@/features/auth/api';
 import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
+import { TourSheet } from '@/features/onboarding/TourSheet';
+import { useTour } from '@/features/onboarding/useTour';
 import { InstallGuide, useInstallGuideEntry } from '@/features/pwa/InstallGuide';
 import { showAlert } from '@/shared/lib/dialog';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
@@ -17,6 +19,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [installOpen, setInstallOpen] = useState(false);
   const installEntry = useInstallGuideEntry();
+  const [tourOpen, setTourOpen] = useState(false);
+  const tour = useTour();
   const { session, profile } = useAuth();
   const update = useUpdateProfile();
   const requests = usePendingRequests();
@@ -59,6 +63,7 @@ export default function SettingsScreen() {
             />
             <Link label="차단한 사람" onPress={() => router.push('/settings/blocked')} />
             <Link label={installEntry.label} onPress={installEntry.onPress(() => setInstallOpen(true))} />
+            <Link label="닛팅 쓰는 법 다시 보기" onPress={() => setTourOpen(true)} />
           </Section>
         ) : null}
 
@@ -91,6 +96,7 @@ export default function SettingsScreen() {
         ) : null}
       </ScrollView>
 
+      <TourSheet visible={tourOpen} onDone={() => { setTourOpen(false); tour.finish(); }} />
       <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
     </SafeAreaView>
   );

@@ -15,23 +15,32 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: color.text,
+        tabBarActiveTintColor: color.accent,
         tabBarInactiveTintColor: color.textMuted,
         tabBarStyle: [styles.bar, { height: styles.bar.height + insets.bottom, paddingBottom: insets.bottom }],
         tabBarLabelStyle: styles.label,
+        tabBarItemStyle: styles.item,
         sceneStyle: { backgroundColor: color.bg },
       }}
     >
       <Tabs.Screen
         name="projects"
-        options={{ title: '편물', tabBarIcon: ({ color: c }) => <Glyph kind="list" tint={c} /> }}
+        options={{ title: '편물', tabBarIcon: ({ color: c, focused }) => (
+            <Selected on={focused}>
+              <Glyph kind="list" tint={c} />
+            </Selected>
+          ) }}
       />
       <Tabs.Screen
         name="index"
         options={{
           title: '피드',
           href: online ? undefined : null,
-          tabBarIcon: ({ color: c }) => <Glyph kind="feed" tint={c} />,
+          tabBarIcon: ({ color: c, focused }) => (
+            <Selected on={focused}>
+              <Glyph kind="feed" tint={c} />
+            </Selected>
+          ),
         }}
       />
       <Tabs.Screen
@@ -43,12 +52,20 @@ export default function TabsLayout() {
         options={{
           title: '탐색',
           href: online ? undefined : null,
-          tabBarIcon: ({ color: c }) => <Glyph kind="search" tint={c} />,
+          tabBarIcon: ({ color: c, focused }) => (
+            <Selected on={focused}>
+              <Glyph kind="search" tint={c} />
+            </Selected>
+          ),
         }}
       />
       <Tabs.Screen
         name="me"
-        options={{ title: '나', tabBarIcon: ({ color: c }) => <Glyph kind="me" tint={c} /> }}
+        options={{ title: '나', tabBarIcon: ({ color: c, focused }) => (
+            <Selected on={focused}>
+              <Glyph kind="me" tint={c} />
+            </Selected>
+          ) }}
       />
     </Tabs>
   );
@@ -79,6 +96,11 @@ function ShutterIcon() {
 }
 
 /** 아이콘 폰트를 안 쓴다. 토큰 색만 참조하는 단순 도형. */
+/** 지금 보고 있는 탭은 아이콘 뒤에 알약 배경을 깐다. 색만으로는 눈에 잘 안 띈다 */
+function Selected({ on, children }: { on: boolean; children: React.ReactNode }) {
+  return <View style={[styles.slot, on && styles.slotOn]}>{children}</View>;
+}
+
 function Glyph({ kind, tint }: { kind: 'list' | 'feed' | 'search' | 'me'; tint: ColorValue }) {
   if (kind === 'list') return <View style={[styles.glyphBox, { borderColor: tint }]} />;
   if (kind === 'feed') {
@@ -108,6 +130,12 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
   },
   label: { fontSize: fontSize.caption, fontWeight: fontWeight.semibold },
+  item: { paddingTop: 2 },
+  slot: {
+    width: 44, height: 28, borderRadius: radius.pill,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  slotOn: { backgroundColor: color.accentSoft },
   captureButton: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: space.sm },
   shutter: {
     width: size.tap, height: size.tap, borderRadius: radius.pill,

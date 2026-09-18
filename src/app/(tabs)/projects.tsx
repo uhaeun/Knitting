@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { TourSheet } from '@/features/onboarding/TourSheet';
+import { useTour } from '@/features/onboarding/useTour';
 import { InstallBanner, InstallGuide } from '@/features/pwa/InstallGuide';
 import { useInstall } from '@/features/pwa/useInstall';
 import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
@@ -18,13 +20,14 @@ export default function HomeScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
   const install = useInstall();
+  const tour = useTour();
 
-  // 처음 들어온 기기에서는 홈 화면 추가 안내를 한 번 저절로 띄운다
+  // 처음 들어오면 사용법부터. 그걸 본 뒤에야 홈 화면 추가 안내를 띄운다
   useEffect(() => {
-    if (!install.autoOpen) return;
+    if (!tour.seen || !install.autoOpen) return;
     setInstallOpen(true);
     install.markSeen();
-  }, [install]);
+  }, [tour.seen, install]);
   const { create } = useLocalSearchParams<{ create?: string }>();
 
   // 편물이 없을 때 탭바 촬영 버튼이 ?create=1로 보낸다
@@ -78,6 +81,8 @@ export default function HomeScreen() {
           )}
         />
       )}
+
+      <TourSheet visible={!tour.seen} onDone={tour.finish} />
 
       <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
 

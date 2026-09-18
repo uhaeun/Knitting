@@ -14,6 +14,7 @@ export const color = {
   border: '#E3DFD6', // 1px 헤어라인
   accent: '#C8523C', // 로고 주황. 셔터, 선택 상태, 주요 버튼
   accentPressed: '#A8422F',
+  accentSoft: '#F4E2DC', // 선택된 탭 뒤 알약. 주황을 아주 옅게
   danger: '#8F3A24', // 삭제 등. 주황과 헷갈리지 않게 더 어둡게
   tickInactive: '#D8D3C7', // 스크러버 미도달 눈금
   overlay: 'rgba(35,33,29,0.34)', // 시트 뒤 딤
