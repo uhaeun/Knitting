@@ -1,5 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useIsOnline } from '@/features/auth/store';
 import { useProjects } from '@/features/project/queries';
@@ -8,13 +9,15 @@ import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/to
 /** 편물 · 피드 · 촬영(가운데) · 탐색 · 나. 로그인 안 했으면 서버 탭은 숨긴다. */
 export default function TabsLayout() {
   const online = useIsOnline();
+  // 홈 화면 앱으로 열면 아래 인디케이터 영역이 겹친다. 그만큼 탭바를 키운다
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: color.text,
         tabBarInactiveTintColor: color.textMuted,
-        tabBarStyle: styles.bar,
+        tabBarStyle: [styles.bar, { height: styles.bar.height + insets.bottom, paddingBottom: insets.bottom }],
         tabBarLabelStyle: styles.label,
         sceneStyle: { backgroundColor: color.bg },
       }}
