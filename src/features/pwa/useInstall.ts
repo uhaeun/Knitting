@@ -6,6 +6,7 @@ import { currentPlatform, installStateOf, isStandalone, type InstallState, type 
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 
 const DISMISS_KEY = 'knitting.installGuideDismissed';
+const SEEN_KEY = 'knitting.installGuideSeen';
 
 /**
  * 홈 화면 앱 설치 상태와 안내 표시 여부.
@@ -66,14 +67,43 @@ export function useInstall() {
     }
   }, []);
 
-  const reset = useCallback(() => {
-    setDismissed(false);
+  /** 처음 들어온 기기에서는 안내를 한 번 저절로 띄운다 (설치했거나 이미 본 기기는 제외) */
+  const [seen, setSeen] = useState(() => {
     try {
-      localStorage.removeItem(DISMISS_KEY);
+      return localStorage.getItem(SEEN_KEY) === '1';
+    } catch {
+      return true; // 기억할 수 없으면 자동으로 띄우지 않는다 (열 때마다 뜨면 성가시다)
+    }
+  });
+  const markSeen = useCallback(() => {
+    setSeen(true);
+    try {
+      localStorage.setItem(SEEN_KEY, '1');
     } catch {
       // 무시
     }
   }, []);
 
-  return { platform, state, install, dismiss, reset, showBanner: state !== 'installed' && state !== 'none' && !dismissed };
+  const reset = useCallback(() => {
+    setDismissed(false);
+    try {
+      localStorage.removeItem(DISMISS_KEY);
+      localStorage.removeItem(SEEN_KEY);
+    } catch {
+      // 무시
+    }
+  }, []);
+
+  const needsGuide = state !== 'installed' && state !== 'none';
+  return {
+    platform,
+    state,
+    install,
+    dismiss,
+    reset,
+    markSeen,
+    showBanner: needsGuide && !dismissed,
+    /** 처음 들어온 기기에서 저절로 열린다 */
+    autoOpen: needsGuide && !seen,
+  };
 }

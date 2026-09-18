@@ -52,6 +52,12 @@ export function InstallGuide({ visible, onClose }: Props) {
           </View>
         )}
 
+        {state !== 'installed' ? (
+          <Text style={styles.note}>
+            추가한 뒤에는 홈 화면의 닛팅 아이콘으로 열어 주세요. 그러면 이 안내는 사라져요.
+          </Text>
+        ) : null}
+
         {platform === 'ios' ? (
           <Text style={styles.note}>
             iPhone은 Safari에서만 추가할 수 있어요. 크롬으로 보고 있다면 Safari로 이 주소를 열어 주세요.

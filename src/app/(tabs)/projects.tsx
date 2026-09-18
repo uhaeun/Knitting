@@ -4,6 +4,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { InstallBanner, InstallGuide } from '@/features/pwa/InstallGuide';
+import { useInstall } from '@/features/pwa/useInstall';
 import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
 import { useProjects } from '@/features/project/queries';
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
@@ -16,6 +17,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
+  const install = useInstall();
+
+  // 처음 들어온 기기에서는 홈 화면 추가 안내를 한 번 저절로 띄운다
+  useEffect(() => {
+    if (!install.autoOpen) return;
+    setInstallOpen(true);
+    install.markSeen();
+  }, [install]);
   const { create } = useLocalSearchParams<{ create?: string }>();
 
   // 편물이 없을 때 탭바 촬영 버튼이 ?create=1로 보낸다
