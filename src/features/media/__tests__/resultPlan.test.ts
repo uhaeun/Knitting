@@ -1,4 +1,4 @@
-import { buildScene, centerCropFor, dayOf, layoutPanels, outputKindOf, pickPanels, resultFileName, sceneDurationMs } from '@/features/media/resultPlan';
+import { buildScene, centerCropFor, layoutPanels, outputKindOf, pickPanels, resultFileName, sceneDurationMs } from '@/features/media/resultPlan';
 
 const at = (day: number, hour = 12) => new Date(2026, 8, day, hour).toISOString();
 const post = (id: string, day: number, hour = 12) => ({
@@ -65,15 +65,15 @@ describe('buildScene', () => {
   const project = { name: '회색 라글란', started_at: '2026-09-01' };
   const posts = [post('a', 1), post('b', 6), post('c', 12)];
 
-  it('전체 1장: 칸 하나, 라벨 없음, 편물명과 경과일 캡션', () => {
+  it('전체 1장: 칸 하나, 라벨 없음, 편물명과 촬영 날짜 캡션', () => {
     const s = buildScene({ kind: 'single', project, posts });
     expect(s.panels).toHaveLength(1);
     expect(s.panels[0]).toMatchObject({ media: { kind: 'photo', uri: 'p:c' }, label: null, dst: { x: 0, y: 0, width: 1080, height: 1080 } });
-    expect(s.caption).toEqual({ title: '회색 라글란', subtitle: '12일째 · 9월 12일' });
+    expect(s.caption).toEqual({ title: '회색 라글란', subtitle: '9월 12일 · 3번째 기록' });
   });
-  it('3분할: 칸마다 며칠째 라벨, 캡션 없음', () => {
+  it('3분할: 칸마다 촬영 날짜 라벨, 캡션 없음', () => {
     const s = buildScene({ kind: 'triple', project, posts });
-    expect(s.panels.map((p) => p.label)).toEqual(['1일째', '6일째', '12일째']);
+    expect(s.panels.map((p) => p.label)).toEqual(['9월 1일', '9월 6일', '9월 12일']);
     expect(s.caption).toBeNull();
   });
   it('모두 사진이면 JPEG, 길이 0', () => {
@@ -94,12 +94,5 @@ describe('resultFileName', () => {
   it('확장자는 결과 종류를 따른다', () => {
     expect(resultFileName('12345678-aaaa', 'triple', 'jpg')).toBe('knitting-12345678-triple.jpg');
     expect(resultFileName('12345678-aaaa', 'triple', 'mp4')).toBe('knitting-12345678-triple.mp4');
-  });
-});
-
-describe('dayOf', () => {
-  it('시작 당일은 1일째', () => {
-    expect(dayOf('2026-09-01', at(1, 23))).toBe(1);
-    expect(dayOf('2026-09-01', at(2, 0))).toBe(2);
   });
 });

@@ -7,7 +7,7 @@ import { InstallBanner, InstallGuide } from '@/features/pwa/InstallGuide';
 import { useInstall } from '@/features/pwa/useInstall';
 import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
 import { useProjects } from '@/features/project/queries';
-import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { formatMonthDay } from '@/shared/lib/dates';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ProjectCard } from '@/shared/ui/ProjectCard';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
@@ -58,7 +58,7 @@ export default function HomeScreen() {
       ) : items.length === 0 && !projects.isPending ? (
         <EmptyState
           title="첫 편물을 만들어 보세요"
-          description="매일 같은 각도로 한 장씩. 사진이 쌓이면 편물이 자라나는 영상이 됩니다."
+          description="찍을 때마다 한 장씩. 며칠 쉬어도 괜찮아요. 쌓인 기록이 자라나는 영상이 됩니다."
           actionLabel="편물 만들기"
           onAction={() => setSheetOpen(true)}
         />
@@ -70,7 +70,7 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <ProjectCard
               name={item.name}
-              subtitle={`${daysSince(item.started_at)}일째 · ${formatMonthDay(item.started_at)} 시작`}
+              subtitle={`${formatMonthDay(item.started_at)} 시작`}
               photoCount={item.photo_count}
               thumbUri={item.cover_thumb_path ?? undefined}
               onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}

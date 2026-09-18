@@ -3,7 +3,7 @@
  * 설계도 6장: 전체 1장(현재 + 편물명·경과일) · 전후 2분할(첫 | 현재) · 3분할(첫 | 시간 기준 중간 | 현재).
  * 그리기는 composeResult.ts(Canvas)가 이 장면(Scene)을 그대로 따른다.
  */
-import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { formatMonthDay } from '@/shared/lib/dates';
 import { mediaOf, type MediaItem, type MediaPost } from '@/features/media/mediaItem';
 
 export type ResultKind = 'single' | 'beforeAfter' | 'triple';
@@ -26,9 +26,9 @@ export const RESULT_METRICS = {
   labelPadX: 18,
   labelPadY: 10,
   labelRadius: 12,
-  labelFont: 34, // 분할 라벨 "12일째"
+  labelFont: 34, // 분할 라벨 "9월 17일"
   titleFont: 52, // 전체 1장 편물 이름
-  subtitleFont: 34, // 전체 1장 "12일째 · 9월 17일"
+  subtitleFont: 34, // 전체 1장 "9월 17일 · 9번째 기록"
   captionGap: 8,
 } as const;
 
@@ -90,11 +90,6 @@ export function centerCropFor(dst: Pick<Rect, 'width' | 'height'>, imageW: numbe
   return { x: 0, y: (imageH - height) / 2, width: imageW, height };
 }
 
-/** 편물 시작일 기준 그 사진이 며칠째인가. 시작 당일 = 1 */
-export function dayOf(startedAt: string, takenAt: string): number {
-  return daysSince(startedAt, new Date(takenAt));
-}
-
 export function buildScene<T extends TimedPost & MediaPost>(input: {
   kind: ResultKind;
   project: { name: string; started_at: string };
@@ -104,7 +99,7 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
   const side = input.side ?? RESULT_SIDE;
   const picked = pickPanels(input.kind, input.posts);
   const rects = layoutPanels(picked.length, side);
-  const labelOf = (p: T) => `${dayOf(input.project.started_at, p.taken_at)}일째`;
+  const labelOf = (p: T) => formatMonthDay(p.taken_at);
 
   const panels = picked.map((p, i) => ({
     media: mediaOf(p),
@@ -117,7 +112,7 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
     panels,
     caption:
       input.kind === 'single'
-        ? { title: input.project.name, subtitle: `${labelOf(current)} · ${formatMonthDay(current.taken_at)}` }
+        ? { title: input.project.name, subtitle: `${formatMonthDay(current.taken_at)} · ${input.posts.length}번째 기록` }
         : null,
   };
 }

@@ -32,7 +32,7 @@ try {
     await page.getByRole('button', { name: '사진 찍기' }).click({ timeout: 30000 });
     await page.waitForFunction(() => (document.querySelector('video')?.videoWidth ?? 0) > 0, null, { timeout: 30000 });
     await page.getByRole('button', { name: '촬영' }).click();
-    await page.getByText(`${k} / ${k}`).waitFor({ timeout: 60000 });
+    await page.getByText(`${k}번째 / ${k}`).waitFor({ timeout: 60000 });
   }
 
   console.log('\n== 결과 사진 → 사진첩에 저장');

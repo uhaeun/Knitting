@@ -22,7 +22,7 @@ import { postPhotoUri } from '@/features/capture/repository';
 import { useCaptureSettings } from '@/features/capture/store';
 import { canRecordVideo } from '@/features/capture/videoPipeline';
 import { useProject } from '@/features/project/queries';
-import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { formatMonthDay } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
 import { useSquareSide } from '@/shared/ui/layout';
@@ -56,7 +56,7 @@ export default function CaptureScreen() {
   const isFirst = latest.isSuccess && latest.data === null;
   const ghostUri = latest.data ? postPhotoUri(latest.data) : null;
   const title = project.data
-    ? `${project.data.name} · ${isFirst ? '첫 장' : `${daysSince(project.data.started_at)}일째`}`
+    ? `${project.data.name} · ${isFirst ? '첫 장' : '다음 장'}`
     : '';
 
   const persist = (shot: Shot) => {

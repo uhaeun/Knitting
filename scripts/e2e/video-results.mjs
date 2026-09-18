@@ -49,7 +49,7 @@ const shootPhoto = async (n) => {
   await page.getByRole('radio', { name: '사진' }).click();
   await waitCamera();
   await page.getByRole('button', { name: '촬영' }).click();
-  await page.getByText(`${n} / ${n}`).waitFor({ timeout: 60000 });
+  await page.getByText(`${n}번째 / ${n}`).waitFor({ timeout: 60000 });
 };
 const download = async (buttonName, name) => {
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 180000 }), page.getByRole('button', { name: buttonName }).click()]);
@@ -81,7 +81,7 @@ try {
   await page.getByRole('button', { name: '녹화', exact: true }).click();
   await page.waitForTimeout(3200);
   await page.getByRole('button', { name: '녹화 끝' }).click();
-  await page.getByText('3 / 3').waitFor({ timeout: 120000 });
+  await page.getByText('3번째 / 3').waitFor({ timeout: 120000 });
   const owner = sql(`select id from auth.users where email = '${email}'`);
   const [videoPostId, clipMs] = sql(`select id || '|' || duration_ms from posts where owner_id = '${owner}' and media_type = 'video'`).split('|');
 

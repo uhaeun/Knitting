@@ -11,8 +11,9 @@ import { estimateDurationMs, MIN_RECORDS } from '@/features/media/plan';
 import { useMakeVideo } from '@/features/media/useMakeVideo';
 import { postPhotoUri } from '@/features/capture/repository';
 import { Scrubber } from '@/features/project/Scrubber';
+import { StitchRow } from '@/shared/ui/StitchRow';
 import { useDeleteProject, useProject, useSetVisibility } from '@/features/project/queries';
-import { daysSince, formatMonthDay } from '@/shared/lib/dates';
+import { formatDateTime, formatMonthDay } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -91,7 +92,7 @@ export default function ProjectScreen() {
           <Text style={styles.name} numberOfLines={1}>{p?.name ?? ''}</Text>
           {p ? (
             <Text style={styles.meta}>
-              {formatMonthDay(p.started_at)} 시작 · {daysSince(p.started_at)}일째 ·{' '}
+              {formatMonthDay(p.started_at)} 시작 · 기록 {total}개 ·{' '}
               {p.default_visibility === 'public' ? '전체 공개' : p.default_visibility === 'followers' ? '팔로워' : '나만'}
             </Text>
           ) : null}
@@ -104,7 +105,7 @@ export default function ProjectScreen() {
       {total === 0 ? (
         <EmptyState
           title="아직 사진이 없어요"
-          description="첫 장을 찍으면 그게 앞으로의 기준 각도가 됩니다."
+          description="찍을 때마다 한 장씩 쌓여요. 며칠 쉬어도 괜찮아요. 첫 장이 앞으로의 기준 각도가 됩니다."
           actionLabel="사진 찍기"
           onAction={goCapture}
         />
@@ -119,8 +120,11 @@ export default function ProjectScreen() {
             {current?.media_type === 'video' && current.video_path ? <VideoBadge durationMs={current.duration_ms} /> : null}
           </View>
           <View style={styles.captionRow}>
-            <Text style={styles.date}>{current ? formatMonthDay(current.taken_at) : ''}</Text>
-            <Text style={styles.counter}>{index + 1} / {total}</Text>
+            <Text style={styles.date}>{current ? formatDateTime(current.taken_at) : ''}</Text>
+            <Text style={styles.counter}>{index + 1}번째 / {total}</Text>
+          </View>
+          <View style={styles.stitches}>
+            <StitchRow total={total} index={index} unit={14} perRow={14} />
           </View>
           <View style={styles.scrubber}>
             <Scrubber total={total} index={index} onChange={setIndex} />
@@ -169,6 +173,7 @@ const styles = StyleSheet.create({
   date: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
   counter: { fontSize: fontSize.caption, color: color.textMuted, fontVariant: ['tabular-nums'] },
   scrubber: { paddingHorizontal: space.xl, paddingTop: space.lg },
+  stitches: { paddingHorizontal: space.xl, paddingBottom: space.sm, alignItems: 'flex-start' },
   spacer: { flex: 1 },
   actions: { paddingHorizontal: space.xl, paddingBottom: space.md, gap: space.sm },
   actionRow: { flexDirection: 'row', gap: space.sm },

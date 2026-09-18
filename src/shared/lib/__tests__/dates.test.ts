@@ -1,4 +1,4 @@
-import { daysSince, formatMonthDay, toDateOnly } from '@/shared/lib/dates';
+import { formatDateTime, daysSince, formatMonthDay, toDateOnly } from '@/shared/lib/dates';
 
 describe('daysSince', () => {
   it('시작 당일은 1일째', () => {
@@ -21,5 +21,16 @@ describe('toDateOnly / formatMonthDay', () => {
   });
   it('ISO도 받는다', () => {
     expect(formatMonthDay(new Date(2026, 6, 14, 9).toISOString())).toBe('7월 14일');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('오전·오후와 분까지', () => {
+    expect(formatDateTime('2026-09-18T14:32:00')).toBe('9월 18일 오후 2:32');
+    expect(formatDateTime('2026-09-18T09:05:00')).toBe('9월 18일 오전 9:05');
+  });
+  it('자정은 오전 12시, 정오는 오후 12시', () => {
+    expect(formatDateTime('2026-09-18T00:00:00')).toBe('9월 18일 오전 12:00');
+    expect(formatDateTime('2026-09-18T12:00:00')).toBe('9월 18일 오후 12:00');
   });
 });

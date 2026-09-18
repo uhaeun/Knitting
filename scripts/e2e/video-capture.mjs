@@ -77,7 +77,7 @@ try {
   await page.getByRole('button', { name: '녹화', exact: true }).click();
   await page.waitForTimeout(3200);
   await page.getByRole('button', { name: '녹화 끝' }).click();
-  await page.getByText('1 / 1').waitFor({ timeout: 120000 });
+  await page.getByText('1번째 / 1').waitFor({ timeout: 120000 });
 
   const owner = sql(`select id from auth.users where email = '${email}'`);
   const rec = sql(`select media_type || '|' || duration_ms || '|' || video_path || '|' || photo_path || '|' || thumb_path from posts where owner_id = '${owner}' order by created_at desc limit 1`).split('|');
@@ -99,7 +99,7 @@ try {
     page.getByRole('button', { name: '앨범에서 가져오기' }).click(),
   ]);
   await chooser.setFiles(join(dir, 'album8.mp4'));
-  await page.getByText('2 / 2').waitFor({ timeout: 120000 });
+  await page.getByText('2번째 / 2').waitFor({ timeout: 120000 });
   const alb = sql(`select duration_ms || '|' || video_path from posts where owner_id = '${owner}' order by created_at desc limit 1`).split('|');
   check('앨범 영상 5초로 잘림', Number(alb[0]) >= 4900 && Number(alb[0]) <= 5000, alb[0]);
   const albInfo = await inspect(alb[1]);
@@ -112,7 +112,7 @@ try {
   await page.getByRole('radio', { name: '사진' }).click();
   await page.waitForFunction(() => (document.querySelector('video')?.videoWidth ?? 0) > 0, null, { timeout: 30000 });
   await page.getByRole('button', { name: '촬영' }).click();
-  await page.getByText('3 / 3').waitFor({ timeout: 60000 });
+  await page.getByText('3번째 / 3').waitFor({ timeout: 60000 });
   check('사진 기록은 photo', sql(`select media_type from posts where owner_id = '${owner}' order by created_at desc limit 1`) === 'photo');
 
   console.log('\n== 녹화 끝을 누르지 않고 5초 자동 정지');
@@ -127,7 +127,7 @@ try {
   await page.getByRole('button', { name: '녹화 끝' }).waitFor({ state: 'detached', timeout: 6500 });
   const stoppedAfter = Date.now() - startedAt;
   check('5초에 자동 정지', stoppedAfter >= 4900 && stoppedAfter <= 6500, `${stoppedAfter}ms`);
-  await page.getByText('4 / 4').waitFor({ timeout: 120000 });
+  await page.getByText('4번째 / 4').waitFor({ timeout: 120000 });
   const auto = sql(`select media_type || '|' || duration_ms from posts where owner_id = '${owner}' order by created_at desc limit 1`).split('|');
   check('자동 정지 영상 기록 (5초 이하)', auto[0] === 'video' && Number(auto[1]) >= 4500 && Number(auto[1]) <= 5000, auto.join(' '));
   const autoDialogs = dialogs.slice(autoDialogsFrom);

@@ -1,12 +1,12 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { StackTicks } from '@/shared/ui/StackTicks';
+import { StitchRow } from '@/shared/ui/StitchRow';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
 type Props = {
   name: string;
-  /** "27일째 · 8월 8일 시작" 형태로 호출부에서 만들어 넘긴다 */
+  /** "9월 7일 시작" 형태로 호출부에서 만들어 넘긴다 */
   subtitle: string;
   photoCount: number;
   /** 대표 사진 썸네일 file:// URI. 없으면 빈 사각형 */
@@ -32,9 +32,9 @@ export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress }: P
         </Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
         <View style={styles.ticks}>
-          <StackTicks count={photoCount} />
+          <StitchRow total={photoCount} unit={9} perRow={16} />
         </View>
-        <Text style={styles.subtitle}>사진 {photoCount}장</Text>
+        <Text style={styles.subtitle}>기록 {photoCount}개</Text>
       </View>
     </Pressable>
   );
