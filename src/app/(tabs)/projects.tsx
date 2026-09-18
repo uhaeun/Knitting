@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { InstallBanner, InstallGuide } from '@/features/pwa/InstallGuide';
 import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
 import { useProjects } from '@/features/project/queries';
 import { daysSince, formatMonthDay } from '@/shared/lib/dates';
@@ -14,6 +15,7 @@ import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/to
 export default function HomeScreen() {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
   const { create } = useLocalSearchParams<{ create?: string }>();
 
   // 편물이 없을 때 탭바 촬영 버튼이 ?create=1로 보낸다
@@ -40,6 +42,8 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      <InstallBanner onOpen={() => setInstallOpen(true)} />
+
       {projects.isError ? (
         <EmptyState title="목록을 불러오지 못했어요" description={String(projects.error)} />
       ) : items.length === 0 && !projects.isPending ? (
@@ -65,6 +69,8 @@ export default function HomeScreen() {
           )}
         />
       )}
+
+      <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
 
       <CreateProjectSheet
         visible={sheetOpen}

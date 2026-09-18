@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -6,6 +7,7 @@ import { signOut } from '@/features/auth/api';
 import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
+import { InstallGuide, useInstallGuideEntry } from '@/features/pwa/InstallGuide';
 import { showAlert } from '@/shared/lib/dialog';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 
@@ -13,6 +15,8 @@ const SUPPORT_EMAIL = 'haeunmine@gmail.com';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const [installOpen, setInstallOpen] = useState(false);
+  const installEntry = useInstallGuideEntry();
   const { session, profile } = useAuth();
   const update = useUpdateProfile();
   const requests = usePendingRequests();
@@ -54,6 +58,7 @@ export default function SettingsScreen() {
               onPress={() => router.push('/settings/requests')}
             />
             <Link label="차단한 사람" onPress={() => router.push('/settings/blocked')} />
+            <Link label={installEntry.label} onPress={installEntry.onPress(() => setInstallOpen(true))} />
           </Section>
         ) : null}
 
@@ -85,6 +90,8 @@ export default function SettingsScreen() {
           </Section>
         ) : null}
       </ScrollView>
+
+      <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
     </SafeAreaView>
   );
 }
