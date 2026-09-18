@@ -209,6 +209,10 @@ export default function CaptureScreen() {
               ? '편물을 같은 각도로 찍으려면 카메라 권한이 필요합니다.'
               : '브라우저 주소창의 카메라 권한을 허용한 뒤 다시 시도해 주세요. 카메라 없이 앨범에서 가져올 수도 있어요.'}
           </Text>
+          <Text style={styles.permissionHint}>
+            열 때마다 다시 묻는다면 주소창 왼쪽 아A → 웹사이트 설정 → 카메라를 "허용"으로 바꿔 주세요.
+            홈 화면에 추가해서 열면 덜 묻습니다.
+          </Text>
           <Button label={permission.canAskAgain ? '권한 허용' : '다시 시도'} onPress={() => void requestPermission()} />
           <Button label="앨범에서 가져오기" variant="secondary" onPress={pickFromAlbum} disabled={saving} />
           <Button label="닫기" variant="secondary" onPress={() => router.back()} disabled={saving} />
@@ -399,5 +403,6 @@ const styles = StyleSheet.create({
 
   permission: { flex: 1, justifyContent: 'center', gap: space.lg, paddingHorizontal: space.xxxl },
   permissionTitle: { fontSize: fontSize.heading, fontWeight: fontWeight.semibold, color: color.onDark },
+  permissionHint: { fontSize: fontSize.caption, color: color.onDarkMuted, textAlign: 'center', lineHeight: fontSize.caption * 1.5 },
   permissionBody: { fontSize: fontSize.label, lineHeight: fontSize.label * 1.55, color: color.onDarkMuted },
 });
