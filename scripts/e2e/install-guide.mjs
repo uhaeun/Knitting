@@ -26,7 +26,7 @@ try {
   const body = await page.locator('body').innerText();
   check('시트에 따라 할 단계 3개', ['공유 버튼', '홈 화면에 추가', '추가'].every((t) => body.includes(t)));
   check('Safari 안내 문구', body.includes('Safari에서만'));
-  await page.screenshot({ path: `${process.argv[2]}/SCR-install-guide.png` });
+  await page.screenshot({ path: `${process.argv[2] ?? (process.env.TMPDIR ?? '/tmp')}/SCR-install-guide.png` });
   await page.getByRole('button', { name: '나중에' }).last().click();
   await page.waitForTimeout(800);
   await page.reload();
@@ -52,7 +52,7 @@ try {
   check('홈 화면 앱으로 열면 배너가 없다', !(await p2.getByText('홈 화면에 추가하기').first().isVisible().catch(() => false)));
 } catch (e) {
   failed += 1; console.log('ERROR', e.message.slice(0, 200));
-  await page.screenshot({ path: `${process.argv[2]}/install-failure.png` });
+  await page.screenshot({ path: `${process.argv[2] ?? (process.env.TMPDIR ?? '/tmp')}/install-failure.png` });
 } finally {
   await browser.close();
   console.log(failed === 0 ? '\nRESULT: PASS' : `\nRESULT: FAIL (${failed})`);

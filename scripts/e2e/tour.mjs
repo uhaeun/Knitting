@@ -40,7 +40,7 @@ try {
   // 탭 선택 표시는 눈으로 확인한다 (스크린샷). 선택자로는 안정적으로 못 집는다
   await page.goto(`${BASE}/explore`);
   await page.waitForTimeout(2000);
-  await page.screenshot({ path: `${process.argv[2]}/tabs.png` });
+  await page.screenshot({ path: `${process.argv[2] ?? (process.env.TMPDIR ?? '/tmp')}/tabs.png` });
 } catch (e) {
   failed += 1; console.log('ERROR', e.message.slice(0, 200));
 } finally {
