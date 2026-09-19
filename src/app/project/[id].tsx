@@ -10,6 +10,7 @@ import { mediaOf } from '@/features/media/mediaItem';
 import { estimateDurationMs, MIN_RECORDS } from '@/features/media/plan';
 import { useMakeVideo } from '@/features/media/useMakeVideo';
 import { postPhotoUri } from '@/features/capture/repository';
+import { RenameProjectSheet } from '@/features/project/RenameProjectSheet';
 import { Scrubber } from '@/features/project/Scrubber';
 import { StitchRow } from '@/shared/ui/StitchRow';
 import { useDeleteProject, useProject, useSetVisibility } from '@/features/project/queries';
@@ -32,7 +33,8 @@ export default function ProjectScreen() {
   const del = useDeleteProject();
   const setVis = useSetVisibility();
   const video = useMakeVideo(id);
-  const delPost = useDeletePost(id);
+  const delPost = useDeletePost();
+  const [renaming, setRenaming] = useState(false);
 
   const items = posts.data ?? [];
   const total = items.length;
@@ -86,6 +88,7 @@ export default function ProjectScreen() {
   const openMenu = () => {
     showAlert(p?.name ?? '편물', undefined, [
       ...(current ? [{ text: '지금 보는 기록 지우기', style: 'destructive' as const, onPress: confirmDeletePost }] : []),
+      { text: '이름 바꾸기', onPress: () => setRenaming(true) },
       { text: '공개 범위 바꾸기', onPress: chooseVisibility },
       { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
       { text: '취소', style: 'cancel' },
@@ -174,6 +177,7 @@ export default function ProjectScreen() {
         onRetry={video.start}
         onSave={video.save}
       />
+      {renaming ? <RenameProjectSheet visible projectId={id} currentName={p?.name ?? ''} onClose={() => setRenaming(false)} /> : null}
     </SafeAreaView>
   );
 }

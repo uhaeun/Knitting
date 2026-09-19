@@ -84,6 +84,13 @@ export async function setProjectVisibility(id: string, v: Visibility): Promise<v
   if (error) throw new Error(`공개 범위를 바꾸지 못했어요: ${error.message}`);
 }
 
+/** 편물 이름 바꾸기. 1~50자 (DB 제약과 같다). */
+export async function renameProject(id: string, name: string): Promise<void> {
+  const trimmed = name.trim();
+  const { error } = await getSupabase().from('projects').update({ name: trimmed }).eq('id', id);
+  if (error) throw new Error(`이름을 바꾸지 못했어요: ${error.message}`);
+}
+
 /** soft delete. 편물과 사진을 서버 함수 안에서 한 트랜잭션으로. Storage 파일은 남긴다 (복구 여지). */
 export async function deleteProject(id: string): Promise<void> {
   const { error } = await getSupabase().rpc('soft_delete_project', { pid: id });

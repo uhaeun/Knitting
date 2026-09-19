@@ -42,7 +42,7 @@ export function PostActionsSheet({ post, isMine, onClose, onReport, onDelete }: 
     <BottomSheet visible onClose={onClose} title={post.projects.name}>
       <View style={styles.block}>
         {isMine ? (
-          onDelete ? <Button label="이 사진 삭제" variant="secondary" large onPress={onDelete} /> : null
+          onDelete ? <Button label={post.media_type === 'video' ? '이 영상 지우기' : '이 사진 지우기'} variant="secondary" large onPress={onDelete} /> : null
         ) : (
           <>
             <Button label="신고하기" variant="secondary" large onPress={onReport} />

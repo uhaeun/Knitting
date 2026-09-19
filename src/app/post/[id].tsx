@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/store';
+import { confirmDeletePost } from '@/features/capture/confirmDeletePost';
+import { useDeletePost } from '@/features/capture/queries';
 import {
   useAddComment,
   useComments,
@@ -42,6 +44,7 @@ export default function PostScreen() {
   const toggleLike = useToggleLike();
   const addComment = useAddComment(id);
   const delComment = useDeleteComment(id);
+  const delPost = useDeletePost();
   const [body, setBody] = useState('');
   const [reportTarget, setReportTarget] = useState<{ kind: 'post' | 'comment'; id: string; author: string } | null>(null);
 
@@ -56,6 +59,25 @@ export default function PostScreen() {
   const p = post.data?.post;
   const liked = likes.data?.has(id) ?? false;
   const isMine = p?.owner_id === me;
+
+  const openMyMenu = () => {
+    if (!p) return;
+    const kind = p.media_type === 'video' ? '영상' : '사진';
+    showAlert(p.projects.name, undefined, [
+      {
+        text: `이 ${kind} 지우기`,
+        style: 'destructive',
+        onPress: () =>
+          confirmDeletePost(kind, () =>
+            delPost.mutate(p.id, {
+              onSuccess: () => router.back(),
+              onError: (e) => showAlert('지우지 못했어요', e instanceof Error ? e.message : String(e)),
+            }),
+          ),
+      },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
 
   const submit = () => {
     const text = body.trim();
@@ -76,12 +98,16 @@ export default function PostScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>{p?.projects.name ?? ''}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="신고"
-            disabled={!p || isMine}
-            onPress={() => p && setReportTarget({ kind: 'post', id: p.id, author: p.owner_id })}
+            accessibilityLabel={isMine ? '더 보기' : '신고'}
+            disabled={!p}
+            onPress={() => {
+              if (!p) return;
+              if (isMine) openMyMenu();
+              else setReportTarget({ kind: 'post', id: p.id, author: p.owner_id });
+            }}
             style={styles.tap}
           >
-            <Text style={[styles.more, isMine && styles.hidden]}>⋯</Text>
+            <Text style={styles.more}>⋯</Text>
           </Pressable>
         </View>
 
@@ -189,7 +215,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: fontSize.label, fontWeight: fontWeight.semibold, color: color.text },
   more: { fontSize: fontSize.heading, color: color.textMuted },
-  hidden: { opacity: 0 },
   photo: { backgroundColor: color.border },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, paddingHorizontal: space.xl, paddingTop: space.md },
   author: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },

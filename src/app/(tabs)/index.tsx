@@ -4,10 +4,13 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/store';
+import { confirmDeletePost } from '@/features/capture/confirmDeletePost';
+import { useDeletePost } from '@/features/capture/queries';
 import { PostActionsSheet } from '@/features/social/PostActionsSheet';
 import { PostCard } from '@/features/social/PostCard';
 import { flattenFeed, useFollowingFeed, useMyLikes, usePendingRequests, useToggleLike } from '@/features/social/queries';
 import { ReportSheet } from '@/features/social/ReportSheet';
+import { showAlert } from '@/shared/lib/dialog';
 import type { FeedPost } from '@/shared/types/remote';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
@@ -20,6 +23,7 @@ export default function FeedScreen() {
   const { posts, urls } = useMemo(() => flattenFeed(feed.data), [feed.data]);
   const likes = useMyLikes('following', posts.map((p) => p.id));
   const toggleLike = useToggleLike();
+  const delPost = useDeletePost();
   const requests = usePendingRequests();
   const [menuFor, setMenuFor] = useState<FeedPost | null>(null);
   const [reportFor, setReportFor] = useState<FeedPost | null>(null);
@@ -73,6 +77,16 @@ export default function FeedScreen() {
         onReport={() => {
           setReportFor(menuFor);
           setMenuFor(null);
+        }}
+        onDelete={() => {
+          const target = menuFor;
+          if (!target) return;
+          setMenuFor(null);
+          confirmDeletePost(target.media_type === 'video' ? '영상' : '사진', () =>
+            delPost.mutate(target.id, {
+              onError: (e) => showAlert('지우지 못했어요', e instanceof Error ? e.message : String(e)),
+            }),
+          );
         }}
       />
       <ReportSheet
