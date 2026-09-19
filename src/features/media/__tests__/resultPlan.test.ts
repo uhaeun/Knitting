@@ -92,6 +92,14 @@ describe('buildScene', () => {
     expect([s.width, s.height]).toEqual([1080, 1080]);
     expect(s.caption).toEqual({ title: '회색 라글란', subtitle: '9월 12일 · 3번째 기록' });
   });
+  it('3분할은 비율과 상관없이 가로 띠 셋을 위아래로 쌓는다', () => {
+    for (const ratio of RESULT_RATIOS.map((r) => r.ratio)) {
+      const s = buildScene({ kind: 'triple', project, posts, ratio });
+      expect(s.panels.every((p) => p.dst.x === 0 && p.dst.width === s.width)).toBe(true);
+      const last = s.panels[2]?.dst;
+      expect(last && last.y + last.height).toBe(s.height);
+    }
+  });
   it('3분할: 칸마다 촬영 날짜 라벨, 캡션 없음', () => {
     const s = buildScene({ kind: 'triple', project, posts });
     expect(s.panels.map((p) => p.label)).toEqual(['9월 1일', '9월 6일', '9월 12일']);

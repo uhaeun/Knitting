@@ -88,11 +88,17 @@ export function pickPanels<T extends TimedPost>(kind: ResultKind, posts: readonl
 }
 
 /**
- * n칸으로 나눈다. 정사각·가로는 옆으로, 세로가 긴 비율은 위아래로 쌓는다.
+ * n칸으로 나눈다. 정사각·가로는 옆으로, 세로가 긴 비율은 위아래로 쌓는다. stack=true면 비율과 상관없이 위아래로.
  * 칸 사이에 gutter. 반올림 오차는 마지막 칸이 흡수해 합이 정확히 캔버스 크기가 된다.
  */
-export function layoutPanels(count: number, width: number, height: number, gutter: number = RESULT_METRICS.gutter): Rect[] {
-  const stacked = height > width;
+export function layoutPanels(
+  count: number,
+  width: number,
+  height: number,
+  gutter: number = RESULT_METRICS.gutter,
+  stack: boolean = false,
+): Rect[] {
+  const stacked = stack || height > width;
   const total = stacked ? height : width;
   const each = Math.floor((total - gutter * (count - 1)) / count);
   return Array.from({ length: count }, (_, i) => {
@@ -122,7 +128,8 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
   const ratio = input.ratio ?? DEFAULT_RATIO;
   const { width, height } = ratioSize(ratio);
   const picked = pickPanels(input.kind, input.posts);
-  const rects = layoutPanels(picked.length, width, height);
+  // 3분할은 셋로그처럼 가로 띠 셋을 위아래로 (하은 결정 2026-09-20). 전후는 비율에 따라
+  const rects = layoutPanels(picked.length, width, height, RESULT_METRICS.gutter, input.kind === 'triple');
   const labelOf = (p: T) => formatMonthDay(p.taken_at);
 
   const panels = picked.map((p, i) => ({
