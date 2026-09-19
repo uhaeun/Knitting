@@ -14,7 +14,22 @@ export const RESULT_KINDS: readonly { kind: ResultKind; label: string; minPhotos
   { kind: 'triple', label: '3분할', minPhotos: 3 },
 ];
 
-/** 결과 이미지 한 변 (px) · JPEG 품질. 설계도: 1080×1080, q90 */
+/** 결과 비율. 인스타그램 규격 크기 그대로 (피드 4:5, 스토리·릴스 9:16) */
+export type ResultRatio = '1:1' | '4:5' | '9:16' | '16:9';
+export const RESULT_RATIOS: readonly { ratio: ResultRatio; label: string; width: number; height: number }[] = [
+  { ratio: '1:1', label: '정사각', width: 1080, height: 1080 },
+  { ratio: '4:5', label: '4:5', width: 1080, height: 1350 },
+  { ratio: '9:16', label: '9:16', width: 1080, height: 1920 },
+  { ratio: '16:9', label: '16:9', width: 1920, height: 1080 },
+];
+export const DEFAULT_RATIO: ResultRatio = '1:1';
+
+export function ratioSize(ratio: ResultRatio): { width: number; height: number } {
+  const r = RESULT_RATIOS.find((x) => x.ratio === ratio) ?? RESULT_RATIOS[0];
+  return { width: r?.width ?? 1080, height: r?.height ?? 1080 };
+}
+
+/** 결과 이미지 짧은 변 (px) · JPEG 품질 */
 export const RESULT_SIDE = 1080;
 export const RESULT_JPEG_QUALITY = 0.9;
 export const RESULT_VIDEO_FPS = 30;
@@ -38,7 +53,9 @@ type TimedPost = { taken_at: string; created_at: string };
 
 export type ScenePanel = { media: MediaItem; dst: Rect; label: string | null };
 export type Scene = {
-  side: number;
+  ratio: ResultRatio;
+  width: number;
+  height: number;
   panels: ScenePanel[];
   /** 전체 1장에만. 왼쪽 아래 두 줄 */
   caption: { title: string; subtitle: string } | null;
@@ -70,12 +87,18 @@ export function pickPanels<T extends TimedPost>(kind: ResultKind, posts: readonl
   return [first, best, last];
 }
 
-/** 세로로 n칸. 칸 사이에 gutter. 반올림 오차는 마지막 칸이 흡수해 합이 정확히 side가 된다 */
-export function layoutPanels(count: number, side: number, gutter: number = RESULT_METRICS.gutter): Rect[] {
-  const width = Math.floor((side - gutter * (count - 1)) / count);
+/**
+ * n칸으로 나눈다. 정사각·가로는 옆으로, 세로가 긴 비율은 위아래로 쌓는다.
+ * 칸 사이에 gutter. 반올림 오차는 마지막 칸이 흡수해 합이 정확히 캔버스 크기가 된다.
+ */
+export function layoutPanels(count: number, width: number, height: number, gutter: number = RESULT_METRICS.gutter): Rect[] {
+  const stacked = height > width;
+  const total = stacked ? height : width;
+  const each = Math.floor((total - gutter * (count - 1)) / count);
   return Array.from({ length: count }, (_, i) => {
-    const x = i * (width + gutter);
-    return { x, y: 0, width: i === count - 1 ? side - x : width, height: side };
+    const at = i * (each + gutter);
+    const len = i === count - 1 ? total - at : each;
+    return stacked ? { x: 0, y: at, width, height: len } : { x: at, y: 0, width: len, height };
   });
 }
 
@@ -94,11 +117,12 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
   kind: ResultKind;
   project: { name: string; started_at: string };
   posts: readonly T[];
-  side?: number;
+  ratio?: ResultRatio;
 }): Scene {
-  const side = input.side ?? RESULT_SIDE;
+  const ratio = input.ratio ?? DEFAULT_RATIO;
+  const { width, height } = ratioSize(ratio);
   const picked = pickPanels(input.kind, input.posts);
-  const rects = layoutPanels(picked.length, side);
+  const rects = layoutPanels(picked.length, width, height);
   const labelOf = (p: T) => formatMonthDay(p.taken_at);
 
   const panels = picked.map((p, i) => ({
@@ -108,7 +132,9 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
   }));
   const current = picked[picked.length - 1] as T;
   return {
-    side,
+    ratio,
+    width,
+    height,
     panels,
     caption:
       input.kind === 'single'
@@ -127,6 +153,7 @@ export function sceneDurationMs(scene: Scene): number {
   return Math.max(0, ...scene.panels.map((p) => (p.media.kind === 'video' ? p.media.durationMs : 0)));
 }
 
-export function resultFileName(projectId: string, kind: ResultKind, ext: 'jpg' | 'mp4'): string {
-  return `knitting-${projectId.slice(0, 8)}-${kind}.${ext}`;
+export function resultFileName(projectId: string, kind: ResultKind, ext: 'jpg' | 'mp4', ratio: ResultRatio = DEFAULT_RATIO): string {
+  const suffix = ratio === '1:1' ? '' : `-${ratio.replace(':', 'x')}`;
+  return `knitting-${projectId.slice(0, 8)}-${kind}${suffix}.${ext}`;
 }

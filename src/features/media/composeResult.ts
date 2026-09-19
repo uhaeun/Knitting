@@ -4,6 +4,7 @@ import {
   outputKindOf,
   RESULT_JPEG_QUALITY,
   RESULT_METRICS as M,
+  RESULT_SIDE,
   RESULT_VIDEO_FPS,
   resultFileName,
   sceneDurationMs,
@@ -48,8 +49,8 @@ function toResult(blob: Blob, output: 'jpeg' | 'mp4', fileName: string, signal?:
 
 async function composeJpeg(scene: Scene, projectId: string, kind: ResultKind, signal?: AbortSignal): Promise<ComposedResult> {
   const canvas = document.createElement('canvas');
-  canvas.width = scene.side;
-  canvas.height = scene.side;
+  canvas.width = scene.width;
+  canvas.height = scene.height;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('합성 화면을 만들지 못했어요');
   const settled = await Promise.allSettled(scene.panels.map((p) => loadBitmap(p.media.uri)));
@@ -67,7 +68,7 @@ async function composeJpeg(scene: Scene, projectId: string, kind: ResultKind, si
   }
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', RESULT_JPEG_QUALITY));
   if (!blob) throw new Error('결과 사진을 만들지 못했어요');
-  return toResult(blob, 'jpeg', resultFileName(projectId, kind, 'jpg'), signal);
+  return toResult(blob, 'jpeg', resultFileName(projectId, kind, 'jpg', scene.ratio), signal);
 }
 
 async function composeVideo(
@@ -78,7 +79,7 @@ async function composeVideo(
   signal?: AbortSignal,
 ): Promise<ComposedResult> {
   signal?.throwIfAborted();
-  const writer = await createMp4Writer(scene.side, RESULT_VIDEO_FPS);
+  const writer = await createMp4Writer(scene.width, scene.height, RESULT_VIDEO_FPS);
   const bitmaps = new Map<number, ImageBitmap>();
   const clips = new Map<number, OpenClip>();
   let blob: Blob;
@@ -86,7 +87,7 @@ async function composeVideo(
     // 칸을 동시에 연다. 하나라도 실패하면 열린 것은 finally에서 닫힌다
     const opened = await Promise.allSettled(
       scene.panels.map(async (p, i) => {
-        if (p.media.kind === 'video') clips.set(i, await openClip(p.media.uri, scene.side));
+        if (p.media.kind === 'video') clips.set(i, await openClip(p.media.uri, RESULT_SIDE)); // 클립은 1080 정사각. 칸에는 가운데를 잘라 넣는다
         else bitmaps.set(i, await loadBitmap(p.media.uri));
       }),
     );
@@ -114,13 +115,13 @@ async function composeVideo(
     for (const b of bitmaps.values()) b.close();
     for (const c of clips.values()) c.close();
   }
-  return toResult(blob, 'mp4', resultFileName(projectId, kind, 'mp4'), signal);
+  return toResult(blob, 'mp4', resultFileName(projectId, kind, 'mp4', scene.ratio), signal);
 }
 
 /** 칸 이미지 + 라벨 + 캡션을 한 프레임으로. 이미지가 없는 칸(아직 프레임 없음)은 바탕색 */
 function drawFrame(ctx: CanvasRenderingContext2D, scene: Scene, images: readonly (Drawable | null)[]) {
   ctx.fillStyle = color.surface;
-  ctx.fillRect(0, 0, scene.side, scene.side);
+  ctx.fillRect(0, 0, scene.width, scene.height);
   ctx.textBaseline = 'top';
   scene.panels.forEach((panel, i) => {
     const image = images[i];
@@ -132,12 +133,12 @@ function drawFrame(ctx: CanvasRenderingContext2D, scene: Scene, images: readonly
   });
 
   if (scene.caption) {
-    const maxW = scene.side - M.margin * 2 - M.labelPadX * 2;
+    const maxW = scene.width - M.margin * 2 - M.labelPadX * 2;
     const title = fit(ctx, scene.caption.title, font(M.titleFont, true), maxW);
     const subtitle = fit(ctx, scene.caption.subtitle, font(M.subtitleFont, false), maxW);
     const boxW = Math.max(title.width, subtitle.width) + M.labelPadX * 2;
     const boxH = M.titleFont + M.captionGap + M.subtitleFont + M.labelPadY * 2;
-    const top = scene.side - M.margin - boxH;
+    const top = scene.height - M.margin - boxH;
     drawBox(ctx, M.margin, top, boxW, boxH);
     ctx.fillStyle = color.onDark;
     ctx.font = font(M.titleFont, true);

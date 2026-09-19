@@ -26,7 +26,7 @@ export async function makeVideo(
   const durationMs = totalDurationMs(segments);
   const frameCount = Math.ceil((durationMs * GROWTH_FPS) / 1000);
   const dt = 1 / GROWTH_FPS;
-  const writer = await createMp4Writer(VIDEO_SIDE, GROWTH_FPS);
+  const writer = await createMp4Writer(VIDEO_SIDE, VIDEO_SIDE, GROWTH_FPS);
 
   let current = null as Current | null; // as: 루프 안 재할당을 TS가 null로 좁히지 않게
   const release = (c: Current | null) => {

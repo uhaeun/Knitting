@@ -1,4 +1,4 @@
-import { buildScene, centerCropFor, layoutPanels, outputKindOf, pickPanels, resultFileName, sceneDurationMs } from '@/features/media/resultPlan';
+import { buildScene, centerCropFor, layoutPanels, outputKindOf, pickPanels, RESULT_RATIOS, resultFileName, sceneDurationMs } from '@/features/media/resultPlan';
 
 const at = (day: number, hour = 12) => new Date(2026, 8, day, hour).toISOString();
 const post = (id: string, day: number, hour = 12) => ({
@@ -35,17 +35,37 @@ describe('pickPanels', () => {
 });
 
 describe('layoutPanels', () => {
-  it('칸 너비와 사이 간격의 합이 정확히 한 변', () => {
-    for (const n of [1, 2, 3]) {
-      const rects = layoutPanels(n, 1080, 6);
-      const last = rects[rects.length - 1];
-      expect(last && last.x + last.width).toBe(1080);
-      expect(rects.every((r) => r.height === 1080 && r.y === 0)).toBe(true);
+  it('정사각·가로는 옆으로 나눈다. 칸 너비와 간격의 합이 정확히 가로', () => {
+    for (const [w, h] of [[1080, 1080], [1920, 1080]] as const) {
+      for (const n of [1, 2, 3]) {
+        const rects = layoutPanels(n, w, h, 6);
+        const last = rects[rects.length - 1];
+        expect(last && last.x + last.width).toBe(w);
+        expect(rects.every((r) => r.height === h && r.y === 0)).toBe(true);
+      }
+    }
+  });
+  it('세로가 긴 비율은 위아래로 쌓는다. 높이 합이 정확히 세로', () => {
+    for (const [w, h] of [[1080, 1350], [1080, 1920]] as const) {
+      for (const n of [2, 3]) {
+        const rects = layoutPanels(n, w, h, 6);
+        const last = rects[rects.length - 1];
+        expect(last && last.y + last.height).toBe(h);
+        expect(rects.every((r) => r.width === w && r.x === 0)).toBe(true);
+      }
     }
   });
   it('칸 사이에는 간격만큼 빈 줄', () => {
-    const [a, b] = layoutPanels(2, 1080, 6);
+    const [a, b] = layoutPanels(2, 1080, 1080, 6);
     expect(a && b && b.x - (a.x + a.width)).toBe(6);
+    const [c, d] = layoutPanels(2, 1080, 1920, 6);
+    expect(c && d && d.y - (c.y + c.height)).toBe(6);
+  });
+  it('인스타그램 규격 크기', () => {
+    expect(RESULT_RATIOS.map((r) => `${r.ratio}=${r.width}x${r.height}`))
+      .toEqual(['1:1=1080x1080', '4:5=1080x1350', '9:16=1080x1920', '16:9=1920x1080']);
+    // H.264는 짝수 크기만 받는다
+    expect(RESULT_RATIOS.every((r) => r.width % 2 === 0 && r.height % 2 === 0)).toBe(true);
   });
 });
 
@@ -69,6 +89,7 @@ describe('buildScene', () => {
     const s = buildScene({ kind: 'single', project, posts });
     expect(s.panels).toHaveLength(1);
     expect(s.panels[0]).toMatchObject({ media: { kind: 'photo', uri: 'p:c' }, label: null, dst: { x: 0, y: 0, width: 1080, height: 1080 } });
+    expect([s.width, s.height]).toEqual([1080, 1080]);
     expect(s.caption).toEqual({ title: '회색 라글란', subtitle: '9월 12일 · 3번째 기록' });
   });
   it('3분할: 칸마다 촬영 날짜 라벨, 캡션 없음', () => {
@@ -94,5 +115,31 @@ describe('resultFileName', () => {
   it('확장자는 결과 종류를 따른다', () => {
     expect(resultFileName('12345678-aaaa', 'triple', 'jpg')).toBe('knitting-12345678-triple.jpg');
     expect(resultFileName('12345678-aaaa', 'triple', 'mp4')).toBe('knitting-12345678-triple.mp4');
+  });
+});
+
+describe('buildScene 비율', () => {
+  const project = { name: '회색 라글란', started_at: '2026-09-01' };
+  const posts = [
+    { id: 'a', taken_at: '2026-09-01T10:00:00Z', created_at: '2026-09-01T10:00:00Z', media_type: 'photo' as const, photo_path: 'p:a', video_path: null, duration_ms: null },
+    { id: 'b', taken_at: '2026-09-06T10:00:00Z', created_at: '2026-09-06T10:00:00Z', media_type: 'photo' as const, photo_path: 'p:b', video_path: null, duration_ms: null },
+    { id: 'c', taken_at: '2026-09-12T10:00:00Z', created_at: '2026-09-12T10:00:00Z', media_type: 'photo' as const, photo_path: 'p:c', video_path: null, duration_ms: null },
+  ];
+  it('9:16 3분할은 위아래 세 칸', () => {
+    const s = buildScene({ kind: 'triple', project, posts, ratio: '9:16' });
+    expect([s.width, s.height]).toEqual([1080, 1920]);
+    expect(s.panels.every((p) => p.dst.width === 1080)).toBe(true);
+  });
+  it('16:9 전후는 옆으로 두 칸', () => {
+    const s = buildScene({ kind: 'beforeAfter', project, posts, ratio: '16:9' });
+    expect([s.width, s.height]).toEqual([1920, 1080]);
+    expect(s.panels.every((p) => p.dst.height === 1080)).toBe(true);
+  });
+});
+
+describe('resultFileName 비율', () => {
+  it('정사각이 아니면 비율을 이름에 붙인다', () => {
+    expect(resultFileName('12345678-aaaa', 'triple', 'jpg', '4:5')).toBe('knitting-12345678-triple-4x5.jpg');
+    expect(resultFileName('12345678-aaaa', 'triple', 'jpg', '1:1')).toBe('knitting-12345678-triple.jpg');
   });
 });

@@ -13,14 +13,14 @@ export type Mp4Writer = {
   cancel(): Promise<void>;
 };
 
-/** side×side 캔버스에 그린 뒤 add()로 한 프레임씩 H.264 MP4에 쓴다 */
-export async function createMp4Writer(side: number, fps: number): Promise<Mp4Writer> {
+/** width×height 캔버스에 그린 뒤 add()로 한 프레임씩 H.264 MP4에 쓴다 */
+export async function createMp4Writer(width: number, height: number, fps: number): Promise<Mp4Writer> {
   if (typeof VideoEncoder === 'undefined') {
     throw new Error('이 브라우저는 영상 만들기를 지원하지 않아요. 최신 Chrome이나 Safari(16.4 이상)에서 열어 주세요.');
   }
   const canvas = document.createElement('canvas');
-  canvas.width = side;
-  canvas.height = side;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('영상 캔버스를 만들지 못했어요');
 

@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { RESULT_KINDS } from '@/features/media/resultPlan';
+import { RESULT_KINDS, RESULT_RATIOS, ratioSize } from '@/features/media/resultPlan';
 import { useResultPhoto } from '@/features/media/useResultPhoto';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveHint, saveLabel } from '@/shared/lib/saveFile';
@@ -52,12 +52,17 @@ export default function ResultScreen() {
     disabled: r.photoCount < k.minPhotos,
   }));
   const ready = !!r.uri && !r.composing;
+  // 미리보기는 고른 비율 그대로. 세로가 긴 비율은 높이를 정사각 한 변에 맞춰 폭을 줄인다
+  const out = ratioSize(r.ratio);
+  const previewW = out.height > out.width ? Math.round(side * (out.width / out.height)) : side;
+  const previewH = out.height > out.width ? side : Math.round(side * (out.height / out.width));
+  const ratioOptions = RESULT_RATIOS.map((x) => ({ key: x.ratio, label: x.label }));
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       {header}
 
-      <View style={[styles.preview, { width: side, height: side }]}>
+      <View style={[styles.preview, { width: previewW, height: previewH }]}>
         {r.uri && r.output === 'mp4' ? (
           <VideoPlayer key={r.uri} uri={r.uri} label="결과 영상 미리보기" />
         ) : r.uri ? (
@@ -79,12 +84,13 @@ export default function ResultScreen() {
 
       <View style={styles.controls}>
         <Segmented options={options} value={r.kind} onChange={r.choose} />
+        <Segmented options={ratioOptions} value={r.ratio} onChange={r.chooseRatio} />
         <Text style={styles.hint}>
           {r.kind === 'single'
             ? '가장 최근 사진에 편물 이름과 며칠째인지 적어요.'
             : r.kind === 'beforeAfter'
-              ? '첫 사진과 가장 최근 사진을 나란히 놓아요.'
-              : '첫 사진, 기간의 한가운데 사진, 가장 최근 사진을 나란히 놓아요.'}
+              ? `첫 사진과 가장 최근 사진을 ${out.height > out.width ? '위아래로' : '나란히'} 놓아요.`
+              : `첫 사진, 기간의 한가운데 사진, 가장 최근 사진을 ${out.height > out.width ? '위아래로' : '나란히'} 놓아요.`}
         </Text>
       </View>
 

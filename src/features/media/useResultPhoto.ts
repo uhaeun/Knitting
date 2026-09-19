@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { usePosts } from '@/features/capture/queries';
 import { composeResult } from '@/features/media/composeResult';
-import { buildScene, minPhotosFor, outputKindOf, type ResultKind } from '@/features/media/resultPlan';
+import { buildScene, DEFAULT_RATIO, minPhotosFor, outputKindOf, type ResultKind, type ResultRatio } from '@/features/media/resultPlan';
 import { useProject } from '@/features/project/queries';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveOrShare } from '@/shared/lib/saveFile';
@@ -16,18 +16,19 @@ export function useResultPhoto(projectId: string) {
   // 고르기 전에는 사진 수에 맞는 가장 풍부한 종류 (사진을 다 불러온 뒤에 정해져야 해서 state 초기값으로 두지 않는다)
   const [chosen, setChosen] = useState<ResultKind | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
+  const [ratio, setRatio] = useState<ResultRatio>(DEFAULT_RATIO);
   const kind: ResultKind = chosen ?? (photoCount >= 3 ? 'triple' : photoCount === 2 ? 'beforeAfter' : 'single');
 
   const lastPostId = posts.data?.[photoCount - 1]?.id ?? null;
   const result = useQuery({
-    queryKey: ['projects', projectId, 'result', kind, photoCount, lastPostId, project.data?.name] as const,
+    queryKey: ['projects', projectId, 'result', kind, ratio, photoCount, lastPostId, project.data?.name] as const,
     enabled: !!project.data && !!posts.data && photoCount >= minPhotosFor(kind),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0, // blob을 오래 들고 있지 않는다
     retry: false,
     queryFn: async ({ signal }) => {
       if (!project.data || !posts.data) throw new Error('편물을 불러오는 중이에요');
-      const scene = buildScene({ kind, project: project.data, posts: posts.data });
+      const scene = buildScene({ kind, project: project.data, posts: posts.data, ratio });
       // 종류를 바꾸면 React Query가 signal로 이전 합성을 취소한다. 취소된 합성은 진행률을 건드리지 않는다
       // 진행률은 MP4만 (JPEG는 한 번에 끝나 0%에 멈춰 보인다)
       setProgress(outputKindOf(scene) === 'mp4' ? 0 : null);
@@ -61,6 +62,8 @@ export function useResultPhoto(projectId: string) {
     loadingPhotos: project.isPending || posts.isPending,
     kind,
     choose: setChosen,
+    ratio,
+    chooseRatio: setRatio,
     uri,
     output: result.data?.output ?? null,
     progress,
