@@ -8,11 +8,11 @@ import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
 import { TourSheet } from '@/features/onboarding/TourSheet';
-import { formatReminder, REMINDER_TIMES } from '@/features/reminder/reminder';
-import { useReminder } from '@/features/reminder/useReminder';
+import { ReminderSettings } from '@/features/reminder/ReminderSettings';
 import { useTour } from '@/features/onboarding/useTour';
 import { InstallGuide, useInstallGuideEntry } from '@/features/pwa/InstallGuide';
 import { showAlert } from '@/shared/lib/dialog';
+import { isNativeApp } from '@/shared/lib/platform';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
 const SUPPORT_EMAIL = 'haeunmine@gmail.com';
@@ -23,7 +23,6 @@ export default function SettingsScreen() {
   const installEntry = useInstallGuideEntry();
   const [tourOpen, setTourOpen] = useState(false);
   const tour = useTour();
-  const reminder = useReminder();
   const { session, profile } = useAuth();
   const update = useUpdateProfile();
   const requests = usePendingRequests();
@@ -65,53 +64,13 @@ export default function SettingsScreen() {
               onPress={() => router.push('/settings/requests')}
             />
             <Link label="차단한 사람" onPress={() => router.push('/settings/blocked')} />
-            <Link label={installEntry.label} onPress={installEntry.onPress(() => setInstallOpen(true))} />
+            {isNativeApp() ? null : <Link label={installEntry.label} onPress={installEntry.onPress(() => setInstallOpen(true))} />}
             <Link label="닛팅 쓰는 법 다시 보기" onPress={() => setTourOpen(true)} />
           </Section>
         ) : null}
 
         <Section title="촬영 알림">
-          {reminder.available ? (
-            <>
-              <View style={styles.switchRow}>
-                <View style={styles.switchText}>
-                  <Text style={styles.rowLabel}>알림 받기</Text>
-                  <Text style={styles.hint}>
-                    {reminder.on ? `매일 ${formatReminder(reminder.time)}에 알려요. 뜨개한 날에만 찍으면 돼요` : '정한 시각에 한 번 알려 드려요'}
-                  </Text>
-                </View>
-                <Switch
-                  value={reminder.on}
-                  onValueChange={(v) =>
-                    void (v ? reminder.turnOn() : reminder.turnOff()).catch((e: unknown) =>
-                      showAlert('알림을 바꾸지 못했어요', e instanceof Error ? e.message : String(e)),
-                    )
-                  }
-                  trackColor={{ true: color.accent, false: color.border }}
-                />
-              </View>
-              {reminder.on ? (
-                <View style={styles.times}>
-                  {REMINDER_TIMES.map((t) => {
-                    const on = t.hour === reminder.time.hour && t.minute === reminder.time.minute;
-                    return (
-                      <Pressable
-                        key={`${t.hour}:${t.minute}`}
-                        accessibilityRole="radio"
-                        aria-checked={on}
-                        onPress={() => void reminder.turnOn(t).catch((e: unknown) => showAlert('알림을 바꾸지 못했어요', e instanceof Error ? e.message : String(e)))}
-                        style={[styles.time, on && styles.timeOn]}
-                      >
-                        <Text style={[styles.timeText, on && styles.timeTextOn]}>{formatReminder(t)}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <Text style={styles.policy}>앱으로 설치하면 정한 시각에 알림을 받을 수 있어요. 웹에서는 아직 지원하지 않아요.</Text>
-          )}
+          <ReminderSettings />
         </Section>
 
         <Section title="약관과 문의">
@@ -196,11 +155,6 @@ const styles = StyleSheet.create({
     minHeight: size.tap + 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     gap: space.md, paddingVertical: space.sm,
   },
-  times: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingBottom: space.md },
-  time: { paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: color.border },
-  timeOn: { backgroundColor: color.accent, borderColor: color.accent },
-  timeText: { fontSize: fontSize.caption, color: color.text },
-  timeTextOn: { color: color.onDark, fontWeight: fontWeight.semibold },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   switchText: { flex: 1, gap: space.xs },
   rowLabel: { fontSize: fontSize.body, color: color.text },

@@ -1,25 +1,34 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { DEFAULT_REMINDER, REMINDER_BODY, REMINDER_TITLE, type ReminderTime } from '@/features/reminder/reminder';
+import {
+  DEFAULT_REMINDER,
+  DEFAULT_RULE,
+  nextOccurrences,
+  REMINDER_BODY,
+  REMINDER_TITLE,
+  type ReminderRule,
+  type ReminderTime,
+} from '@/features/reminder/reminder';
 import { isNativeApp } from '@/shared/lib/platform';
 
-const KEY = 'knitting.reminder';
-const NOTIFICATION_ID = 1;
+const KEY = 'knitting.reminder.v2';
+/** 예약 알림 id 범위. 이 범위만 지우고 다시 채운다 */
+const ID_BASE = 1000;
 
-type Stored = { on: boolean; time: ReminderTime };
+export type ReminderSettings = { on: boolean; time: ReminderTime; rule: ReminderRule };
 
-function load(): Stored {
+function load(): ReminderSettings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Stored;
+    if (raw) return JSON.parse(raw) as ReminderSettings;
   } catch {
     // 읽지 못하면 꺼진 상태로
   }
-  return { on: false, time: DEFAULT_REMINDER };
+  return { on: false, time: DEFAULT_REMINDER, rule: DEFAULT_RULE };
 }
 
-function store(v: Stored) {
+function store(v: ReminderSettings) {
   try {
     localStorage.setItem(KEY, JSON.stringify(v));
   } catch {
@@ -27,43 +36,55 @@ function store(v: Stored) {
   }
 }
 
+async function clearScheduled() {
+  const { notifications } = await LocalNotifications.getPending();
+  const ours = notifications.filter((n) => n.id >= ID_BASE && n.id < ID_BASE + 1000);
+  if (ours.length) await LocalNotifications.cancel({ notifications: ours.map((n) => ({ id: n.id })) });
+}
+
+/** 다음 알림들을 날짜로 예약한다. 반복 규칙(요일·며칠마다)을 기기 기능만으로는 못 표현해서 앞으로 48번을 미리 넣는다 */
+async function scheduleAhead(s: ReminderSettings) {
+  await clearScheduled();
+  if (!s.on) return;
+  const times = nextOccurrences(s.rule, s.time, new Date());
+  if (!times.length) return;
+  await LocalNotifications.schedule({
+    notifications: times.map((at, i) => ({
+      id: ID_BASE + i,
+      title: REMINDER_TITLE,
+      body: REMINDER_BODY,
+      schedule: { at, allowWhileIdle: true },
+    })),
+  });
+}
+
 /**
  * 촬영 알림. 앱에서만 된다 — 기기가 스스로 시간을 지켜 알린다 (서버 없음).
- * 켜면 권한을 묻고, 매일 같은 시각에 한 번 알린다. 끄면 예약을 지운다.
+ * 반복은 매일 / 요일 / 며칠마다. 앱을 열 때마다 앞으로의 예약을 다시 채운다.
  */
 export function useReminder() {
-  const [state, setState] = useState<Stored>(load);
+  const [settings, setSettings] = useState<ReminderSettings>(load);
   const available = isNativeApp();
 
-  const schedule = useCallback(async (time: ReminderTime) => {
-    const perm = await LocalNotifications.requestPermissions();
-    if (perm.display !== 'granted') throw new Error('알림 권한이 꺼져 있어요. 기기 설정에서 닛팅 알림을 허용해 주세요.');
-    await LocalNotifications.cancel({ notifications: [{ id: NOTIFICATION_ID }] });
-    await LocalNotifications.schedule({
-      notifications: [
-        {
-          id: NOTIFICATION_ID,
-          title: REMINDER_TITLE,
-          body: REMINDER_BODY,
-          schedule: { on: { hour: time.hour, minute: time.minute }, repeats: true, allowWhileIdle: true },
-        },
-      ],
-    });
-  }, []);
+  // 앱을 열 때 예약을 채워 둔다 (48번을 다 쓰기 전에 다시 연다고 본다)
+  useEffect(() => {
+    if (!available || !settings.on) return;
+    void scheduleAhead(settings).catch(() => {});
+    // 처음 한 번만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available]);
 
-  const turnOn = useCallback(async (time: ReminderTime = state.time) => {
-    await schedule(time);
-    const next = { on: true, time };
+  /** 설정을 바꾸고 예약을 다시 한다. 켤 때는 권한부터 묻는다 */
+  const update = useCallback(async (patch: Partial<ReminderSettings>) => {
+    const next = { ...settings, ...patch };
+    if (next.on) {
+      const perm = await LocalNotifications.requestPermissions();
+      if (perm.display !== 'granted') throw new Error('알림 권한이 꺼져 있어요. 기기 설정에서 닛팅 알림을 허용해 주세요.');
+    }
+    await scheduleAhead(next);
     store(next);
-    setState(next);
-  }, [schedule, state.time]);
+    setSettings(next);
+  }, [settings]);
 
-  const turnOff = useCallback(async () => {
-    await LocalNotifications.cancel({ notifications: [{ id: NOTIFICATION_ID }] });
-    const next = { ...state, on: false };
-    store(next);
-    setState(next);
-  }, [state]);
-
-  return { available, on: state.on, time: state.time, turnOn, turnOff };
+  return { available, ...settings, update };
 }

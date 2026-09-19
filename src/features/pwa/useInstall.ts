@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { currentPlatform, installStateOf, isStandalone, type InstallState, type Platform } from '@/features/pwa/install';
+import { isNativeApp } from '@/shared/lib/platform';
 
 /** 안드로이드·데스크톱 Chrome이 주는 설치 프롬프트 */
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
@@ -16,7 +17,8 @@ const SEEN_KEY = 'knitting.installGuideSeen';
  */
 export function useInstall() {
   const [platform] = useState<Platform>(() => currentPlatform());
-  const [standalone, setStandalone] = useState(() => isStandalone());
+  // 앱(하이브리드)으로 열었으면 이미 설치된 것과 같다 — 홈 화면 추가 안내가 필요 없다
+  const [standalone, setStandalone] = useState(() => isNativeApp() || isStandalone());
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(() => {
     try {
@@ -39,7 +41,7 @@ export function useInstall() {
     window.addEventListener('appinstalled', onInstalled);
     // 홈 화면에서 열면 display-mode가 바뀐다
     const media = window.matchMedia?.('(display-mode: standalone)');
-    const onMode = () => setStandalone(isStandalone());
+    const onMode = () => setStandalone(isNativeApp() || isStandalone());
     media?.addEventListener?.('change', onMode);
     return () => {
       window.removeEventListener('beforeinstallprompt', onPrompt);
