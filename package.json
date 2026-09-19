@@ -52,7 +52,8 @@
     "build": "expo export -p web",
     "lint": "expo lint",
     "test": "jest",
-    "e2e": "node scripts/e2e/run-all.mjs"
+    "e2e": "node scripts/e2e/run-all.mjs",
+    "dev:app": "expo start --web --port 8110"
   },
   "private": true,
   "jest": {
