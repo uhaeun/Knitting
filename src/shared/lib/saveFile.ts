@@ -7,9 +7,28 @@
  */
 import { Media } from '@capacitor-community/media';
 
-import { isNativeApp } from '@/shared/lib/platform';
+import { isNativeApp, nativePlatform } from '@/shared/lib/platform';
 
 export type SaveOutcome = 'shared' | 'downloaded' | 'cancelled' | 'saved';
+
+const ALBUM = '닛팅';
+
+/**
+ * 안드로이드는 저장할 앨범을 꼭 지정해야 한다 ('Album identifier required').
+ * '닛팅' 앨범을 찾고, 없으면 만든다. 아이폰은 지정하지 않는다 — 그래야 '추가만' 권한으로 저장된다
+ */
+async function androidAlbum(): Promise<string> {
+  const find = async () => {
+    const [{ path }, { albums }] = await Promise.all([Media.getAlbumsPath(), Media.getAlbums()]);
+    return albums.find((a) => a.name === ALBUM && a.identifier.startsWith(path))?.identifier;
+  };
+  const found = await find();
+  if (found) return found;
+  await Media.createAlbum({ name: ALBUM });
+  const made = await find();
+  if (!made) throw new Error('사진첩에 닛팅 앨범을 만들지 못했어요');
+  return made;
+}
 
 /** 앱에서는 사진첩에 바로 넣는다. 공유 창을 한 번 더 누르지 않아도 된다 */
 async function saveToLibrary(file: File): Promise<SaveOutcome> {
@@ -19,8 +38,10 @@ async function saveToLibrary(file: File): Promise<SaveOutcome> {
     r.onerror = () => reject(new Error('파일을 읽지 못했어요'));
     r.readAsDataURL(file);
   });
-  if (file.type.startsWith('video')) await Media.saveVideo({ path: dataUrl });
-  else await Media.savePhoto({ path: dataUrl });
+  const albumIdentifier = nativePlatform() === 'android' ? await androidAlbum() : undefined;
+  const fileName = file.name.replace(/\.[^.]+$/, '');
+  if (file.type.startsWith('video')) await Media.saveVideo({ path: dataUrl, albumIdentifier, fileName });
+  else await Media.savePhoto({ path: dataUrl, albumIdentifier, fileName });
   return 'saved';
 }
 

@@ -54,6 +54,8 @@ async function scheduleAhead(s: ReminderSettings) {
       title: REMINDER_TITLE,
       body: REMINDER_BODY,
       schedule: { at, allowWhileIdle: true },
+      // 안드로이드 12+에서 '정확한 알람'을 요구하면 설정 화면으로 튕겨 간다. 촬영 알림은 몇 분 늦어도 되니 대략으로 예약한다
+      isExactNotification: false,
     })),
   });
 }

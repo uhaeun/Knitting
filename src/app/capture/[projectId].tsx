@@ -36,6 +36,15 @@ export default function CaptureScreen() {
   const router = useRouter();
   const screenW = useSquareSide(size.webCaptureChrome); // 정사각 촬영 영역 한 변
   const [permission, requestPermission] = useCameraPermissions();
+  // 처음이면 바로 권한을 묻는다. '카메라를 쓸 수 없어요' 화면은 거부했을 때만 보여 준다
+  const asked = useRef(false);
+  useEffect(() => {
+    if (!permission || permission.granted || asked.current) return;
+    if (permission.status === 'undetermined' && permission.canAskAgain) {
+      asked.current = true;
+      void requestPermission();
+    }
+  }, [permission, requestPermission]);
   const camera = useRef<WebCameraHandle>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -199,6 +208,8 @@ export default function CaptureScreen() {
 
   // --- 권한 ---
   if (!permission) return <View style={styles.root} />;
+  // 처음 묻는 중에는 빈 화면 (권한 창이 곧 뜬다)
+  if (!permission.granted && permission.status === 'undetermined' && permission.canAskAgain) return <View style={styles.root} />;
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.root}>

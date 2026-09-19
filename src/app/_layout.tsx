@@ -30,6 +30,9 @@ export default function RootLayout() {
   );
 }
 
+/** 앱을 연 뒤 첫 화면을 한 번만 정한다 (피드 탭을 누를 때마다 튕기면 안 된다) */
+let landed = false;
+
 /** 세션·프로필 상태에 따라 로그인 → 온보딩 → 앱 순으로 보낸다. */
 function AuthGate() {
   const { ready, session, profile } = useAuth();
@@ -62,6 +65,13 @@ function AuthGate() {
   if (needsSignIn && !inAuthGroup) return <Redirect href="/(auth)/sign-in" />;
   if (needsOnboarding && segments[1] !== 'onboarding') return <Redirect href="/(auth)/onboarding" />;
   if (!needsSignIn && !needsOnboarding && inAuthGroup) return <Redirect href="/projects" />;
+  // 앱을 열었을 때 첫 화면은 편물 목록 (주소가 '/'면 피드가 되는데, 아직 팔로우가 없으면 빈 화면이다).
+  // 게시물 링크처럼 다른 주소로 들어오면 그대로 둔다
+  if (!needsSignIn && !needsOnboarding && !landed) {
+    landed = true;
+    const atRoot = segments[0] === '(tabs)' && (segments.length === 1 || (segments as string[])[1] === 'index');
+    if (atRoot) return <Redirect href="/projects" />;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>

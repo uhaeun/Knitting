@@ -87,7 +87,7 @@ export default function ResultScreen() {
         <Segmented options={ratioOptions} value={r.ratio} onChange={r.chooseRatio} />
         <Text style={styles.hint}>
           {r.kind === 'single'
-            ? '가장 최근 사진에 편물 이름과 며칠째인지 적어요.'
+            ? '가장 최근 사진에 편물 이름과 찍은 날짜를 적어요.'
             : r.kind === 'beforeAfter'
               ? `첫 사진과 가장 최근 사진을 ${out.height > out.width ? '위아래로' : '나란히'} 놓아요.`
               : `첫 사진, 기간의 한가운데 사진, 가장 최근 사진을 ${out.height > out.width ? '위아래로' : '나란히'} 놓아요.`}
