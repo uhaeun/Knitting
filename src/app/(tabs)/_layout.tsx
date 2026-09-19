@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useIsOnline } from '@/features/auth/store';
 import { useProjects } from '@/features/project/queries';
+import { showAlert } from '@/shared/lib/dialog';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
 /** 편물 · 피드 · 촬영(가운데) · 탐색 · 나. 로그인 안 했으면 서버 탭은 숨긴다. */
@@ -76,9 +77,15 @@ function CaptureButton(_props: object) {
   const router = useRouter();
   const projects = useProjects();
   const go = () => {
-    const first = projects.data?.[0];
-    if (first) router.push({ pathname: '/capture/[projectId]', params: { projectId: first.id } });
-    else router.push({ pathname: '/projects', params: { create: '1' } });
+    const list = projects.data ?? [];
+    const open = (id: string) => router.push({ pathname: '/capture/[projectId]', params: { projectId: id } });
+    if (list.length === 0) return router.push({ pathname: '/projects', params: { create: '1' } });
+    if (list.length === 1 && list[0]) return open(list[0].id);
+    // 여럿이면 어느 편물에 찍을지 고른다 (최근에 만든 순, 5개까지)
+    showAlert('어느 편물을 찍을까요?', undefined, [
+      ...list.slice(0, 5).map((p) => ({ text: p.name, onPress: () => open(p.id) })),
+      { text: '취소', style: 'cancel' as const },
+    ]);
   };
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="촬영" onPress={go} style={styles.captureButton}>

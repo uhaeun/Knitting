@@ -80,6 +80,7 @@ export default function HomeScreen() {
               subtitle={`${formatMonthDay(item.started_at)} 시작`}
               photoCount={item.photo_count}
               thumbUri={item.cover_thumb_path ?? undefined}
+              onCapture={() => router.push({ pathname: '/capture/[projectId]', params: { projectId: item.id } })}
               onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}
             />
           )}

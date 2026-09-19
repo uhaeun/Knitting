@@ -8,6 +8,7 @@ import { useAuth } from '@/features/auth/store';
 import { supabaseConfigured } from '@/shared/lib/supabase';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, size } from '@/shared/ui/tokens';
+import { DialogHost } from '@/shared/ui/DialogHost';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -23,6 +24,7 @@ export default function RootLayout() {
             <AuthGate />
           </View>
         </View>
+        <DialogHost />
       </AuthProvider>
     </QueryClientProvider>
   );

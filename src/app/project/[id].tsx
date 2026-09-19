@@ -124,7 +124,7 @@ export default function ProjectScreen() {
             <Text style={styles.counter}>{index + 1}번째 / {total}</Text>
           </View>
           <View style={styles.stitches}>
-            <StitchRow total={total} index={index} unit={14} perRow={14} />
+            <StitchRow total={total} index={index} unit={14} perRow={14} onSelect={setIndex} />
           </View>
           <View style={styles.scrubber}>
             <Scrubber total={total} index={index} onChange={setIndex} />

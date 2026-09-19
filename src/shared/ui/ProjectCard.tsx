@@ -12,31 +12,47 @@ type Props = {
   /** 대표 사진 썸네일 file:// URI. 없으면 빈 사각형 */
   thumbUri?: string;
   onPress: () => void;
+  /** 카드에서 바로 촬영 화면으로. 없으면 버튼을 그리지 않는다 */
+  onCapture?: () => void;
 };
 
-export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress }: Props) {
+export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress, onCapture }: Props) {
+  // 카드 본문과 '찍기'를 형제 버튼으로 둔다 (버튼 안에 버튼을 넣으면 웹·스크린리더에서 깨진다)
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-    >
-      {thumbUri ? (
-        <Image source={{ uri: thumbUri }} style={styles.thumb} contentFit="cover" />
-      ) : (
-        <View style={[styles.thumb, styles.thumbEmpty]} />
-      )}
-      <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-        <View style={styles.ticks}>
-          <StitchRow total={photoCount} unit={9} perRow={16} />
+    <View style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [styles.main, pressed && styles.pressed]}
+      >
+        {thumbUri ? (
+          <Image source={{ uri: thumbUri }} style={styles.thumb} contentFit="cover" />
+        ) : (
+          <View style={[styles.thumb, styles.thumbEmpty]} />
+        )}
+        <View style={styles.body}>
+          <Text style={styles.name} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+          <View style={styles.ticks}>
+            <StitchRow total={photoCount} unit={9} perRow={16} />
+          </View>
+          <Text style={styles.subtitle}>기록 {photoCount}개</Text>
         </View>
-        <Text style={styles.subtitle}>기록 {photoCount}개</Text>
-      </View>
-    </Pressable>
+      </Pressable>
+      {onCapture ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${name} 찍기`}
+          onPress={onCapture}
+          hitSlop={8}
+          style={({ pressed }) => [styles.capture, pressed && styles.capturePressed]}
+        >
+          <Text style={styles.captureText}>찍기</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -49,9 +65,10 @@ const styles = StyleSheet.create({
     padding: space.md,
     flexDirection: 'row',
     gap: space.md,
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  pressed: { borderColor: color.accent },
+  main: { flex: 1, minWidth: 0, flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
+  pressed: { opacity: 0.7 },
   thumb: {
     width: size.thumb,
     height: size.thumb,
@@ -62,4 +79,10 @@ const styles = StyleSheet.create({
   name: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
   subtitle: { fontSize: fontSize.caption, color: color.textMuted },
   ticks: { marginTop: space.xs },
+  capture: {
+    alignSelf: 'center', paddingHorizontal: space.md, paddingVertical: space.sm,
+    borderRadius: radius.pill, backgroundColor: color.accent,
+  },
+  capturePressed: { backgroundColor: color.accentPressed },
+  captureText: { fontSize: fontSize.caption, fontWeight: fontWeight.semibold, color: color.onDark },
 });

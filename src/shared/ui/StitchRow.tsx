@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { color } from '@/shared/ui/tokens';
 
@@ -11,6 +11,8 @@ type Props = {
   unit?: number;
   /** 한 줄에 놓을 코 수. 넘치면 아래로 쌓인다 (편물처럼 위로 자란다) */
   perRow?: number;
+  /** 코를 누르면 그 기록으로. 없으면 보기만 한다 */
+  onSelect?: (index: number) => void;
 };
 
 /**
@@ -18,7 +20,7 @@ type Props = {
  * 지나온 코는 진하게, 아직 안 온 코는 흐리게, 보고 있는 코는 강조색.
  * 진행률 막대가 아니라 '쌓임'이다 — 목표치가 없다.
  */
-export function StitchRow({ total, index, unit = 10, perRow = 12 }: Props) {
+export function StitchRow({ total, index, unit = 10, perRow = 12, onSelect }: Props) {
   const rows: number[][] = [];
   for (let i = 0; i < total; i += perRow) {
     rows.push(Array.from({ length: Math.min(perRow, total - i) }, (_, k) => i + k));
@@ -34,7 +36,18 @@ export function StitchRow({ total, index, unit = 10, perRow = 12 }: Props) {
             const current = index === i;
             const done = index === undefined || i <= index;
             const tint = current ? color.accent : done ? color.text : color.tickInactive;
-            return <Stitch key={i} unit={unit} tint={tint} />;
+            if (!onSelect) return <Stitch key={i} unit={unit} tint={tint} />;
+            return (
+              <Pressable
+                key={i}
+                accessibilityRole="button"
+                accessibilityLabel={`${i + 1}번째 기록`}
+                onPress={() => onSelect(i)}
+                hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+              >
+                <Stitch unit={unit} tint={tint} />
+              </Pressable>
+            );
           })}
         </View>
       ))}
