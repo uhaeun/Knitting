@@ -38,4 +38,13 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 촬영: 웹뷰 안 카메라(getUserMedia). 소리는 저장하지 않지만 일부 기기 웹뷰가 녹화 시 함께 요구한다 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- 촬영 알림 (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 카메라가 없는 기기에서도 설치는 되게 (앨범에서 가져오기로 쓸 수 있다) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
 </manifest>
