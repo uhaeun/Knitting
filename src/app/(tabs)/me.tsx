@@ -8,6 +8,7 @@ import { useAuth } from '@/features/auth/store';
 import { flattenFeed, useFollowCounts, useUserPosts } from '@/features/social/queries';
 import { ProfileHeader } from '@/features/social/ProfileHeader';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { GearButton } from '@/shared/ui/GearButton';
 import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 import { VideoBadge } from '@/shared/ui/VideoBadge';
 
@@ -42,9 +43,7 @@ export default function MeScreen() {
           <>
             <View style={styles.bar}>
               <Text style={styles.title}>나</Text>
-              <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={styles.gear}>
-                <Text style={styles.gearText}>설정</Text>
-              </Pressable>
+              <GearButton />
             </View>
             <ProfileHeader profile={profile} counts={counts.data} postCount={items.length} />
           </>
@@ -78,8 +77,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl, paddingTop: space.lg, paddingBottom: space.sm,
   },
   title: { fontSize: fontSize.title, fontWeight: fontWeight.semibold, color: color.text, letterSpacing: -0.5 },
-  gear: { minHeight: size.tap, justifyContent: 'center', paddingHorizontal: space.sm },
-  gearText: { fontSize: fontSize.caption, color: color.textMuted },
   cell: { flex: 1 / 3, aspectRatio: 1, backgroundColor: color.border, margin: 1 },
   empty: { padding: space.xl, fontSize: fontSize.caption, color: color.textMuted, textAlign: 'center' },
 });

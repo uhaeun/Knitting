@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TourSheet } from '@/features/onboarding/TourSheet';
 import { useTour } from '@/features/onboarding/useTour';
 import { InstallBanner, InstallGuide } from '@/features/pwa/InstallGuide';
+import { GearButton } from '@/shared/ui/GearButton';
 import { useInstall } from '@/features/pwa/useInstall';
 import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
 import { useProjects } from '@/features/project/queries';
@@ -43,7 +44,9 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>내 편물</Text>
-        <Pressable
+        <View style={styles.headerActions}>
+          <GearButton />
+          <Pressable
           accessibilityRole="button"
           accessibilityLabel="편물 추가"
           onPress={() => setSheetOpen(true)}
@@ -52,6 +55,7 @@ export default function HomeScreen() {
           <View style={styles.plusH} />
           <View style={styles.plusV} />
         </Pressable>
+        </View>
       </View>
 
       <InstallBanner onOpen={() => setInstallOpen(true)} />
@@ -96,6 +100,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   root: { flex: 1, backgroundColor: color.bg },
   header: {
     flexDirection: 'row',
