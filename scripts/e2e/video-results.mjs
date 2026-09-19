@@ -108,9 +108,9 @@ try {
   await page.getByRole('button', { name: '결과 사진' }).click();
   await page.getByRole('radio', { name: '3분할' }).click();
   await page.waitForFunction(() => [...document.querySelectorAll('[role="button"]')].some((b) => b.textContent === '파일로 저장' && b.getAttribute('aria-disabled') !== 'true'), null, { timeout: 180000 });
-  const triple = await download('파일로 저장', 'triple.mp4');
+  const triple = await download('파일로 저장', 'triple-9x16.mp4');
   const t = probe(triple);
-  check('3분할 MP4 1080×1080 h264 30fps', t.v?.width === 1080 && t.v?.height === 1080 && t.v?.codec_name === 'h264' && t.v?.r_frame_rate === '30/1', JSON.stringify(t.v));
+  check('3분할 MP4 1080×1920 h264 30fps', t.v?.width === 1080 && t.v?.height === 1920 && t.v?.codec_name === 'h264' && t.v?.r_frame_rate === '30/1', JSON.stringify(t.v));
   check('3분할 길이 = 영상 길이', Math.abs(t.duration * 1000 - Number(clipMs)) < 150, `${t.duration}s vs ${clipMs}ms`);
   check('미리보기가 영상', await page.evaluate(() => [...document.querySelectorAll('video')].some((x) => x.getAttribute('aria-label') === '결과 영상 미리보기')));
 

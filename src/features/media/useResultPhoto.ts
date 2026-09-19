@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { usePosts } from '@/features/capture/queries';
 import { composeResult } from '@/features/media/composeResult';
-import { buildScene, DEFAULT_RATIO, minPhotosFor, outputKindOf, type ResultKind, type ResultRatio } from '@/features/media/resultPlan';
+import { buildScene, minPhotosFor, outputKindOf, resolveRatio, type ResultKind, type ResultRatio } from '@/features/media/resultPlan';
 import { useProject } from '@/features/project/queries';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveOrShare } from '@/shared/lib/saveFile';
@@ -16,8 +16,10 @@ export function useResultPhoto(projectId: string) {
   // 고르기 전에는 사진 수에 맞는 가장 풍부한 종류 (사진을 다 불러온 뒤에 정해져야 해서 state 초기값으로 두지 않는다)
   const [chosen, setChosen] = useState<ResultKind | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [ratio, setRatio] = useState<ResultRatio>(DEFAULT_RATIO);
+  const [chosenRatio, setRatio] = useState<ResultRatio | null>(null);
   const kind: ResultKind = chosen ?? (photoCount >= 3 ? 'triple' : photoCount === 2 ? 'beforeAfter' : 'single');
+  // 3분할로 바꾸면 정사각·16:9는 고를 수 없어 9:16으로. 다시 다른 종류로 가면 고른 비율이 살아난다
+  const ratio = resolveRatio(kind, chosenRatio);
 
   const lastPostId = posts.data?.[photoCount - 1]?.id ?? null;
   const result = useQuery({

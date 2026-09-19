@@ -24,6 +24,20 @@ export const RESULT_RATIOS: readonly { ratio: ResultRatio; label: string; width:
 ];
 export const DEFAULT_RATIO: ResultRatio = '1:1';
 
+/** 3분할은 가로 띠 셋을 쌓으므로 세로로 긴 비율만 (정사각·16:9는 띠가 너무 납작하다) */
+const TRIPLE_RATIOS: readonly ResultRatio[] = ['4:5', '9:16'];
+
+export function ratiosFor(kind: ResultKind): typeof RESULT_RATIOS {
+  return kind === 'triple' ? RESULT_RATIOS.filter((r) => TRIPLE_RATIOS.includes(r.ratio)) : RESULT_RATIOS;
+}
+
+/** 고른 비율이 그 종류에서 못 쓰는 것이면 종류의 기본값 (3분할 9:16, 나머지 정사각) */
+export function resolveRatio(kind: ResultKind, chosen: ResultRatio | null): ResultRatio {
+  const allowed = ratiosFor(kind);
+  if (chosen && allowed.some((r) => r.ratio === chosen)) return chosen;
+  return kind === 'triple' ? '9:16' : DEFAULT_RATIO;
+}
+
 export function ratioSize(ratio: ResultRatio): { width: number; height: number } {
   const r = RESULT_RATIOS.find((x) => x.ratio === ratio) ?? RESULT_RATIOS[0];
   return { width: r?.width ?? 1080, height: r?.height ?? 1080 };
@@ -125,7 +139,7 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
   posts: readonly T[];
   ratio?: ResultRatio;
 }): Scene {
-  const ratio = input.ratio ?? DEFAULT_RATIO;
+  const ratio = resolveRatio(input.kind, input.ratio ?? null);
   const { width, height } = ratioSize(ratio);
   const picked = pickPanels(input.kind, input.posts);
   // 3분할은 셋로그처럼 가로 띠 셋을 위아래로 (하은 결정 2026-09-20). 전후는 비율에 따라

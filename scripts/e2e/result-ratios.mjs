@@ -1,4 +1,4 @@
-// 결과 사진 비율 E2E: 3분할을 네 비율로 만들어 내려받고 크기와 배치 방향을 확인한다.
+// 결과 사진 비율 E2E: 3분할은 4:5·9:16만, 전체는 네 비율 모두. 내려받아 크기를 확인한다.
 // 실행 전: 로컬 Supabase, 웹 서버 8098 --clear. 필요한 명령: ffprobe
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -38,15 +38,20 @@ try {
     await page.getByText(`${k}번째 / ${k}`).waitFor({ timeout: 60000 });
   }
   await page.getByRole('button', { name: '결과 사진' }).click();
-  for (const [label, want] of [['정사각', '1080,1080'], ['4:5', '1080,1350'], ['9:16', '1080,1920'], ['16:9', '1920,1080']]) {
+  await page.getByRole('radio', { name: '9:16' }).waitFor({ timeout: 30000 });
+  check('3분할 기본 비율 9:16', (await page.getByRole('radio', { name: '9:16' }).getAttribute('aria-checked')) === 'true');
+  check('3분할에는 정사각·16:9 없음', (await page.getByRole('radio', { name: '정사각' }).count()) === 0 && (await page.getByRole('radio', { name: '16:9' }).count()) === 0);
+  const cases = [['3분할', '4:5', '1080,1350'], ['3분할', '9:16', '1080,1920'], ['전체', '정사각', '1080,1080'], ['전체', '16:9', '1920,1080']];
+  for (const [kind, label, want] of cases) {
+    await page.getByRole('radio', { name: kind }).click();
     await page.getByRole('radio', { name: label }).click();
     await page.waitForFunction(() => [...document.querySelectorAll('[role="button"]')].some((b) => b.textContent === '파일로 저장' && b.getAttribute('aria-disabled') !== 'true'), null, { timeout: 60000 });
     await page.waitForTimeout(400);
     const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '파일로 저장' }).click()]);
     const f = join(dir, dl.suggestedFilename());
     await dl.saveAs(f);
-    check(`${label} ${want.replace(',', '×')}`, size(f) === want, `${dl.suggestedFilename()} ${size(f)}`);
-    await page.screenshot({ path: join(process.argv[2] ?? dir, `ratio-${label.replace(':', 'x')}.png`) });
+    check(`${kind} ${label} ${want.replace(',', '×')}`, size(f) === want, `${dl.suggestedFilename()} ${size(f)}`);
+    await page.screenshot({ path: join(process.argv[2] ?? dir, `ratio-${kind}-${label.replace(':', 'x')}.png`) });
   }
 } catch (e) {
   failed += 1; console.log('ERROR', e.message.slice(0, 200));

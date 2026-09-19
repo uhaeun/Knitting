@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { RESULT_KINDS, RESULT_RATIOS, ratioSize } from '@/features/media/resultPlan';
+import { RESULT_KINDS, ratiosFor, ratioSize } from '@/features/media/resultPlan';
 import { useResultPhoto } from '@/features/media/useResultPhoto';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveHint, saveLabel } from '@/shared/lib/saveFile';
@@ -56,7 +56,7 @@ export default function ResultScreen() {
   const out = ratioSize(r.ratio);
   const previewW = out.height > out.width ? Math.round(side * (out.width / out.height)) : side;
   const previewH = out.height > out.width ? side : Math.round(side * (out.height / out.width));
-  const ratioOptions = RESULT_RATIOS.map((x) => ({ key: x.ratio, label: x.label }));
+  const ratioOptions = ratiosFor(r.kind).map((x) => ({ key: x.ratio, label: x.label }));
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>

@@ -1,4 +1,4 @@
-import { buildScene, centerCropFor, layoutPanels, outputKindOf, pickPanels, RESULT_RATIOS, resultFileName, sceneDurationMs } from '@/features/media/resultPlan';
+import { buildScene, centerCropFor, layoutPanels, outputKindOf, pickPanels, RESULT_RATIOS, ratiosFor, resolveRatio, resultFileName, sceneDurationMs } from '@/features/media/resultPlan';
 
 const at = (day: number, hour = 12) => new Date(2026, 8, day, hour).toISOString();
 const post = (id: string, day: number, hour = 12) => ({
@@ -92,7 +92,7 @@ describe('buildScene', () => {
     expect([s.width, s.height]).toEqual([1080, 1080]);
     expect(s.caption).toEqual({ title: '회색 라글란', subtitle: '9월 12일 · 3번째 기록' });
   });
-  it('3분할은 비율과 상관없이 가로 띠 셋을 위아래로 쌓는다', () => {
+  it('3분할은 어떤 비율을 넘겨도 가로 띠 셋을 위아래로 쌓는다', () => {
     for (const ratio of RESULT_RATIOS.map((r) => r.ratio)) {
       const s = buildScene({ kind: 'triple', project, posts, ratio });
       expect(s.panels.every((p) => p.dst.x === 0 && p.dst.width === s.width)).toBe(true);
@@ -149,5 +149,20 @@ describe('resultFileName 비율', () => {
   it('정사각이 아니면 비율을 이름에 붙인다', () => {
     expect(resultFileName('12345678-aaaa', 'triple', 'jpg', '4:5')).toBe('knitting-12345678-triple-4x5.jpg');
     expect(resultFileName('12345678-aaaa', 'triple', 'jpg', '1:1')).toBe('knitting-12345678-triple.jpg');
+  });
+});
+
+describe('비율 선택지', () => {
+  it('3분할은 세로로 긴 4:5와 9:16만', () => {
+    expect(ratiosFor('triple').map((r) => r.ratio)).toEqual(['4:5', '9:16']);
+    expect(ratiosFor('single').map((r) => r.ratio)).toEqual(['1:1', '4:5', '9:16', '16:9']);
+    expect(ratiosFor('beforeAfter')).toHaveLength(4);
+  });
+  it('고른 비율이 그 종류에 없으면 종류의 기본값', () => {
+    expect(resolveRatio('triple', null)).toBe('9:16');
+    expect(resolveRatio('triple', '1:1')).toBe('9:16');
+    expect(resolveRatio('triple', '4:5')).toBe('4:5');
+    expect(resolveRatio('single', null)).toBe('1:1');
+    expect(resolveRatio('single', '16:9')).toBe('16:9');
   });
 });
