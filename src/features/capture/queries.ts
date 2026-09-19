@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { latestPost, listPosts, savePost, saveVideoPost } from '@/features/capture/repository';
+import { deletePost, latestPost, listPosts, savePost, saveVideoPost } from '@/features/capture/repository';
 import { projectKeys } from '@/features/project/queries';
 
 export function usePosts(projectId: string) {
@@ -31,6 +31,18 @@ export function useSaveVideoPost(projectId: string) {
   return useMutation({
     mutationFn: (input: { source: Blob; onProgress?: (stage: 'converting' | 'uploading', ratio: number) => void }) =>
       saveVideoPost({ projectId, ...input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });
+      qc.invalidateQueries({ queryKey: projectKeys.all });
+    },
+  });
+}
+
+/** 기록 하나 지우기 (잘못 찍은 사진·영상). 목록에서만 사라지고 파일은 남는다 */
+export function useDeletePost(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => deletePost(postId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });
       qc.invalidateQueries({ queryKey: projectKeys.all });

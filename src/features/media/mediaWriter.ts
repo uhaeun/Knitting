@@ -1,6 +1,7 @@
 import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSink, CanvasSource, Input, Mp4OutputFormat, Output } from 'mediabunny';
 
 import { ClipCursor, type ClipFrame } from '@/features/media/clipCursor';
+import { pickEncodeSize } from '@/shared/lib/encodeSize';
 
 /** 결과 사진 MP4·성장 영상이 함께 쓰는 MP4 쓰기와 영상 클립 읽기 (Mediabunny) */
 
@@ -18,11 +19,14 @@ export async function createMp4Writer(width: number, height: number, fps: number
   if (typeof VideoEncoder === 'undefined') {
     throw new Error('이 브라우저는 영상 만들기를 지원하지 않아요. 최신 Chrome이나 Safari(16.4 이상)에서 열어 주세요.');
   }
+  // 1080이 안 되는 기기(일부 안드로이드)는 720으로 낮춘다. 그리는 쪽은 배율 덕에 원래 좌표를 그대로 쓴다
+  const size = await pickEncodeSize(width, height);
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = size.width;
+  canvas.height = size.height;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('영상 캔버스를 만들지 못했어요');
+  ctx.setTransform(size.width / width, 0, 0, size.height / height, 0, 0);
 
   const target = new BufferTarget();
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target });

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { usePosts } from '@/features/capture/queries';
+import { useDeletePost, usePosts } from '@/features/capture/queries';
 import { MakeVideoSheet } from '@/features/media/MakeVideoSheet';
 import { mediaOf } from '@/features/media/mediaItem';
 import { estimateDurationMs, MIN_RECORDS } from '@/features/media/plan';
@@ -32,6 +32,7 @@ export default function ProjectScreen() {
   const del = useDeleteProject();
   const setVis = useSetVisibility();
   const video = useMakeVideo(id);
+  const delPost = useDeletePost(id);
 
   const items = posts.data ?? [];
   const total = items.length;
@@ -65,8 +66,26 @@ export default function ProjectScreen() {
     ]);
   };
 
+  const confirmDeletePost = () => {
+    if (!current) return;
+    const kind = current.media_type === 'video' ? '영상' : '사진';
+    showAlert(`${index + 1}번째 기록을 지울까요?`, `${formatDateTime(current.taken_at)}에 찍은 ${kind}이에요. 목록과 결과물에서 빠집니다.`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '지우기',
+        style: 'destructive',
+        onPress: () =>
+          delPost.mutate(current.id, {
+            onSuccess: () => setIndex((i) => Math.max(0, Math.min(i, total - 2))),
+            onError: (e) => showAlert('지우지 못했어요', e instanceof Error ? e.message : String(e)),
+          }),
+      },
+    ]);
+  };
+
   const openMenu = () => {
     showAlert(p?.name ?? '편물', undefined, [
+      ...(current ? [{ text: '지금 보는 기록 지우기', style: 'destructive' as const, onPress: confirmDeletePost }] : []),
       { text: '공개 범위 바꾸기', onPress: chooseVisibility },
       { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
       { text: '취소', style: 'cancel' },

@@ -7,6 +7,7 @@ import { signOut } from '@/features/auth/api';
 import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
+import { EditProfileSheet } from '@/features/auth/EditProfileSheet';
 import { TourSheet } from '@/features/onboarding/TourSheet';
 import { ReminderSettings } from '@/features/reminder/ReminderSettings';
 import { useTour } from '@/features/onboarding/useTour';
@@ -22,6 +23,7 @@ export default function SettingsScreen() {
   const [installOpen, setInstallOpen] = useState(false);
   const installEntry = useInstallGuideEntry();
   const [tourOpen, setTourOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const tour = useTour();
   const { session, profile } = useAuth();
   const update = useUpdateProfile();
@@ -40,6 +42,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {profile ? (
           <Section title="계정">
+            <Link label={`프로필 편집 · ${profile.display_name}`} onPress={() => setEditOpen(true)} />
             <Row label="아이디" value={`@${profile.username}`} />
             <Row label="이메일" value={session?.user.email ?? '–'} />
             <View style={styles.switchRow}>
@@ -102,6 +105,7 @@ export default function SettingsScreen() {
         ) : null}
       </ScrollView>
 
+      <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
       <TourSheet visible={tourOpen} onDone={() => { setTourOpen(false); tour.finish(); }} />
       <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
     </SafeAreaView>

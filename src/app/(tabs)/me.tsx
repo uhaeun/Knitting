@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EditProfileSheet } from '@/features/auth/EditProfileSheet';
 import { useAuth } from '@/features/auth/store';
 import { flattenFeed, useFollowCounts, useUserPosts } from '@/features/social/queries';
 import { ProfileHeader } from '@/features/social/ProfileHeader';
@@ -14,6 +15,7 @@ import { VideoBadge } from '@/shared/ui/VideoBadge';
 
 /** 내 프로필. 로그인 안 했으면 로그인 유도. */
 export default function MeScreen() {
+  const [editOpen, setEditOpen] = useState(false);
   const router = useRouter();
   const { session, profile } = useAuth();
   const posts = useUserPosts(session?.user.id);
@@ -46,6 +48,9 @@ export default function MeScreen() {
               <GearButton />
             </View>
             <ProfileHeader profile={profile} counts={counts.data} postCount={items.length} />
+            <Pressable accessibilityRole="button" onPress={() => setEditOpen(true)} style={({ pressed }) => [styles.edit, pressed && styles.editPressed]}>
+              <Text style={styles.editText}>프로필 편집</Text>
+            </Pressable>
           </>
         }
         ListEmptyComponent={
@@ -66,11 +71,19 @@ export default function MeScreen() {
           </Pressable>
         )}
       />
+      <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  edit: {
+    marginHorizontal: space.xl, marginBottom: space.md, minHeight: 38, borderRadius: 10,
+    borderWidth: size.hairline, borderColor: color.border, backgroundColor: color.surface,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  editPressed: { borderColor: color.accent },
+  editText: { fontSize: fontSize.caption, fontWeight: fontWeight.semibold, color: color.text },
   root: { flex: 1, backgroundColor: color.bg },
   bar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

@@ -11,6 +11,7 @@ import {
 } from 'mediabunny';
 
 import { CLIP_BITRATE, CLIP_FPS, CLIP_SIDE, isTrimmed, squareCrop, trimEndSec } from '@/features/capture/clip';
+import { pickEncodeSize } from '@/shared/lib/encodeSize';
 
 /**
  * 녹화·앨범 영상 → 저장 형식(1080×1080 H.264 MP4, 무음, 30fps, 5초 이하) + 첫 장면 JPEG.
@@ -33,6 +34,7 @@ export async function processClip(source: Blob, onProgress?: (ratio: number) => 
     const durationSec = await input.computeDuration();
     const crop = squareCrop(await track.getDisplayWidth(), await track.getDisplayHeight());
 
+    const size = await pickEncodeSize(CLIP_SIDE, CLIP_SIDE);
     const target = new BufferTarget();
     const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target });
     const conversion = await Conversion.init({
@@ -41,8 +43,8 @@ export async function processClip(source: Blob, onProgress?: (ratio: number) => 
       showWarnings: false,
       video: {
         crop,
-        width: CLIP_SIDE,
-        height: CLIP_SIDE,
+        width: size.width,
+        height: size.height,
         fit: 'cover',
         codec: 'avc',
         bitrate: CLIP_BITRATE,
