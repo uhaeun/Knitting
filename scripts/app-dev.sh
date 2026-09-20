@@ -4,6 +4,7 @@
 #   npm run dev:app              # 1) 개발 서버 (터미널 하나를 계속 차지)
 #   scripts/app-dev.sh android   # 2) 에뮬레이터·USB 폰에 개발용 앱 설치
 #   scripts/app-dev.sh ios       # 2) 아이폰에 개발용 앱 설치 (맥과 같은 와이파이)
+#   scripts/app-dev.sh live-ios  # 아이폰 앱이 배포된 웹 주소를 보게 (맥 없이도 켜지고 카메라도 됨)
 #   scripts/app-dev.sh off       # 테스터용으로 되돌리기. 테스터에게 줄 빌드 전에 반드시 실행
 #
 # 주의
@@ -39,11 +40,20 @@ case "${1:-}" in
     xcrun devicectl device install app --device "$IOS_COREDEVICE" /tmp/knitting-device/Build/Products/Debug-iphoneos/App.app
     echo "개발용 앱 설치 끝 → http://$IP:$PORT (맥 IP가 바뀌면 다시 실행)"
     ;;
+  live-ios)
+    # 맥 IP가 바뀔 때마다 앱이 빈 화면이 되는 문제를 피한다. 배포할 때마다 앱 내용도 같이 바뀐다
+    CAP_DEV_URL="https://knitting-pied.vercel.app" npx cap sync ios
+    xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+      -destination "id=$IOS_DEVICE" -derivedDataPath /tmp/knitting-device \
+      DEVELOPMENT_TEAM=$TEAM -allowProvisioningUpdates build -quiet
+    xcrun devicectl device install app --device "$IOS_COREDEVICE" /tmp/knitting-device/Build/Products/Debug-iphoneos/App.app
+    echo "아이폰 앱 → https://knitting-pied.vercel.app (배포하면 앱도 같이 바뀐다)"
+    ;;
   off)
     npx expo export -p web >/dev/null
     npx cap sync
     echo "테스터용 설정으로 되돌림 (앱이 dist를 쓴다). 폰에 넣으려면 평소처럼 다시 빌드·설치"
     ;;
   *)
-    echo "사용법: scripts/app-dev.sh android|ios|off"; exit 1 ;;
+    echo "사용법: scripts/app-dev.sh android|ios|live-ios|off"; exit 1 ;;
 esac

@@ -57,6 +57,9 @@ Appium 서버는 없으면 알아서 띄운다(포트 4725, 다른 작업의 472
 2. `scripts/app-dev.sh android` 또는 `scripts/app-dev.sh ios`
 3. 테스터에게 줄 빌드 전: `scripts/app-dev.sh off`
 
+아이폰은 맥 IP가 바뀔 때마다 빈 화면이 된다. 그래서 `scripts/app-dev.sh live-ios`로 **배포된 웹 주소**를 보게 하는 쪽을 쓴다.
+맥이 꺼져 있어도 켜지고, https라서 카메라도 열리며, 배포할 때마다 앱 내용이 같이 바뀐다 (2026-09-20부터 하은 아이폰이 이 방식).
+
 - 안드로이드는 `adb reverse`로 localhost를 써서 카메라까지 된다
 - 아이폰은 `http://맥IP`라 보안 연결이 아니어서 앱 안 카메라가 안 열린다. 맥과 같은 와이파이여야 하고, 맥 서버가 꺼져 있으면 앱이 빈 화면이다
 - 개발 서버는 `.env`의 실제 Supabase를 쓴다
