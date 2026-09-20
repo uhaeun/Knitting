@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSignIn, useSignUp } from '@/features/auth/queries';
+import { Checkbox } from '@/shared/ui/Checkbox';
 import { Button } from '@/shared/ui/Button';
 import { Field } from '@/shared/ui/Field';
 import { color, fontSize, fontWeight, space } from '@/shared/ui/tokens';
@@ -15,11 +16,12 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
 
   const signIn = useSignIn();
   const signUp = useSignUp();
   const busy = signIn.isPending || signUp.isPending;
-  const canSubmit = email.includes('@') && password.length >= 6 && !busy;
+  const canSubmit = email.includes('@') && password.length >= 6 && !busy && (mode === 'in' || agreed);
 
   const submit = () => {
     setError(null);
@@ -69,6 +71,19 @@ export default function SignInScreen() {
               returnKeyType="done"
               onSubmitEditing={canSubmit ? submit : undefined}
             />
+            {mode === 'up' ? (
+              <Checkbox checked={agreed} onChange={setAgreed} label="약관과 개인정보처리방침에 동의합니다">
+                <View style={styles.legalLinks}>
+                  <Pressable accessibilityRole="button" onPress={() => router.push('/legal/terms')}>
+                    <Text style={styles.legalLink}>이용약관 보기</Text>
+                  </Pressable>
+                  <Text style={styles.legalDot}>·</Text>
+                  <Pressable accessibilityRole="button" onPress={() => router.push('/legal/privacy')}>
+                    <Text style={styles.legalLink}>개인정보처리방침 보기</Text>
+                  </Pressable>
+                </View>
+              </Checkbox>
+            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Button
@@ -118,6 +133,9 @@ const styles = StyleSheet.create({
   },
   form: { gap: space.lg },
   error: { fontSize: fontSize.caption, color: color.danger },
+  legalLinks: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexWrap: 'wrap' },
+  legalLink: { fontSize: fontSize.caption, color: color.textMuted, textDecorationLine: 'underline' },
+  legalDot: { fontSize: fontSize.caption, color: color.textMuted },
   switch: { alignSelf: 'center', minHeight: 44, justifyContent: 'center' },
   switchText: { fontSize: fontSize.caption, color: color.textMuted },
   skip: { alignSelf: 'center', minHeight: 44, justifyContent: 'center' },

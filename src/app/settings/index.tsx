@@ -12,11 +12,11 @@ import { TourSheet } from '@/features/onboarding/TourSheet';
 import { ReminderSettings } from '@/features/reminder/ReminderSettings';
 import { useTour } from '@/features/onboarding/useTour';
 import { InstallGuide, useInstallGuideEntry } from '@/features/pwa/InstallGuide';
+import { SUPPORT_EMAIL } from '@/features/legal/policy';
 import { showAlert } from '@/shared/lib/dialog';
 import { isNativeApp } from '@/shared/lib/platform';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
-const SUPPORT_EMAIL = 'haeunmine@gmail.com';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -81,6 +81,8 @@ export default function SettingsScreen() {
             불쾌한 콘텐츠와 괴롭힘에 무관용입니다. 신고된 게시물은 검토 후 조치하며, 3회 이상 신고되면 자동으로 숨겨집니다.
             차단한 사람의 게시물은 서로에게 보이지 않습니다.
           </Text>
+          <Link label="이용약관" onPress={() => router.push('/legal/terms')} />
+          <Link label="개인정보처리방침" onPress={() => router.push('/legal/privacy')} />
           <Link label={`문의: ${SUPPORT_EMAIL}`} onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} />
         </Section>
 

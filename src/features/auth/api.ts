@@ -1,4 +1,5 @@
 import { resetRedirectUrl } from '@/features/auth/recovery';
+import { LEGAL_VERSION } from '@/features/legal/policy';
 import { getSupabase } from '@/shared/lib/supabase';
 import type { Profile } from '@/shared/types/remote';
 
@@ -54,9 +55,10 @@ export async function createProfile(input: {
   display_name: string;
   is_private: boolean;
 }): Promise<Profile> {
+  // 가입할 때 동의한 약관 판을 같이 남긴다 (나중에 약관이 바뀌면 누가 옛 판에 동의했는지 알 수 있다)
   const { data, error } = await getSupabase()
     .from('profiles')
-    .insert({ ...input, display_name: input.display_name.trim() })
+    .insert({ ...input, display_name: input.display_name.trim(), eula_version: LEGAL_VERSION })
     .select('*')
     .single();
   if (error) {

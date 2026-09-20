@@ -68,9 +68,11 @@ function AuthGate() {
 
   const needsSignIn = !session;
   const needsOnboarding = !!session && !profile;
+  // 약관·개인정보처리방침은 가입 전에도 읽을 수 있어야 한다
+  const onLegal = segments[0] === 'legal';
 
-  if (needsSignIn && !inAuthGroup) return <Redirect href="/(auth)/sign-in" />;
-  if (needsOnboarding && segments[1] !== 'onboarding') return <Redirect href="/(auth)/onboarding" />;
+  if (needsSignIn && !inAuthGroup && !onLegal) return <Redirect href="/(auth)/sign-in" />;
+  if (needsOnboarding && !onLegal && segments[1] !== 'onboarding') return <Redirect href="/(auth)/onboarding" />;
   if (!needsSignIn && !needsOnboarding && inAuthGroup) return <Redirect href="/projects" />;
   // 앱을 열었을 때 첫 화면은 편물 목록 (주소가 '/'면 피드가 되는데, 아직 팔로우가 없으면 빈 화면이다).
   // 게시물 링크처럼 다른 주소로 들어오면 그대로 둔다
@@ -90,6 +92,7 @@ function AuthGate() {
       <Stack.Screen name="project/[id]" />
       <Stack.Screen name="post/[id]" />
       <Stack.Screen name="user/[username]" />
+      <Stack.Screen name="legal/[doc]" />
       <Stack.Screen name="settings/index" />
       <Stack.Screen name="settings/blocked" />
       <Stack.Screen name="settings/requests" />
