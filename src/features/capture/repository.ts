@@ -199,6 +199,12 @@ export async function saveVideoPost(input: {
   }
 }
 
+/** 이웃한 두 기록의 자리를 맞바꾼다 (타임라인 순서는 촬영 시각으로 정해진다) */
+export async function swapPostOrder(a: string, b: string): Promise<void> {
+  const { error } = await getSupabase().rpc('swap_post_order', { a, b });
+  if (error) throw new Error(`순서를 바꾸지 못했어요: ${error.message}`);
+}
+
 /** 기록의 촬영 시각 고치기. 타임라인·결과물 순서가 이 값으로 정해진다 */
 export async function updateTakenAt(id: string, takenAt: Date): Promise<void> {
   const { error } = await getSupabase()

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CaptionSheet } from '@/features/capture/CaptionSheet';
 import { TakenAtSheet } from '@/features/capture/TakenAtSheet';
-import { useDeletePost, usePosts } from '@/features/capture/queries';
+import { useDeletePost, usePosts, useSwapPostOrder } from '@/features/capture/queries';
 import { MakeVideoSheet } from '@/features/media/MakeVideoSheet';
 import { mediaOf } from '@/features/media/mediaItem';
 import { estimateDurationMs, MIN_RECORDS } from '@/features/media/plan';
@@ -41,6 +41,8 @@ export default function ProjectScreen() {
   const [editingCaption, setEditingCaption] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
   const [editingTakenAt, setEditingTakenAt] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  const swap = useSwapPostOrder(id);
 
   const items = posts.data ?? [];
   const total = items.length;
@@ -74,6 +76,20 @@ export default function ProjectScreen() {
     ]);
   };
 
+  /** 지금 보는 기록을 한 칸 옮긴다 (이웃과 촬영 시각을 맞바꾼다) */
+  const move = (step: -1 | 1) => {
+    const here = items[index];
+    const there = items[index + step];
+    if (!here || !there) return;
+    swap.mutate(
+      { a: here.id, b: there.id },
+      {
+        onSuccess: () => setIndex((i) => Math.max(0, Math.min(total - 1, i + step))),
+        onError: (e) => showAlert('옮기지 못했어요', e instanceof Error ? e.message : String(e)),
+      },
+    );
+  };
+
   const confirmDeletePost = () => {
     if (!current) return;
     const kind = current.media_type === 'video' ? '영상' : '사진';
@@ -93,6 +109,7 @@ export default function ProjectScreen() {
 
   const openMenu = () => {
     showAlert(p?.name ?? '편물', undefined, [
+      ...(total > 1 ? [{ text: reordering ? '순서 바꾸기 끝내기' : '기록 순서 바꾸기', onPress: () => setReordering((v) => !v) }] : []),
       ...(current ? [{ text: '이 기록의 날짜 고치기', onPress: () => setEditingTakenAt(true) }] : []),
       ...(current ? [{ text: '지금 보는 기록 지우기', style: 'destructive' as const, onPress: confirmDeletePost }] : []),
       { text: '이름 바꾸기', onPress: () => setRenaming(true) },
@@ -154,6 +171,25 @@ export default function ProjectScreen() {
             <Text style={styles.date}>{current ? formatDateTime(current.taken_at) : ''}</Text>
             <Text style={styles.counter}>{index + 1}번째 / {total}</Text>
           </View>
+          {reordering ? (
+            <View style={styles.reorderRow}>
+              <Button
+                label="← 앞으로"
+                variant="secondary"
+                disabled={index === 0 || swap.isPending}
+                onPress={() => move(-1)}
+                style={styles.reorderButton}
+              />
+              <Button
+                label="뒤로 →"
+                variant="secondary"
+                disabled={index >= total - 1 || swap.isPending}
+                onPress={() => move(1)}
+                style={styles.reorderButton}
+              />
+              <Button label="끝내기" disabled={swap.isPending} onPress={() => setReordering(false)} style={styles.reorderButton} />
+            </View>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={current?.caption ? '메모 고치기' : '메모 추가'}
@@ -225,6 +261,8 @@ const styles = StyleSheet.create({
   meta: { fontSize: fontSize.caption, color: color.textMuted },
   more: { fontSize: fontSize.heading, color: color.textMuted },
   photo: { alignSelf: 'center', backgroundColor: color.border },
+  reorderRow: { flexDirection: 'row', gap: space.sm, paddingHorizontal: space.xl, paddingTop: space.sm },
+  reorderButton: { flex: 1, paddingHorizontal: space.sm },
   memoRow: { paddingHorizontal: space.xl, paddingBottom: space.sm },
   memo: { fontSize: fontSize.label, color: color.text, lineHeight: fontSize.label * 1.6 },
   memoEmpty: { fontSize: fontSize.label, color: color.textMuted },

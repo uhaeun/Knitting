@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { deletePost, latestPost, listPosts, savePost, saveVideoPost, updateCaption, updateTakenAt } from '@/features/capture/repository';
+import { deletePost, latestPost, listPosts, savePost, saveVideoPost, swapPostOrder, updateCaption, updateTakenAt } from '@/features/capture/repository';
 import { projectKeys } from '@/features/project/queries';
 
 export function usePosts(projectId: string) {
@@ -31,6 +31,18 @@ export function useSaveVideoPost(projectId: string) {
   return useMutation({
     mutationFn: (input: { source: Blob; onProgress?: (stage: 'converting' | 'uploading', ratio: number) => void }) =>
       saveVideoPost({ projectId, ...input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });
+      qc.invalidateQueries({ queryKey: projectKeys.all });
+    },
+  });
+}
+
+/** 기록 순서 바꾸기 (이웃과 자리 맞바꾸기) */
+export function useSwapPostOrder(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { a: string; b: string }) => swapPostOrder(v.a, v.b),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });
       qc.invalidateQueries({ queryKey: projectKeys.all });
