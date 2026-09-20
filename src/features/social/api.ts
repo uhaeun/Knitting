@@ -490,3 +490,15 @@ export async function searchAll(query: string): Promise<SearchResult> {
     })),
   };
 }
+
+/** 이 기록에 좋아요를 누른 사람들. 차단한 사람은 RLS가 걸러 준다 */
+export async function fetchLikers(postId: string): Promise<Profile[]> {
+  const { data, error } = await getSupabase()
+    .from('reactions')
+    .select('created_at, profiles!reactions_user_id_fkey ( * )')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as { profiles: Profile }[]).map((r) => r.profiles);
+}

@@ -23,6 +23,7 @@ export const socialKeys = {
   blocked: ['blocked'] as const,
   search: (q: string) => ['search', q] as const,
   searchAll: (q: string) => ['search', 'all', q] as const,
+  likers: (postId: string) => ['post', postId, 'likers'] as const,
   notifications: ['notifications'] as const,
   unread: ['notifications', 'unread'] as const,
 };
@@ -233,4 +234,9 @@ export function useSearchAll(query: string) {
     queryFn: () => api.searchAll(q),
     enabled: q.length >= 2,
   });
+}
+
+/** 좋아요 누른 사람 목록 (시트를 열 때만 불러온다) */
+export function useLikers(postId: string, enabled: boolean) {
+  return useQuery({ queryKey: socialKeys.likers(postId), queryFn: () => api.fetchLikers(postId), enabled });
 }

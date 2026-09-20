@@ -23,6 +23,7 @@ import {
   usePost,
   useToggleLike,
 } from '@/features/social/queries';
+import { LikersSheet } from '@/features/social/LikersSheet';
 import { ReportSheet } from '@/features/social/ReportSheet';
 import { showAlert } from '@/shared/lib/dialog';
 import { relativeTime } from '@/shared/lib/relativeTime';
@@ -48,6 +49,7 @@ export default function PostScreen() {
   const delPost = useDeletePost();
   const [body, setBody] = useState('');
   const [editingCaption, setEditingCaption] = useState(false);
+  const [showLikers, setShowLikers] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ kind: 'post' | 'comment'; id: string; author: string } | null>(null);
 
   if (post.isError) {
@@ -145,6 +147,14 @@ export default function PostScreen() {
                   style={styles.action}
                 >
                   <View style={[styles.heart, liked && styles.heartOn]} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="좋아요 누른 사람"
+                  disabled={(p?.like_count ?? 0) === 0}
+                  onPress={() => setShowLikers(true)}
+                  style={styles.action}
+                >
                   <Text style={[styles.count, liked && styles.countOn]}>{p?.like_count ?? 0}</Text>
                 </Pressable>
                 <Text style={styles.count}>댓글 {p?.comment_count ?? 0}</Text>
@@ -198,6 +208,7 @@ export default function PostScreen() {
       </View>
 
       {editingCaption && p ? <CaptionSheet postId={p.id} current={p.caption} onClose={() => setEditingCaption(false)} /> : null}
+      {showLikers ? <LikersSheet postId={id} onClose={() => setShowLikers(false)} /> : null}
       <ReportSheet
         visible={!!reportTarget}
         target={reportTarget?.kind ?? 'post'}
