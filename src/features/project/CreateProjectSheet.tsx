@@ -6,6 +6,7 @@ import { formatMonthDay, todayIso } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
+import { DateField } from '@/shared/ui/DateField';
 import { Field } from '@/shared/ui/Field';
 import type { Visibility } from '@/shared/types/models';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
@@ -28,14 +29,16 @@ export function CreateProjectSheet({ visible, onClose, onCreated }: Props) {
   const [visibility, setVisibility] = useState<Visibility>('private');
   const create = useCreateProject();
   const today = todayIso();
+  const [startedAt, setStartedAt] = useState(today);
   const canSubmit = name.trim().length > 0 && !create.isPending;
 
   const submit = () => {
     create.mutate(
-      { name, started_at: today, default_visibility: visibility },
+      { name, started_at: startedAt, default_visibility: visibility },
       {
         onSuccess: (p) => {
           setName('');
+          setStartedAt(today);
           onClose();
           onCreated?.(p.id);
         },
@@ -56,13 +59,8 @@ export function CreateProjectSheet({ visible, onClose, onCreated }: Props) {
         returnKeyType="done"
         onSubmitEditing={canSubmit ? submit : undefined}
       />
-      <View style={styles.field}>
-        <Text style={styles.label}>시작일</Text>
-        <View style={styles.dateRow}>
-          <Text style={styles.dateText}>{formatMonthDay(today)}</Text>
-          <Text style={styles.label}>오늘</Text>
-        </View>
-      </View>
+      <DateField label="시작일" value={startedAt} onChange={setStartedAt} max={today} />
+      {startedAt !== today ? <Text style={styles.label}>{formatMonthDay(startedAt)}부터 뜬 편물이에요</Text> : null}
       <View style={styles.field}>
         <Text style={styles.label}>공개 범위</Text>
         <View style={styles.segment}>

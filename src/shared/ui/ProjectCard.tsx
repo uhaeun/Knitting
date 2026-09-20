@@ -14,9 +14,11 @@ type Props = {
   onPress: () => void;
   /** 카드에서 바로 촬영 화면으로. 없으면 버튼을 그리지 않는다 */
   onCapture?: () => void;
+  /** 완성한 편물이면 이름 옆에 표시한다 */
+  done?: boolean;
 };
 
-export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress, onCapture }: Props) {
+export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress, onCapture, done }: Props) {
   // 카드 본문과 '찍기'를 형제 버튼으로 둔다 (버튼 안에 버튼을 넣으면 웹·스크린리더에서 깨진다)
   return (
     <View style={styles.card}>
@@ -31,9 +33,12 @@ export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress, onC
           <View style={[styles.thumb, styles.thumbEmpty]} />
         )}
         <View style={styles.body}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>
+              {name}
+            </Text>
+            {done ? <Text style={styles.done}>완성</Text> : null}
+          </View>
           <Text style={styles.subtitle}>{subtitle}</Text>
           <View style={styles.ticks}>
             <StitchRow total={photoCount} unit={9} perRow={16} />
@@ -57,6 +62,11 @@ export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress, onC
 }
 
 const styles = StyleSheet.create({
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  done: {
+    fontSize: fontSize.caption, color: color.accent, backgroundColor: color.accentSoft,
+    paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden',
+  },
   card: {
     backgroundColor: color.surface,
     borderWidth: size.hairline,
@@ -76,7 +86,7 @@ const styles = StyleSheet.create({
   },
   thumbEmpty: { backgroundColor: color.border },
   body: { flex: 1, minWidth: 0, gap: space.xs },
-  name: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
+  name: { flexShrink: 1, fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
   subtitle: { fontSize: fontSize.caption, color: color.textMuted },
   ticks: { marginTop: space.xs },
   capture: {

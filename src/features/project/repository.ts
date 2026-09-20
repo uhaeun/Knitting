@@ -91,6 +91,12 @@ export async function renameProject(id: string, name: string): Promise<void> {
   if (error) throw new Error(`이름을 바꾸지 못했어요: ${error.message}`);
 }
 
+/** 시작일·완성일 바꾸기. 완성일 null이면 "진행 중" */
+export async function updateProjectDates(id: string, patch: { started_at?: string; finished_at?: string | null }): Promise<void> {
+  const { error } = await getSupabase().from('projects').update(patch).eq('id', id);
+  if (error) throw new Error(`날짜를 바꾸지 못했어요: ${error.message}`);
+}
+
 /** soft delete. 편물과 사진을 서버 함수 안에서 한 트랜잭션으로. Storage 파일은 남긴다 (복구 여지). */
 export async function deleteProject(id: string): Promise<void> {
   const { error } = await getSupabase().rpc('soft_delete_project', { pid: id });

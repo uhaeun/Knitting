@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createProject, deleteProject, getProject, listProjects, renameProject, setProjectVisibility } from '@/features/project/repository';
+import { createProject, deleteProject, getProject, listProjects, renameProject, setProjectVisibility, updateProjectDates } from '@/features/project/repository';
 import type { Visibility } from '@/shared/types/models';
 
 /** 화면은 repository를 직접 부르지 않고 이 훅만 쓴다. 캐시 무효화가 한 곳에 모인다. */
@@ -44,6 +44,15 @@ export function useRenameProject() {
       qc.invalidateQueries({ queryKey: ['feed'] });
       qc.invalidateQueries({ queryKey: ['post'] });
     },
+  });
+}
+
+export function useUpdateProjectDates() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; patch: { started_at?: string; finished_at?: string | null } }) =>
+      updateProjectDates(v.id, v.patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: projectKeys.all }),
   });
 }
 

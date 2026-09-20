@@ -77,7 +77,12 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <ProjectCard
               name={item.name}
-              subtitle={`${formatMonthDay(item.started_at)} 시작`}
+              subtitle={
+                item.finished_at
+                  ? `${formatMonthDay(item.started_at)} 시작 · ${formatMonthDay(item.finished_at)} 완성`
+                  : `${formatMonthDay(item.started_at)} 시작`
+              }
+              done={!!item.finished_at}
               photoCount={item.photo_count}
               thumbUri={item.cover_thumb_path ?? undefined}
               onCapture={() => router.push({ pathname: '/capture/[projectId]', params: { projectId: item.id } })}
