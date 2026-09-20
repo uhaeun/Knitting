@@ -128,7 +128,10 @@ function friendlyAuthError(m: string): string {
   if (/email not confirmed/i.test(m)) return '메일의 확인 링크를 먼저 눌러 주세요';
   if (/password should be at least/i.test(m)) return '비밀번호는 6자 이상';
   if (/already registered/i.test(m)) return '이미 가입된 이메일이에요. 로그인해 주세요';
-  if (/rate limit|too many requests/i.test(m)) return '잠시 후 다시 시도해 주세요';
+  if (/rate limit|too many requests|after \d+ seconds/i.test(m)) return '잠시 후 다시 시도해 주세요';
+  // 실제 서버는 example.com 같은 주소를 거부한다
+  if (/email address.*invalid|invalid email|email_address_invalid/i.test(m)) return '쓸 수 없는 메일 주소예요. 실제로 받을 수 있는 주소를 적어 주세요';
+  if (/signups? not allowed|signup is disabled/i.test(m)) return '지금은 가입을 받지 않아요';
   if (/new password should be different/i.test(m)) return '지금 쓰는 비밀번호와 다른 것으로 정해 주세요';
   if (/auth session missing|session.*expired/i.test(m)) return '링크가 만료됐어요. 다시 보내 주세요.';
   return m;
