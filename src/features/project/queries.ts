@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createProject, deleteProject, getProject, listProjects, renameProject, setProjectVisibility, updateProjectDates } from '@/features/project/repository';
+import { createProject, deleteProject, getProject, listProjects, listTrash, renameProject, restoreTrashItem, setProjectVisibility, updateProjectDates, type TrashItem } from '@/features/project/repository';
 import type { Visibility } from '@/shared/types/models';
 
 /** 화면은 repository를 직접 부르지 않고 이 훅만 쓴다. 캐시 무효화가 한 곳에 모인다. */
@@ -61,6 +61,22 @@ export function useDeleteProject() {
   return useMutation({
     mutationFn: (id: string) => deleteProject(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: projectKeys.all }),
+  });
+}
+
+export function useTrash() {
+  return useQuery({ queryKey: ['trash'], queryFn: () => listTrash() });
+}
+
+export function useRestoreTrash() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (item: Pick<TrashItem, 'kind' | 'id'>) => restoreTrashItem(item),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trash'] });
+      qc.invalidateQueries({ queryKey: projectKeys.all });
+      qc.invalidateQueries({ queryKey: ['feed'] });
+    },
   });
 }
 

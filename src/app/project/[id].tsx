@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CaptionSheet } from '@/features/capture/CaptionSheet';
+import { TakenAtSheet } from '@/features/capture/TakenAtSheet';
 import { useDeletePost, usePosts } from '@/features/capture/queries';
 import { MakeVideoSheet } from '@/features/media/MakeVideoSheet';
 import { mediaOf } from '@/features/media/mediaItem';
@@ -39,6 +40,7 @@ export default function ProjectScreen() {
   const [renaming, setRenaming] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
+  const [editingTakenAt, setEditingTakenAt] = useState(false);
 
   const items = posts.data ?? [];
   const total = items.length;
@@ -91,6 +93,7 @@ export default function ProjectScreen() {
 
   const openMenu = () => {
     showAlert(p?.name ?? '편물', undefined, [
+      ...(current ? [{ text: '이 기록의 날짜 고치기', onPress: () => setEditingTakenAt(true) }] : []),
       ...(current ? [{ text: '지금 보는 기록 지우기', style: 'destructive' as const, onPress: confirmDeletePost }] : []),
       { text: '이름 바꾸기', onPress: () => setRenaming(true) },
       { text: p?.finished_at ? '날짜·완성 표시 바꾸기' : '날짜 바꾸기 · 완성 표시', onPress: () => setEditingDates(true) },
@@ -195,6 +198,9 @@ export default function ProjectScreen() {
       />
       {editingCaption && current ? (
         <CaptionSheet postId={current.id} current={current.caption} onClose={() => setEditingCaption(false)} />
+      ) : null}
+      {editingTakenAt && current ? (
+        <TakenAtSheet postId={current.id} takenAt={current.taken_at} onClose={() => setEditingTakenAt(false)} />
       ) : null}
       {editingDates && p ? (
         <ProjectDatesSheet

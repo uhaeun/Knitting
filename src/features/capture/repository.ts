@@ -199,6 +199,15 @@ export async function saveVideoPost(input: {
   }
 }
 
+/** 기록의 촬영 시각 고치기. 타임라인·결과물 순서가 이 값으로 정해진다 */
+export async function updateTakenAt(id: string, takenAt: Date): Promise<void> {
+  const { error } = await getSupabase()
+    .from('posts')
+    .update({ taken_at: takenAt.toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(`날짜를 바꾸지 못했어요: ${error.message}`);
+}
+
 /** 기록에 남기는 한 줄 메모. 빈 값이면 지운다 (DB는 500자까지) */
 export async function updateCaption(id: string, caption: string): Promise<void> {
   const text = caption.trim();

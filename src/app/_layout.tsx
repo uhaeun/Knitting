@@ -95,6 +95,7 @@ function AuthGate() {
       <Stack.Screen name="legal/[doc]" />
       <Stack.Screen name="settings/index" />
       <Stack.Screen name="settings/blocked" />
+      <Stack.Screen name="settings/trash" />
       <Stack.Screen name="settings/requests" />
       <Stack.Screen name="capture/[projectId]" options={{ presentation: 'fullScreenModal' }} />
       <Stack.Screen name="result/[projectId]" />

@@ -69,6 +69,7 @@ export default function SettingsScreen() {
               onPress={() => router.push('/settings/requests')}
             />
             <Link label="차단한 사람" onPress={() => router.push('/settings/blocked')} />
+            <Link label="휴지통" onPress={() => router.push('/settings/trash')} />
             {isNativeApp() ? null : <Link label={installEntry.label} onPress={installEntry.onPress(() => setInstallOpen(true))} />}
             <Link label="닛팅 쓰는 법 다시 보기" onPress={() => setTourOpen(true)} />
           </Section>

@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/shared/lib/dates';
 import { newId } from '@/shared/lib/id';
 import { requireUserId, signPaths } from '@/shared/lib/remote';
 import { getSupabase } from '@/shared/lib/supabase';
@@ -82,6 +83,67 @@ export async function createProject(input: {
 export async function setProjectVisibility(id: string, v: Visibility): Promise<void> {
   const { error } = await getSupabase().rpc('set_project_visibility', { pid: id, v });
   if (error) throw new Error(`공개 범위를 바꾸지 못했어요: ${error.message}`);
+}
+
+export type TrashItem = {
+  kind: 'project' | 'post';
+  id: string;
+  title: string; // 편물 이름
+  subtitle: string; // 지운 시각 · 기록 수 또는 촬영 시각
+  deletedAt: string;
+  thumbUrl: string | null;
+};
+
+/** 휴지통: 지운 편물과 기록. 최근에 지운 것부터 */
+export async function listTrash(): Promise<TrashItem[]> {
+  const sb = getSupabase();
+  const [{ data: projects, error: pe }, { data: posts, error: se }] = await Promise.all([
+    sb.from('projects').select('id, name, deleted_at').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
+    sb
+      .from('posts')
+      .select('id, thumb_path, taken_at, deleted_at, projects!posts_project_id_fkey ( name, deleted_at )')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false })
+      .limit(100),
+  ]);
+  if (pe) throw new Error(pe.message);
+  if (se) throw new Error(se.message);
+
+  const projectRows = (projects ?? []) as { id: string; name: string; deleted_at: string }[];
+  const postRows = (posts ?? []) as unknown as {
+    id: string; thumb_path: string; taken_at: string; deleted_at: string;
+    projects: { name: string; deleted_at: string | null };
+  }[];
+  // 편물과 함께 지워진 기록은 따로 보여 주지 않는다 (편물을 되돌리면 같이 살아난다)
+  const orphans = postRows.filter((r) => !r.projects.deleted_at);
+  const urls = await signPaths(orphans.map((r) => r.thumb_path));
+
+  const items: TrashItem[] = [
+    ...projectRows.map((r) => ({
+      kind: 'project' as const,
+      id: r.id,
+      title: r.name,
+      subtitle: '편물 전체',
+      deletedAt: r.deleted_at,
+      thumbUrl: null,
+    })),
+    ...orphans.map((r) => ({
+      kind: 'post' as const,
+      id: r.id,
+      title: r.projects.name,
+      subtitle: formatDateTime(r.taken_at),
+      deletedAt: r.deleted_at,
+      thumbUrl: urls.get(r.thumb_path) ?? null,
+    })),
+  ];
+  return items.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+}
+
+export async function restoreTrashItem(item: Pick<TrashItem, 'kind' | 'id'>): Promise<void> {
+  const fn = item.kind === 'project' ? 'restore_project' : 'restore_post';
+  const args = item.kind === 'project' ? { pid: item.id } : { post_id: item.id };
+  const { error } = await getSupabase().rpc(fn, args);
+  if (error) throw new Error(`되돌리지 못했어요: ${error.message}`);
 }
 
 /** 편물 이름 바꾸기. 1~50자 (DB 제약과 같다). */

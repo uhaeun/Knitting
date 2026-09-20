@@ -28,7 +28,7 @@ import { Button } from '@/shared/ui/Button';
 import { useSquareSide } from '@/shared/ui/layout';
 import { color, fontSize, fontWeight, ghostOpacity, radius, size, space } from '@/shared/ui/tokens';
 
-type Shot = { uri: string; width: number; height: number };
+type Shot = { uri: string; width: number; height: number; takenAt?: Date };
 
 /** 시안 1c (고스트) / 1d (첫 장). 이 앱의 핵심 화면. */
 export default function CaptureScreen() {
@@ -70,7 +70,7 @@ export default function CaptureScreen() {
 
   const persist = (shot: Shot) => {
     save.mutate(
-      { sourceUri: shot.uri, width: shot.width, height: shot.height },
+      { sourceUri: shot.uri, width: shot.width, height: shot.height, takenAt: shot.takenAt },
       {
         onSuccess: () => router.back(),
         onError: (e) =>
@@ -180,15 +180,54 @@ export default function CaptureScreen() {
     }
   };
 
+  /** 앨범에서 고른 사진 여러 장을 고른 순서대로 하나씩 저장한다 (한 장이라도 실패하면 거기서 멈추고 알린다) */
+  const persistMany = async (shots: Shot[]) => {
+    setBusy(true);
+    let done = 0;
+    try {
+      for (const shot of shots) {
+        setProgress(`${done + 1}장째 저장 중 (전부 ${shots.length}장)`);
+        await save.mutateAsync({ sourceUri: shot.uri, width: shot.width, height: shot.height, takenAt: shot.takenAt });
+        done += 1;
+      }
+      router.back();
+    } catch (e) {
+      showAlert(
+        done === 0 ? '저장하지 못했어요' : `${done}장만 저장했어요`,
+        e instanceof Error ? e.message : String(e),
+        [{ text: '닫기', style: 'cancel' }],
+      );
+    } finally {
+      setProgress(null);
+      setBusy(false);
+    }
+  };
+
   const pickFromAlbum = async () => {
     if (busy || saving || recordingSince !== null) return;
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: [mode === 'video' ? 'videos' : 'images'],
       quality: 1,
       exif: false,
+      // 사진은 여러 장을 한 번에 고를 수 있다. 영상은 한 편씩 (5초로 자르고 변환해야 해서)
+      allowsMultipleSelection: mode === 'photo',
+      selectionLimit: mode === 'photo' ? 20 : 1,
     });
     const a = res.assets?.[0];
     if (res.canceled || !a) return;
+    if (mode === 'photo' && res.assets.length > 1) {
+      // 앨범 사진은 파일에 적힌 시각을 촬영 시각으로 쓴다. 없으면 지금 시각 (고른 순서를 유지한다)
+      const now = Date.now();
+      void persistMany(
+        res.assets.map((asset, i) => ({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          takenAt: asset.file?.lastModified ? new Date(asset.file.lastModified) : new Date(now + i),
+        })),
+      );
+      return;
+    }
     if (mode === 'video') {
       let blob: Blob;
       try {

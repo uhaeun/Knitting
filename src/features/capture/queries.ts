@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { deletePost, latestPost, listPosts, savePost, saveVideoPost, updateCaption } from '@/features/capture/repository';
+import { deletePost, latestPost, listPosts, savePost, saveVideoPost, updateCaption, updateTakenAt } from '@/features/capture/repository';
 import { projectKeys } from '@/features/project/queries';
 
 export function usePosts(projectId: string) {
@@ -17,7 +17,7 @@ export function useLatestPost(projectId: string) {
 export function useSavePost(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { sourceUri: string; width: number; height: number }) =>
+    mutationFn: (input: { sourceUri: string; width: number; height: number; takenAt?: Date }) =>
       savePost({ projectId, ...input }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });
@@ -34,6 +34,19 @@ export function useSaveVideoPost(projectId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });
       qc.invalidateQueries({ queryKey: projectKeys.all });
+    },
+  });
+}
+
+/** 기록 날짜 고치기 */
+export function useUpdateTakenAt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { postId: string; takenAt: Date }) => updateTakenAt(v.postId, v.takenAt),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: projectKeys.all });
+      qc.invalidateQueries({ queryKey: ['feed'] });
+      qc.invalidateQueries({ queryKey: ['post'] });
     },
   });
 }
