@@ -7,6 +7,7 @@ import { signOut } from '@/features/auth/api';
 import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
+import { ChangePasswordSheet } from '@/features/auth/ChangePasswordSheet';
 import { DeleteAccountSheet } from '@/features/auth/DeleteAccountSheet';
 import { EditProfileSheet } from '@/features/auth/EditProfileSheet';
 import { TourSheet } from '@/features/onboarding/TourSheet';
@@ -22,6 +23,7 @@ import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/to
 export default function SettingsScreen() {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
   const installEntry = useInstallGuideEntry();
   const [tourOpen, setTourOpen] = useState(false);
@@ -70,6 +72,7 @@ export default function SettingsScreen() {
             />
             <Link label="차단한 사람" onPress={() => router.push('/settings/blocked')} />
             <Link label="휴지통" onPress={() => router.push('/settings/trash')} />
+            <Link label="비밀번호 바꾸기" onPress={() => setPasswordOpen(true)} />
             {isNativeApp() ? null : <Link label={installEntry.label} onPress={installEntry.onPress(() => setInstallOpen(true))} />}
             <Link label="닛팅 쓰는 법 다시 보기" onPress={() => setTourOpen(true)} />
           </Section>
@@ -99,6 +102,7 @@ export default function SettingsScreen() {
 
       <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
       <DeleteAccountSheet visible={deleteOpen} onClose={() => setDeleteOpen(false)} />
+      {passwordOpen ? <ChangePasswordSheet onClose={() => setPasswordOpen(false)} /> : null}
       <TourSheet visible={tourOpen} onDone={() => { setTourOpen(false); tour.finish(); }} />
       <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
     </SafeAreaView>

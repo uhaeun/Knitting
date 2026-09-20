@@ -51,6 +51,16 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (error) throw new Error(friendlyAuthError(error.message));
 }
 
+/**
+ * 설정에서 비밀번호 바꾸기. 지금 비밀번호를 먼저 확인한다
+ * (폰을 잠깐 빌려준 사이에 남이 바꾸지 못하게. Supabase는 세션만 있으면 그냥 바꿔 준다).
+ */
+export async function changePassword(email: string, current: string, next: string): Promise<void> {
+  const { error: wrong } = await getSupabase().auth.signInWithPassword({ email, password: current });
+  if (wrong) throw new Error('지금 비밀번호가 맞지 않아요');
+  await updatePassword(next);
+}
+
 /** 메일 링크로 들어온 세션에서 새 비밀번호로 바꾼다 */
 export async function updatePassword(password: string): Promise<void> {
   const { error } = await getSupabase().auth.updateUser({ password });

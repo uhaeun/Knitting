@@ -11,6 +11,9 @@ export function Field({ label, style, ...input }: Props) {
       <Text style={styles.label}>{label}</Text>
       <TextInput
         placeholderTextColor={color.textMuted}
+        // 라벨을 입력칸에 연결한다 (화면 낭독기와 자동 검사가 칸을 찾을 수 있게)
+        aria-label={label}
+        accessibilityLabel={label}
         style={[styles.input, style]}
         {...input}
       />
