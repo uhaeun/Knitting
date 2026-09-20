@@ -203,15 +203,49 @@ export default function CaptureScreen() {
     }
   };
 
+  /** 앨범에서 고른 영상 여러 편을 하나씩 변환·저장한다 (5초를 넘으면 앞 5초만) */
+  const persistManyVideos = async (sources: Blob[]) => {
+    setBusy(true);
+    let done = 0;
+    let trimmedAny = false;
+    try {
+      for (const source of sources) {
+        const at = done + 1;
+        const res = await saveVideo.mutateAsync({
+          source,
+          onProgress: (stage, r) =>
+            setProgress(
+              stage === 'converting'
+                ? `${at}편째 변환 중 ${Math.round(r * 100)}% (전부 ${sources.length}편)`
+                : `${at}편째 올리는 중 (전부 ${sources.length}편)`,
+            ),
+        });
+        trimmedAny = trimmedAny || res.trimmed;
+        done += 1;
+      }
+      if (trimmedAny) showAlert('긴 영상은 앞 5초만 저장했어요', '영상 기록은 5초까지예요.');
+      router.back();
+    } catch (e) {
+      showAlert(
+        done === 0 ? '영상을 저장하지 못했어요' : `${done}편만 저장했어요`,
+        e instanceof Error ? e.message : String(e),
+        [{ text: '닫기', style: 'cancel' }],
+      );
+    } finally {
+      setProgress(null);
+      setBusy(false);
+    }
+  };
+
   const pickFromAlbum = async () => {
     if (busy || saving || recordingSince !== null) return;
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: [mode === 'video' ? 'videos' : 'images'],
       quality: 1,
       exif: false,
-      // 사진은 여러 장을 한 번에 고를 수 있다. 영상은 한 편씩 (5초로 자르고 변환해야 해서)
-      allowsMultipleSelection: mode === 'photo',
-      selectionLimit: mode === 'photo' ? 20 : 1,
+      // 사진 20장, 영상 5편까지 한 번에 (영상은 편마다 변환·업로드라 더 오래 걸린다)
+      allowsMultipleSelection: true,
+      selectionLimit: mode === 'photo' ? 20 : 5,
     });
     const a = res.assets?.[0];
     if (res.canceled || !a) return;
@@ -229,17 +263,24 @@ export default function CaptureScreen() {
       return;
     }
     if (mode === 'video') {
-      let blob: Blob;
+      const blobs: Blob[] = [];
       try {
-        blob = await (await fetch(a.uri)).blob();
+        for (const asset of res.assets) {
+          blobs.push(await (await fetch(asset.uri)).blob());
+        }
       } catch (e) {
         showAlert('영상을 불러오지 못했어요', e instanceof Error ? e.message : String(e));
         return;
       } finally {
         // Blob으로 읽었으니 앨범 파일 URL은 더 필요 없다 (다시 시도는 blob을 쓴다)
-        URL.revokeObjectURL(a.uri);
+        for (const asset of res.assets) URL.revokeObjectURL(asset.uri);
       }
-      persistVideo(blob);
+      if (blobs.length > 1) {
+        void persistManyVideos(blobs);
+        return;
+      }
+      const only = blobs[0];
+      if (only) persistVideo(only);
       return;
     }
     persist({ uri: a.uri, width: a.width, height: a.height });
