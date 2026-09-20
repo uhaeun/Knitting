@@ -1,3 +1,4 @@
+import { decodePopularCursor, encodePopularCursor, popularAfter } from '@/features/social/popularCursor';
 import { getSupabase, PHOTOS_BUCKET } from '@/shared/lib/supabase';
 import type {
   Comment,
@@ -72,16 +73,28 @@ export async function fetchExploreFeed(sort: 'recent' | 'popular', cursor: strin
     .is('deleted_at', null)
     .is('hidden_at', null)
     .limit(PAGE_SIZE);
-  q = sort === 'popular'
-    ? q.order('like_count', { ascending: false }).order('created_at', { ascending: false })
-    : q.order('created_at', { ascending: false });
-  if (cursor && sort === 'recent') q = q.lt('created_at', cursor);
+  if (sort === 'popular') {
+    q = q.order('like_count', { ascending: false }).order('created_at', { ascending: false });
+    const after = decodePopularCursor(cursor);
+    if (after) q = q.or(popularAfter(after));
+  } else {
+    q = q.order('created_at', { ascending: false });
+    if (cursor) q = q.lt('created_at', cursor);
+  }
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as unknown as FeedPost[];
   const page = await toPage(rows);
-  return sort === 'popular' ? { ...page, nextCursor: null } : page;
+  if (sort !== 'popular') return page;
+  const last = rows[rows.length - 1];
+  return {
+    ...page,
+    nextCursor:
+      rows.length === PAGE_SIZE && last
+        ? encodePopularCursor({ likeCount: last.like_count, createdAt: last.created_at })
+        : null,
+  };
 }
 
 export async function fetchPost(postId: string): Promise<{ post: FeedPost; url: string | null; videoUrl: string | null }> {
