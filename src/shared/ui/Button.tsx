@@ -6,13 +6,15 @@ type Props = {
   label: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary';
+  /** 되돌릴 수 없는 삭제 버튼 */
+  danger?: boolean;
   disabled?: boolean;
   /** 시트·화면 하단의 큰 버튼은 52, 인라인은 48 */
   large?: boolean;
   style?: ViewStyle;
 };
 
-export function Button({ label, onPress, variant = 'primary', disabled, large, style }: Props) {
+export function Button({ label, onPress, variant = 'primary', danger, disabled, large, style }: Props) {
   const primary = variant === 'primary';
   return (
     <Pressable
@@ -23,12 +25,13 @@ export function Button({ label, onPress, variant = 'primary', disabled, large, s
         styles.base,
         large ? styles.large : styles.regular,
         primary ? styles.primary : styles.secondary,
+        danger && styles.danger,
         pressed && (primary ? styles.primaryPressed : styles.secondaryPressed),
         disabled && styles.disabled,
         style,
       ]}
     >
-      <Text style={[styles.label, primary ? styles.labelPrimary : styles.labelSecondary]}>{label}</Text>
+      <Text style={[styles.label, primary || danger ? styles.labelPrimary : styles.labelSecondary]}>{label}</Text>
     </Pressable>
   );
 }
@@ -43,6 +46,7 @@ const styles = StyleSheet.create({
   regular: { height: size.buttonHeight },
   large: { height: size.primaryButtonHeight },
   primary: { backgroundColor: color.accent },
+  danger: { backgroundColor: color.danger, borderWidth: 0 },
   primaryPressed: { backgroundColor: color.accentPressed },
   secondary: {
     backgroundColor: color.surface,

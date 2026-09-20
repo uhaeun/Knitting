@@ -7,6 +7,7 @@ import { signOut } from '@/features/auth/api';
 import { useUpdateProfile } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { usePendingRequests } from '@/features/social/queries';
+import { DeleteAccountSheet } from '@/features/auth/DeleteAccountSheet';
 import { EditProfileSheet } from '@/features/auth/EditProfileSheet';
 import { TourSheet } from '@/features/onboarding/TourSheet';
 import { ReminderSettings } from '@/features/reminder/ReminderSettings';
@@ -20,6 +21,7 @@ import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/to
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
   const installEntry = useInstallGuideEntry();
   const [tourOpen, setTourOpen] = useState(false);
@@ -89,25 +91,13 @@ export default function SettingsScreen() {
         {session ? (
           <Section title="">
             <Link label="로그아웃" danger onPress={() => void signOut().then(() => router.replace('/(auth)/sign-in'))} />
-            <Link
-              label="계정 삭제"
-              danger
-              onPress={() =>
-                showAlert(
-                  '계정을 삭제할까요?',
-                  `아직 앱에서 바로 지울 수 없어요. ${SUPPORT_EMAIL}로 요청하시면 처리해 드립니다.`,
-                  [
-                    { text: '취소', style: 'cancel' },
-                    { text: '메일 쓰기', onPress: () => void Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=계정 삭제 요청`) },
-                  ],
-                )
-              }
-            />
+            <Link label="계정 삭제" danger onPress={() => setDeleteOpen(true)} />
           </Section>
         ) : null}
       </ScrollView>
 
       <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
+      <DeleteAccountSheet visible={deleteOpen} onClose={() => setDeleteOpen(false)} />
       <TourSheet visible={tourOpen} onDone={() => { setTourOpen(false); tour.finish(); }} />
       <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
     </SafeAreaView>

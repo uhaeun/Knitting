@@ -1,6 +1,6 @@
 import { resetRedirectUrl } from '@/features/auth/recovery';
 import { LEGAL_VERSION } from '@/features/legal/policy';
-import { getSupabase } from '@/shared/lib/supabase';
+import { getSupabase, PHOTOS_BUCKET } from '@/shared/lib/supabase';
 import type { Profile } from '@/shared/types/remote';
 
 export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
@@ -37,6 +37,37 @@ export async function requestPasswordReset(email: string): Promise<void> {
 export async function updatePassword(password: string): Promise<void> {
   const { error } = await getSupabase().auth.updateUser({ password });
   if (error) throw new Error(friendlyAuthError(error.message));
+}
+
+/**
+ * 계정 삭제. Storage 파일을 먼저 지우고(주인만 지울 수 있다) 서버 함수로 계정을 지운다.
+ * auth.users가 사라지면 프로필·편물·기록·댓글·팔로우가 cascade로 함께 사라진다.
+ */
+export async function deleteAccount(userId: string): Promise<void> {
+  const sb = getSupabase();
+  await removeMyFiles(userId);
+  const { error } = await sb.rpc('delete_my_account');
+  if (error) throw new Error(`계정을 지우지 못했어요: ${error.message}`);
+  await sb.auth.signOut();
+}
+
+/** photos 버킷의 {uid}/{project}/{post} 파일을 모두 지운다. 실패해도 계정 삭제는 계속한다 */
+async function removeMyFiles(userId: string): Promise<void> {
+  const sb = getSupabase();
+  try {
+    const { data: folders } = await sb.storage.from(PHOTOS_BUCKET).list(userId);
+    const paths: string[] = [];
+    for (const folder of folders ?? []) {
+      const { data: files } = await sb.storage.from(PHOTOS_BUCKET).list(`${userId}/${folder.name}`);
+      for (const f of files ?? []) paths.push(`${userId}/${folder.name}/${f.name}`);
+    }
+    // 한 번에 너무 많이 보내지 않는다
+    for (let i = 0; i < paths.length; i += 100) {
+      await sb.storage.from(PHOTOS_BUCKET).remove(paths.slice(i, i + 100));
+    }
+  } catch (e) {
+    console.warn('[account] 파일 삭제 실패, 계정 삭제는 계속합니다', e);
+  }
 }
 
 export async function signOut(): Promise<void> {
