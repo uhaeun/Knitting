@@ -22,6 +22,7 @@ export const socialKeys = {
   requests: ['follow', 'requests'] as const,
   blocked: ['blocked'] as const,
   search: (q: string) => ['search', q] as const,
+  searchAll: (q: string) => ['search', 'all', q] as const,
   notifications: ['notifications'] as const,
   unread: ['notifications', 'unread'] as const,
 };
@@ -221,5 +222,15 @@ export function useMarkNotificationsRead() {
       qc.invalidateQueries({ queryKey: socialKeys.unread });
       qc.invalidateQueries({ queryKey: socialKeys.notifications });
     },
+  });
+}
+
+/** 사람·편물·기록을 한 번에 찾는다 (2글자부터) */
+export function useSearchAll(query: string) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: socialKeys.searchAll(q),
+    queryFn: () => api.searchAll(q),
+    enabled: q.length >= 2,
   });
 }

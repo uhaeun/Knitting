@@ -399,3 +399,94 @@ export async function markNotificationsRead(): Promise<void> {
   const { error } = await getSupabase().rpc('mark_notifications_read');
   if (error) throw new Error(error.message);
 }
+
+// --- 검색 --------------------------------------------------------------
+
+export type ProjectHit = {
+  id: string;
+  name: string;
+  ownerName: string;
+  ownerUsername: string;
+  postCount: number;
+  thumbUrl: string | null;
+};
+
+export type PostHit = { id: string; caption: string; projectName: string; thumbUrl: string | null };
+
+export type SearchResult = { people: Profile[]; projects: ProjectHit[]; posts: PostHit[] };
+
+/**
+ * 사람 · 편물 이름 · 기록 메모를 한 번에 찾는다.
+ * 공개된 기록만 보이므로(RLS) 남의 비공개 편물은 검색에도 걸리지 않는다.
+ * '#'으로 시작하면 메모 안의 해시태그를 찾는다.
+ */
+export async function searchAll(query: string): Promise<SearchResult> {
+  const q = query.trim();
+  if (q.length < 2) return { people: [], projects: [], posts: [] };
+  const sb = getSupabase();
+  const like = `%${q}%`;
+
+  const [people, projectRows, postRows] = await Promise.all([
+    searchProfiles(q),
+    sb
+      .from('posts')
+      // posts와 projects는 관계가 둘이다 (project_id, cover_post_id) → 어느 쪽인지 적어 준다
+      .select('project_id, thumb_path, projects!posts_project_id_fkey!inner ( id, name, profiles!projects_owner_id_fkey ( username, display_name ) )')
+      .eq('visibility', 'public')
+      .is('deleted_at', null)
+      .is('hidden_at', null)
+      .ilike('projects.name', like)
+      .order('created_at', { ascending: false })
+      .limit(60),
+    sb
+      .from('posts')
+      .select('id, caption, thumb_path, projects!posts_project_id_fkey!inner ( name )')
+      .eq('visibility', 'public')
+      .is('deleted_at', null)
+      .is('hidden_at', null)
+      .ilike('caption', like)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ]);
+  if (projectRows.error) throw new Error(projectRows.error.message);
+  if (postRows.error) throw new Error(postRows.error.message);
+
+  const pRows = (projectRows.data ?? []) as unknown as {
+    project_id: string; thumb_path: string;
+    projects: { id: string; name: string; profiles: { username: string; display_name: string } };
+  }[];
+  const sRows = (postRows.data ?? []) as unknown as {
+    id: string; caption: string | null; thumb_path: string; projects: { name: string };
+  }[];
+
+  const urls = await signPhotoUrls([...pRows.map((r) => r.thumb_path), ...sRows.map((r) => r.thumb_path)]);
+
+  // 같은 편물의 기록이 여러 개 걸리므로 편물 하나로 묶는다 (첫 줄의 사진을 표지로)
+  const byProject = new Map<string, ProjectHit>();
+  for (const r of pRows) {
+    const found = byProject.get(r.project_id);
+    if (found) {
+      found.postCount += 1;
+      continue;
+    }
+    byProject.set(r.project_id, {
+      id: r.project_id,
+      name: r.projects.name,
+      ownerName: r.projects.profiles.display_name,
+      ownerUsername: r.projects.profiles.username,
+      postCount: 1,
+      thumbUrl: urls.get(r.thumb_path) ?? null,
+    });
+  }
+
+  return {
+    people,
+    projects: [...byProject.values()],
+    posts: sRows.map((r) => ({
+      id: r.id,
+      caption: r.caption ?? '',
+      projectName: r.projects.name,
+      thumbUrl: urls.get(r.thumb_path) ?? null,
+    })),
+  };
+}
