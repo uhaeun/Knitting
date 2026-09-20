@@ -93,6 +93,7 @@ function AuthGate() {
       <Stack.Screen name="post/[id]" />
       <Stack.Screen name="user/[username]" />
       <Stack.Screen name="legal/[doc]" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="settings/index" />
       <Stack.Screen name="settings/blocked" />
       <Stack.Screen name="settings/trash" />

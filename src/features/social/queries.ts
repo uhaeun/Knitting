@@ -22,6 +22,8 @@ export const socialKeys = {
   requests: ['follow', 'requests'] as const,
   blocked: ['blocked'] as const,
   search: (q: string) => ['search', q] as const,
+  notifications: ['notifications'] as const,
+  unread: ['notifications', 'unread'] as const,
 };
 
 const pageParams = {
@@ -193,6 +195,31 @@ export function useToggleBlock() {
       qc.invalidateQueries({ queryKey: socialKeys.blocked });
       qc.invalidateQueries({ queryKey: ['feed'] });
       qc.invalidateQueries({ queryKey: ['follow'] });
+    },
+  });
+}
+
+/** 소식 목록. 화면을 열면 한 번 새로 읽는다 */
+export function useNotifications() {
+  return useQuery({ queryKey: socialKeys.notifications, queryFn: api.fetchNotifications });
+}
+
+/** 안 읽은 소식 수. 피드 탭에서 30초마다 확인한다 */
+export function useUnreadCount() {
+  return useQuery({
+    queryKey: socialKeys.unread,
+    queryFn: api.countUnreadNotifications,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.markNotificationsRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: socialKeys.unread });
+      qc.invalidateQueries({ queryKey: socialKeys.notifications });
     },
   });
 }

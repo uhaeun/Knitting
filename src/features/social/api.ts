@@ -334,3 +334,68 @@ export async function fetchBlocked(): Promise<Profile[]> {
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => (r as unknown as { profiles: Profile }).profiles).filter(Boolean);
 }
+
+// --- 소식(알림) ---------------------------------------------------------
+
+export type NotificationKind = 'like' | 'comment' | 'follow' | 'follow_request';
+
+export type AppNotification = {
+  id: string;
+  kind: NotificationKind;
+  createdAt: string;
+  readAt: string | null;
+  actor: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_path'>;
+  postId: string | null;
+  thumbUrl: string | null;
+  commentBody: string | null;
+};
+
+const NOTIFICATION_SELECT = `
+  id, kind, created_at, read_at, post_id,
+  profiles!notifications_actor_id_fkey ( id, username, display_name, avatar_path ),
+  posts ( thumb_path ),
+  comments ( body )
+`;
+
+/** 최근 소식 50개. 사진 썸네일은 한 번에 서명한다 */
+export async function fetchNotifications(): Promise<AppNotification[]> {
+  const { data, error } = await getSupabase()
+    .from('notifications')
+    .select(NOTIFICATION_SELECT)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []) as unknown as {
+    id: string; kind: NotificationKind; created_at: string; read_at: string | null; post_id: string | null;
+    profiles: AppNotification['actor'];
+    posts: { thumb_path: string } | null;
+    comments: { body: string } | null;
+  }[];
+  const urls = await signPhotoUrls(rows.map((r) => r.posts?.thumb_path ?? '').filter(Boolean));
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    createdAt: r.created_at,
+    readAt: r.read_at,
+    actor: r.profiles,
+    postId: r.post_id,
+    thumbUrl: r.posts?.thumb_path ? (urls.get(r.posts.thumb_path) ?? null) : null,
+    commentBody: r.comments?.body ?? null,
+  }));
+}
+
+/** 안 읽은 소식 수 (피드 탭 배지) */
+export async function countUnreadNotifications(): Promise<number> {
+  const { count, error } = await getSupabase()
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .is('read_at', null);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+export async function markNotificationsRead(): Promise<void> {
+  const { error } = await getSupabase().rpc('mark_notifications_read');
+  if (error) throw new Error(error.message);
+}

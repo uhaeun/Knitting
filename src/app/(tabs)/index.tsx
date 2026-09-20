@@ -8,7 +8,7 @@ import { confirmDeletePost } from '@/features/capture/confirmDeletePost';
 import { useDeletePost } from '@/features/capture/queries';
 import { PostActionsSheet } from '@/features/social/PostActionsSheet';
 import { PostCard } from '@/features/social/PostCard';
-import { flattenFeed, useFollowingFeed, useMyLikes, usePendingRequests, useToggleLike } from '@/features/social/queries';
+import { flattenFeed, useFollowingFeed, useMyLikes, useToggleLike, useUnreadCount } from '@/features/social/queries';
 import { ReportSheet } from '@/features/social/ReportSheet';
 import { showAlert } from '@/shared/lib/dialog';
 import type { FeedPost } from '@/shared/types/remote';
@@ -24,21 +24,19 @@ export default function FeedScreen() {
   const likes = useMyLikes('following', posts.map((p) => p.id));
   const toggleLike = useToggleLike();
   const delPost = useDeletePost();
-  const requests = usePendingRequests();
+  const unread = useUnreadCount();
   const [menuFor, setMenuFor] = useState<FeedPost | null>(null);
   const [reportFor, setReportFor] = useState<FeedPost | null>(null);
 
-  const pending = requests.data?.length ?? 0;
+  const news = unread.data ?? 0;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>피드</Text>
-        {pending > 0 ? (
-          <Pressable accessibilityRole="button" onPress={() => router.push('/settings/requests')} style={styles.badge}>
-            <Text style={styles.badgeText}>팔로우 요청 {pending}</Text>
-          </Pressable>
-        ) : null}
+        <Pressable accessibilityRole="button" accessibilityLabel="소식" onPress={() => router.push('/notifications')} style={styles.badge}>
+          <Text style={styles.badgeText}>{news > 0 ? `소식 ${news}` : '소식'}</Text>
+        </Pressable>
       </View>
 
       {feed.isError ? (
