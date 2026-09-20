@@ -41,7 +41,8 @@ try {
   await signUp(b, { base: BASE, email: guest.email, username: guest.username, displayName: guest.name });
   await b.goto(`${BASE}/explore`);
   await b.locator('[role="button"]:has(img)').first().click({ timeout: 60000 });
-  await b.getByRole('button', { name: '좋아요' }).click({ timeout: 30000 });
+  // '좋아요 누른 사람' 버튼과 이름이 겹쳐서 정확히 일치로 찾는다
+  await b.getByRole('button', { name: '좋아요', exact: true }).click({ timeout: 30000 });
   await b.getByPlaceholder('댓글 달기').fill('예뻐요');
   await b.getByRole('button', { name: '등록' }).click();
   await b.getByText('예뻐요').waitFor({ timeout: 30000 });
@@ -74,7 +75,7 @@ try {
   console.log('\n== 좋아요를 취소하면 소식도 사라진다');
   await b.goto(`${BASE}/explore`);
   await b.locator('[role="button"]:has(img)').first().click({ timeout: 30000 });
-  await b.getByRole('button', { name: '좋아요 취소' }).click({ timeout: 30000 });
+  await b.getByRole('button', { name: '좋아요 취소', exact: true }).click({ timeout: 30000 });
   await b.waitForTimeout(2000);
   const likes = sql(`select count(*) from notifications where user_id = '${ownerId}' and kind = 'like'`);
   check('좋아요 소식이 지워짐', likes === '0', likes);

@@ -50,8 +50,10 @@ try {
   await a.getByRole('button', { name: '등록' }).click();
   await a.getByText('린넨이에요').waitFor({ timeout: 30000 });
 
-  const parents = sql(`select count(*) from comments where parent_id is null and body = '실 뭐 쓰셨어요?'`);
-  const replies = sql(`select count(*) from comments where parent_id is not null and body = '린넨이에요'`);
+  // 이번 실행에서 만든 게시물의 댓글만 센다 (전에 돌린 검사 데이터가 섞이지 않게)
+  const post = sql(`select p.id from posts p join profiles pr on pr.id = p.owner_id where pr.username = 'cm_${stamp}' limit 1`);
+  const parents = sql(`select count(*) from comments where post_id = '${post}' and parent_id is null`);
+  const replies = sql(`select count(*) from comments where post_id = '${post}' and parent_id is not null`);
   check('답글이 원 댓글에 붙는다', parents === '1' && replies === '1', `${parents}/${replies}`);
   check('답글에는 답글 버튼이 없다', (await a.getByRole('button', { name: '답글' }).count()) === 1);
 
