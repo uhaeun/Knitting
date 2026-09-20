@@ -68,7 +68,7 @@ try {
 
   console.log('\n== 지운 계정으로 로그인 시도');
   await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill('password123');
+  await page.getByPlaceholder('8자 이상').fill('password123');
   await page.getByRole('button', { name: '로그인' }).click();
   await page.getByText('이메일 또는 비밀번호가 맞지 않아요').waitFor({ timeout: 30000 });
   check('다시 로그인되지 않는다', true);

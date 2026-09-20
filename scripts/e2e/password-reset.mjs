@@ -36,7 +36,7 @@ const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 200)));
 const signIn = async (pw) => {
   await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill(pw);
+  await page.getByPlaceholder('8자 이상').fill(pw);
   await page.getByRole('button', { name: '로그인' }).click();
 };
 const signOut = async () => {
@@ -66,7 +66,7 @@ try {
   await page.goto(link, { timeout: 60000 });
   await page.getByText('새 비밀번호', { exact: true }).first().waitFor({ timeout: 60000 });
   check('주소창에 토큰이 남지 않는다', !page.url().includes('access_token'), page.url());
-  await page.getByPlaceholder('6자 이상').fill(NEW);
+  await page.getByPlaceholder('8자 이상').fill(NEW);
   await page.getByPlaceholder('같은 비밀번호').fill('다른비밀번호');
   await page.getByText('두 번 입력한 비밀번호가 달라요').waitFor({ timeout: 15000 });
   check('확인이 다르면 알려 준다', true);

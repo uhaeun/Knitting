@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useChangePassword } from '@/features/auth/queries';
-import { validateNewPassword } from '@/features/auth/recovery';
+import { PASSWORD_MIN, validateNewPassword } from '@/features/auth/recovery';
 import { useAuth } from '@/features/auth/store';
 import { showAlert } from '@/shared/lib/dialog';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
@@ -55,7 +55,7 @@ export function ChangePasswordSheet({ onClose }: Props) {
           label="새 비밀번호"
           value={next}
           onChangeText={setNext}
-          placeholder="6자 이상"
+          placeholder={`${PASSWORD_MIN}자 이상`}
           secureTextEntry
           autoCapitalize="none"
           autoComplete="new-password"

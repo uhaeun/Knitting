@@ -1,6 +1,6 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { changePassword, createProfile, deleteAccount, requestPasswordReset, resendConfirmation, signIn, signUp, updatePassword, updateProfile } from '@/features/auth/api';
+import { changePassword, createProfile, deleteAccount, fetchEnabledSocials, requestPasswordReset, resendConfirmation, signIn, signInWithSocial, signUp, updatePassword, updateProfile, type SocialProvider } from '@/features/auth/api';
 import { useAuth } from '@/features/auth/store';
 
 export function useSignIn() {
@@ -35,6 +35,14 @@ export function useUpdatePassword() {
 
 export function useDeleteAccount() {
   return useMutation({ mutationFn: (userId: string) => deleteAccount(userId) });
+}
+
+export function useEnabledSocials() {
+  return useQuery({ queryKey: ['auth', 'socials'], queryFn: fetchEnabledSocials, staleTime: 5 * 60_000 });
+}
+
+export function useSocialSignIn() {
+  return useMutation({ mutationFn: (provider: SocialProvider) => signInWithSocial(provider) });
 }
 
 export function useCreateProfile() {

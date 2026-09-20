@@ -4,7 +4,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { isPending, rememberPending } from '@/features/auth/pendingConfirm';
+import { PASSWORD_MIN } from '@/features/auth/recovery';
 import { useResendConfirmation, useSignIn, useSignUp } from '@/features/auth/queries';
+import { SocialButtons } from '@/features/auth/SocialButtons';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Button } from '@/shared/ui/Button';
 import { Field } from '@/shared/ui/Field';
@@ -24,7 +26,7 @@ export default function SignInScreen() {
   const signUp = useSignUp();
   const resend = useResendConfirmation();
   const busy = signIn.isPending || signUp.isPending;
-  const canSubmit = email.includes('@') && password.length >= 6 && !busy && (mode === 'in' || agreed);
+  const canSubmit = email.includes('@') && password.length >= PASSWORD_MIN && !busy && (mode === 'in' || agreed);
 
   const submit = () => {
     setError(null);
@@ -114,7 +116,7 @@ export default function SignInScreen() {
               label="비밀번호"
               value={password}
               onChangeText={setPassword}
-              placeholder="6자 이상"
+              placeholder={`${PASSWORD_MIN}자 이상`}
               secureTextEntry
               autoCapitalize="none"
               autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
@@ -147,6 +149,7 @@ export default function SignInScreen() {
                 <Text style={styles.switchText}>비밀번호를 잊었어요</Text>
               </Pressable>
             ) : null}
+            <SocialButtons />
             <Pressable
               accessibilityRole="button"
               onPress={() => {

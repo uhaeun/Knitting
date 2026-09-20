@@ -24,7 +24,7 @@ const signOut = async () => {
 };
 const signIn = async (pw) => {
   await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill(pw);
+  await page.getByPlaceholder('8자 이상').fill(pw);
   await page.getByRole('button', { name: '로그인' }).click();
 };
 

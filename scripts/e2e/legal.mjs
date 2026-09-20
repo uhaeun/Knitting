@@ -22,7 +22,7 @@ try {
   await page.goto(BASE, { timeout: 180000 });
   await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
   await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill('password123');
+  await page.getByPlaceholder('8자 이상').fill('password123');
 
   const agree = page.getByRole('checkbox', { name: '약관과 개인정보처리방침에 동의합니다' });
   check('가입 화면에 동의 칸', await agree.isVisible());

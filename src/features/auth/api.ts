@@ -1,4 +1,4 @@
-import { resetRedirectUrl } from '@/features/auth/recovery';
+import { PASSWORD_MIN, resetRedirectUrl } from '@/features/auth/recovery';
 import { LEGAL_VERSION } from '@/features/legal/policy';
 import { getSupabase, PHOTOS_BUCKET } from '@/shared/lib/supabase';
 import type { Profile } from '@/shared/types/remote';
@@ -98,6 +98,36 @@ async function removeMyFiles(userId: string): Promise<void> {
   }
 }
 
+export type SocialProvider = 'google' | 'kakao';
+
+export const SOCIAL_LABEL: Record<SocialProvider, string> = { google: '구글', kakao: '카카오' };
+
+/**
+ * 구글·카카오로 로그인. 그쪽 화면으로 갔다가 다시 앱으로 돌아온다.
+ * 돌아온 주소의 토큰은 AuthProvider가 받아 로그인 처리한다.
+ */
+/**
+ * 서버에서 켜 둔 로그인 방법만 알아 온다. 안 켠 버튼을 누르면 낯선 오류 화면으로 가버려서
+ * 화면에는 켜진 것만 보여 준다 (대시보드에서 켜면 앱을 고치지 않아도 나타난다).
+ */
+export async function fetchEnabledSocials(): Promise<SocialProvider[]> {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return [];
+  const res = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } });
+  if (!res.ok) return [];
+  const body = (await res.json()) as { external?: Record<string, boolean> };
+  return (['kakao', 'google'] as SocialProvider[]).filter((p) => body.external?.[p]);
+}
+
+export async function signInWithSocial(provider: SocialProvider): Promise<void> {
+  const { error } = await getSupabase().auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: resetRedirectUrl() },
+  });
+  if (error) throw new Error(friendlyAuthError(error.message));
+}
+
 export async function signOut(): Promise<void> {
   await getSupabase().auth.signOut();
 }
@@ -136,12 +166,13 @@ export async function updateProfile(id: string, patch: Partial<Pick<Profile, 'di
 function friendlyAuthError(m: string): string {
   if (/invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않아요';
   if (/email not confirmed/i.test(m)) return '메일의 확인 링크를 먼저 눌러 주세요';
-  if (/password should be at least/i.test(m)) return '비밀번호는 6자 이상';
+  if (/password should be at least/i.test(m)) return `비밀번호는 ${PASSWORD_MIN}자 이상`;
   if (/already registered/i.test(m)) return '이미 가입된 이메일이에요. 로그인해 주세요';
   if (/rate limit|too many requests|after \d+ seconds/i.test(m)) return '잠시 후 다시 시도해 주세요';
   // 실제 서버는 example.com 같은 주소를 거부한다
   if (/email address.*invalid|invalid email|email_address_invalid/i.test(m)) return '쓸 수 없는 메일 주소예요. 실제로 받을 수 있는 주소를 적어 주세요';
   if (/signups? not allowed|signup is disabled/i.test(m)) return '지금은 가입을 받지 않아요';
+  if (/provider is not enabled|unsupported provider/i.test(m)) return '아직 준비 중인 로그인 방법이에요';
   if (/new password should be different/i.test(m)) return '지금 쓰는 비밀번호와 다른 것으로 정해 주세요';
   if (/auth session missing|session.*expired/i.test(m)) return '링크가 만료됐어요. 다시 보내 주세요.';
   return m;

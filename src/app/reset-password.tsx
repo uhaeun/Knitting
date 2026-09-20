@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signOut } from '@/features/auth/api';
 import { useUpdatePassword } from '@/features/auth/queries';
-import { validateNewPassword } from '@/features/auth/recovery';
+import { PASSWORD_MIN, validateNewPassword } from '@/features/auth/recovery';
 import { useAuth } from '@/features/auth/store';
 import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
@@ -23,7 +23,7 @@ export default function ResetPasswordScreen() {
   const update = useUpdatePassword();
 
   const invalid = password || confirm ? validateNewPassword(password, confirm) : null;
-  const canSubmit = !invalid && password.length >= 6 && !update.isPending;
+  const canSubmit = !invalid && password.length >= PASSWORD_MIN && !update.isPending;
 
   const submit = () => {
     setError(null);
@@ -56,7 +56,7 @@ export default function ResetPasswordScreen() {
               label="새 비밀번호"
               value={password}
               onChangeText={setPassword}
-              placeholder="6자 이상"
+              placeholder={`${PASSWORD_MIN}자 이상`}
               secureTextEntry
               autoCapitalize="none"
               autoComplete="new-password"

@@ -20,7 +20,7 @@ export async function signUp(page, { base, email, username, displayName, passwor
   await page.goto(base, { timeout: 180000 });
   await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
   await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill(password);
+  await page.getByPlaceholder('8자 이상').fill(password);
   await page.getByRole('checkbox', { name: '약관과 개인정보처리방침에 동의합니다' }).click();
   await page.getByRole('button', { name: '가입하기' }).click();
 

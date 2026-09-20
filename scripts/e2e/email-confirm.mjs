@@ -37,7 +37,7 @@ try {
   await page.goto(BASE, { timeout: 180000 });
   await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
   await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill('password123');
+  await page.getByPlaceholder('8자 이상').fill('password123');
   await page.getByRole('checkbox', { name: '약관과 개인정보처리방침에 동의합니다' }).click();
   await page.getByRole('button', { name: '가입하기' }).click();
   await page.getByText('확인 메일을 보냈어요', { exact: false }).waitFor({ timeout: 60000 });
@@ -46,7 +46,7 @@ try {
   console.log('\n== 확인 전에는 로그인 안 됨');
   await page.getByText('로그인으로 돌아가기').click();
   await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill('password123');
+  await page.getByPlaceholder('8자 이상').fill('password123');
   await page.getByRole('button', { name: '로그인' }).click();
   // 서버가 뭐라고 답하든(확인 안 됨 / 맞지 않음) 방금 가입한 주소면 메일부터 안내한다
   await page.getByText('확인 메일을 보냈어요', { exact: false }).waitFor({ timeout: 30000 });

@@ -23,13 +23,23 @@ describe('parseRecovery', () => {
 });
 
 describe('validateNewPassword', () => {
-  it('6자 미만은 막는다', () => {
-    expect(validateNewPassword('12345', '12345')).toBe('비밀번호는 6자 이상');
+  it('8자 미만은 막는다', () => {
+    expect(validateNewPassword('1234567', '1234567')).toBe('비밀번호는 8자 이상');
   });
   it('확인이 다르면 막는다', () => {
-    expect(validateNewPassword('123456', '123457')).toBe('두 번 입력한 비밀번호가 달라요');
+    expect(validateNewPassword('12345678', '12345679')).toBe('두 번 입력한 비밀번호가 달라요');
   });
   it('맞으면 null', () => {
-    expect(validateNewPassword('123456', '123456')).toBeNull();
+    expect(validateNewPassword('12345678', '12345678')).toBeNull();
+  });
+});
+
+describe('소셜 로그인에서 돌아올 때', () => {
+  it('type이 없으면 그냥 로그인으로 본다', () => {
+    const url = 'https://knitting-pied.vercel.app/#access_token=aaa&refresh_token=bbb&expires_in=3600&token_type=bearer';
+    expect(parseRecovery(url)).toEqual({ kind: 'tokens', type: 'oauth', accessToken: 'aaa', refreshToken: 'bbb' });
+  });
+  it('모르는 type은 무시한다', () => {
+    expect(parseRecovery('https://x.dev/#access_token=a&refresh_token=b&type=magiclink')).toBeNull();
   });
 });
