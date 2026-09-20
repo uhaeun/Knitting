@@ -77,6 +77,11 @@ export default function SignInScreen() {
               disabled={!canSubmit}
               onPress={submit}
             />
+            {mode === 'in' ? (
+              <Pressable accessibilityRole="button" onPress={() => router.push('/(auth)/forgot-password')} style={styles.switch}>
+                <Text style={styles.switchText}>비밀번호를 잊었어요</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               onPress={() => {

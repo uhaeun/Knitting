@@ -1,3 +1,4 @@
+import { resetRedirectUrl } from '@/features/auth/recovery';
 import { getSupabase } from '@/shared/lib/supabase';
 import type { Profile } from '@/shared/types/remote';
 
@@ -23,6 +24,18 @@ export async function signUp(email: string, password: string): Promise<void> {
   const { data, error } = await getSupabase().auth.signUp({ email: email.trim(), password });
   if (error) throw new Error(friendlyAuthError(error.message));
   if (!data.session) throw new Error('가입은 됐지만 로그인되지 않았어요. 대시보드에서 Confirm email이 꺼져 있는지 확인해 주세요.');
+}
+
+/** 재설정 메일 보내기. 가입 안 된 주소여도 Supabase는 성공으로 답한다 (계정 유무를 알려주지 않으려고) */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await getSupabase().auth.resetPasswordForEmail(email.trim(), { redirectTo: resetRedirectUrl() });
+  if (error) throw new Error(friendlyAuthError(error.message));
+}
+
+/** 메일 링크로 들어온 세션에서 새 비밀번호로 바꾼다 */
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await getSupabase().auth.updateUser({ password });
+  if (error) throw new Error(friendlyAuthError(error.message));
 }
 
 export async function signOut(): Promise<void> {
@@ -63,6 +76,8 @@ function friendlyAuthError(m: string): string {
   if (/invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않아요';
   if (/password should be at least/i.test(m)) return '비밀번호는 6자 이상';
   if (/already registered/i.test(m)) return '이미 가입된 이메일이에요. 로그인해 주세요';
-  if (/rate limit/i.test(m)) return '잠시 후 다시 시도해 주세요';
+  if (/rate limit|too many requests/i.test(m)) return '잠시 후 다시 시도해 주세요';
+  if (/new password should be different/i.test(m)) return '지금 쓰는 비밀번호와 다른 것으로 정해 주세요';
+  if (/auth session missing|session.*expired/i.test(m)) return '링크가 만료됐어요. 다시 보내 주세요.';
   return m;
 }

@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const ALL = ['tour', 'install-guide', 'ux', 'ready', 'crud', 'share', 'result-ratios', 'video-results', 'video-capture'];
+const ALL = ['tour', 'install-guide', 'ux', 'ready', 'crud', 'password-reset', 'share', 'result-ratios', 'video-results', 'video-capture'];
 const pick = process.argv.slice(2);
 const scripts = pick.length ? ALL.filter((s) => pick.includes(s)) : ALL;
 

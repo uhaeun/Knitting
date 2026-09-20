@@ -35,7 +35,7 @@ let landed = false;
 
 /** 세션·프로필 상태에 따라 로그인 → 온보딩 → 앱 순으로 보낸다. */
 function AuthGate() {
-  const { ready, session, profile } = useAuth();
+  const { ready, session, profile, recovering } = useAuth();
   const segments = useSegments();
   const inAuthGroup = segments[0] === '(auth)';
 
@@ -59,6 +59,13 @@ function AuthGate() {
     );
   }
 
+  // 재설정 메일 링크로 들어왔으면 비밀번호를 바꾸기 전까지 이 화면에 머문다
+  const onResetScreen = segments[0] === 'reset-password';
+  if (recovering && !onResetScreen) return <Redirect href="/reset-password" />;
+  if (recovering) return <ResetStack />;
+  // 비밀번호를 바꾸고 나면 이 화면에 머물 이유가 없다
+  if (onResetScreen && session) return <Redirect href="/projects" />;
+
   const needsSignIn = !session;
   const needsOnboarding = !!session && !profile;
 
@@ -76,7 +83,9 @@ function AuthGate() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>
       <Stack.Screen name="(auth)/sign-in" />
+      <Stack.Screen name="(auth)/forgot-password" />
       <Stack.Screen name="(auth)/onboarding" />
+      <Stack.Screen name="reset-password" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="project/[id]" />
       <Stack.Screen name="post/[id]" />
@@ -86,6 +95,15 @@ function AuthGate() {
       <Stack.Screen name="settings/requests" />
       <Stack.Screen name="capture/[projectId]" options={{ presentation: 'fullScreenModal' }} />
       <Stack.Screen name="result/[projectId]" />
+    </Stack>
+  );
+}
+
+/** 재설정 중에는 이 화면만 띄운다 */
+function ResetStack() {
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>
+      <Stack.Screen name="reset-password" />
     </Stack>
   );
 }
