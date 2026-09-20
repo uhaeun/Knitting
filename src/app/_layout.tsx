@@ -1,16 +1,23 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { useAuth } from '@/features/auth/store';
+import { installErrorReporter, reportError } from '@/shared/lib/reportError';
 import { supabaseConfigured } from '@/shared/lib/supabase';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, size } from '@/shared/ui/tokens';
 import { DialogHost } from '@/shared/ui/DialogHost';
 
+// 어디서도 잡지 못한 오류를 서버에 남긴다 (앱이 뜰 때 한 번)
+installErrorReporter();
+
 const queryClient = new QueryClient({
+  // 서버와 주고받다 실패한 것도 모은다 (사람이 본 오류 문구만으로는 원인을 못 찾는다)
+  queryCache: new QueryCache({ onError: (e) => void reportError(e, 'query') }),
+  mutationCache: new MutationCache({ onError: (e) => void reportError(e, 'mutation') }),
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
 });
 
