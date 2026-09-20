@@ -27,7 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (fromLink.kind === 'error') {
         setRecovering(true, fromLink.message);
       } else {
-        setRecovering(true);
+        // 가입 확인 링크는 로그인만 시키면 된다. 비밀번호 재설정만 화면을 붙잡는다
+        if (fromLink.type === 'recovery') setRecovering(true);
         void sb.auth.setSession({ access_token: fromLink.accessToken, refresh_token: fromLink.refreshToken });
       }
     }

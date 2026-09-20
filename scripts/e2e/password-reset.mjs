@@ -2,6 +2,8 @@
 // 실행 전: 로컬 Supabase(메일함 54324), 웹 서버 8098
 import { chromium } from 'playwright';
 
+import { signUp } from './signup.mjs';
+
 const BASE = 'http://localhost:8098';
 const MAIL = 'http://127.0.0.1:54324';
 const stamp = Date.now().toString(36);
@@ -45,15 +47,7 @@ const signOut = async () => {
 
 try {
   console.log('== 가입');
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill(OLD);
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`pw_${stamp}`);
-  await page.getByPlaceholder('하은').fill('비번');
-  await page.getByRole('button', { name: '시작하기' }).click();
-  await page.getByRole('button', { name: '편물 만들기' }).waitFor({ timeout: 60000 });
+  await signUp(page, { base: BASE, email, username: `pw_${stamp}`, displayName: '비번', password: OLD });
   await signOut();
 
   console.log('\n== 재설정 메일 보내기');

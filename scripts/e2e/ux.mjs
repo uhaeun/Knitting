@@ -2,6 +2,8 @@
 // 실행 전: 로컬 Supabase, 웹 서버 8098 --clear
 import { chromium } from 'playwright';
 
+import { signUp } from './signup.mjs';
+
 const BASE = 'http://localhost:8098';
 let failed = 0;
 const check = (n, ok, d = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${n} ${d}`); if (!ok) failed += 1; };
@@ -26,14 +28,7 @@ const shoot = async (n) => {
   await page.getByText(`${n}번째 / ${n}`).waitFor({ timeout: 60000 });
 };
 try {
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(`ux_${stamp}@example.com`);
-  await page.getByPlaceholder('6자 이상').fill('password123');
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`ux_${stamp}`);
-  await page.getByPlaceholder('하은').fill('편의');
-  await page.getByRole('button', { name: '시작하기' }).click();
+  await signUp(page, { base: BASE, email: `ux_${stamp}@example.com`, username: `ux_${stamp}`, displayName: '편의' });
   await page.waitForTimeout(2000);
 
   await makeProject('모자');

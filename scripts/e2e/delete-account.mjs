@@ -2,6 +2,8 @@
 // 실행 전: 로컬 Supabase, 웹 서버 8098
 import { chromium } from 'playwright';
 
+import { signUp } from './signup.mjs';
+
 const BASE = 'http://localhost:8098';
 const DB = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const stamp = Date.now().toString(36);
@@ -23,15 +25,7 @@ page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 200)))
 
 try {
   console.log('== 가입하고 기록 남기기');
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('6자 이상').fill('password123');
-  await page.getByRole('checkbox', { name: '약관과 개인정보처리방침에 동의합니다' }).click();
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(username);
-  await page.getByPlaceholder('하은').fill('삭제');
-  await page.getByRole('button', { name: '시작하기' }).click();
+  await signUp(page, { base: BASE, email: email, username: username, displayName: '삭제' });
   await page.getByRole('button', { name: '편물 만들기' }).click({ timeout: 60000 });
   await page.getByPlaceholder('예: 회색 라글란 스웨터').fill('지울 스웨터');
   await page.getByRole('button', { name: '만들기', exact: true }).click();

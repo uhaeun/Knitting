@@ -2,6 +2,8 @@
 // 실행 전: 로컬 Supabase, 웹 서버 8098 --clear
 
 import { chromium } from 'playwright';
+
+import { signUp } from './signup.mjs';
 const BASE = 'http://localhost:8098'; const stamp = Date.now().toString(36);
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 let failed = 0;
@@ -12,14 +14,7 @@ await ctx.addInitScript(() => { try { localStorage.setItem('knitting.tourSeen', 
 const page = await ctx.newPage();
 page.on('dialog', (d) => d.accept());
 try {
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(`inst_${stamp}@example.com`);
-  await page.getByPlaceholder('6자 이상').fill('password123');
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`inst_${stamp}`);
-  await page.getByPlaceholder('하은').fill('설치');
-  await page.getByRole('button', { name: '시작하기' }).click();
+  await signUp(page, { base: BASE, email: `inst_${stamp}@example.com`, username: `inst_${stamp}`, displayName: '설치' });
   await page.waitForTimeout(2500);
   check('처음 들어오면 안내가 저절로 열린다', (await page.locator('body').innerText()).includes('앱처럼 쓰기'));
   check('아이폰(설치 전)에 배너가 보인다', await page.getByText('홈 화면에 추가하기').first().isVisible());

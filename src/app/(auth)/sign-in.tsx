@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useSignIn, useSignUp } from '@/features/auth/queries';
+import { useResendConfirmation, useSignIn, useSignUp } from '@/features/auth/queries';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Button } from '@/shared/ui/Button';
 import { Field } from '@/shared/ui/Field';
@@ -17,20 +17,29 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null); // 확인 메일을 보낸 주소
 
   const signIn = useSignIn();
   const signUp = useSignUp();
+  const resend = useResendConfirmation();
   const busy = signIn.isPending || signUp.isPending;
   const canSubmit = email.includes('@') && password.length >= 6 && !busy && (mode === 'in' || agreed);
 
   const submit = () => {
     setError(null);
-    const m = mode === 'in' ? signIn : signUp;
-    m.mutate(
+    if (mode === 'in') {
+      signIn.mutate({ email, password }, { onError: (e) => setError(e instanceof Error ? e.message : String(e)) });
+      return;
+    }
+    signUp.mutate(
       { email, password },
-      { onError: (e) => setError(e instanceof Error ? e.message : String(e)) },
+      {
+        // 이메일 확인이 켜져 있으면 세션이 없다. 메일을 기다리는 화면으로 바꾼다
+        onSuccess: (r) => { if (r.needsConfirm) setSentTo(email.trim()); },
+        onError: (e) => setError(e instanceof Error ? e.message : String(e)),
+      },
     );
-    // 성공하면 AuthProvider가 세션을 받아 _layout이 알아서 화면을 바꾼다
+    // 확인이 꺼져 있으면 AuthProvider가 세션을 받아 _layout이 알아서 화면을 바꾼다
   };
 
   return (
@@ -49,6 +58,29 @@ export default function SignInScreen() {
             </Text>
           </View>
 
+          {sentTo ? (
+            <View style={styles.form}>
+              <Text style={styles.subtitle}>
+                {sentTo}로 확인 메일을 보냈어요.{'\n'}메일의 링크를 누르면 가입이 끝나요.
+              </Text>
+              <Text style={styles.hint}>메일이 안 보이면 스팸함도 확인해 주세요.</Text>
+              <Button
+                label={resend.isPending ? '보내는 중…' : '메일 다시 보내기'}
+                large
+                variant="secondary"
+                disabled={resend.isPending}
+                onPress={() =>
+                  resend.mutate(sentTo, {
+                    onError: (e) => setError(e instanceof Error ? e.message : String(e)),
+                  })
+                }
+              />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <Pressable accessibilityRole="button" onPress={() => { setSentTo(null); setMode('in'); setError(null); }} style={styles.switch}>
+                <Text style={styles.switchText}>로그인으로 돌아가기</Text>
+              </Pressable>
+            </View>
+          ) : (
           <View style={styles.form}>
             <Field
               label="이메일"
@@ -110,6 +142,7 @@ export default function SignInScreen() {
               </Text>
             </Pressable>
           </View>
+          )}
 
         </ScrollView>
       </View>
@@ -133,6 +166,7 @@ const styles = StyleSheet.create({
   },
   form: { gap: space.lg },
   error: { fontSize: fontSize.caption, color: color.danger },
+  hint: { fontSize: fontSize.caption, color: color.textMuted, textAlign: 'center' },
   legalLinks: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexWrap: 'wrap' },
   legalLink: { fontSize: fontSize.caption, color: color.textMuted, textDecorationLine: 'underline' },
   legalDot: { fontSize: fontSize.caption, color: color.textMuted },

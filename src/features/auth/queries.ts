@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { createProfile, deleteAccount, requestPasswordReset, signIn, signUp, updatePassword, updateProfile } from '@/features/auth/api';
+import { createProfile, deleteAccount, requestPasswordReset, resendConfirmation, signIn, signUp, updatePassword, updateProfile } from '@/features/auth/api';
 import { useAuth } from '@/features/auth/store';
 
 export function useSignIn() {
@@ -9,6 +9,10 @@ export function useSignIn() {
 
 export function useSignUp() {
   return useMutation({ mutationFn: (v: { email: string; password: string }) => signUp(v.email, v.password) });
+}
+
+export function useResendConfirmation() {
+  return useMutation({ mutationFn: (email: string) => resendConfirmation(email) });
 }
 
 export function useRequestPasswordReset() {

@@ -1,11 +1,11 @@
 /** 비밀번호 재설정 메일 링크 다루기. 화면 없이 테스트할 수 있게 순수 함수로 둔다. */
 
 export type Recovery =
-  | { kind: 'tokens'; accessToken: string; refreshToken: string }
+  | { kind: 'tokens'; type: 'recovery' | 'signup'; accessToken: string; refreshToken: string }
   | { kind: 'error'; message: string };
 
 /**
- * Supabase 재설정 메일 링크는 #access_token=...&type=recovery 꼴로 돌아온다.
+ * Supabase 메일 링크는 #access_token=...&type=recovery(비밀번호 재설정) 또는 type=signup(가입 확인) 꼴로 돌아온다.
  * 만료·재사용이면 #error=...&error_code=otp_expired.
  */
 export function parseRecovery(url: string): Recovery | null {
@@ -13,11 +13,12 @@ export function parseRecovery(url: string): Recovery | null {
   if (!hash) return null;
   const p = new URLSearchParams(hash);
   if (p.get('error')) return { kind: 'error', message: recoveryError(p.get('error_code'), p.get('error_description')) };
-  if (p.get('type') !== 'recovery') return null;
+  const type = p.get('type');
+  if (type !== 'recovery' && type !== 'signup') return null;
   const accessToken = p.get('access_token');
   const refreshToken = p.get('refresh_token');
   if (!accessToken || !refreshToken) return null;
-  return { kind: 'tokens', accessToken, refreshToken };
+  return { kind: 'tokens', type, accessToken, refreshToken };
 }
 
 function recoveryError(code: string | null, description: string | null): string {

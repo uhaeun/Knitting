@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 
+import { signUp } from './signup.mjs';
+
 const BASE = 'http://localhost:8098';
 const dir = mkdtempSync(join(tmpdir(), 'knit-ratio-'));
 let failed = 0;
@@ -19,14 +21,7 @@ const page = await ctx.newPage();
 page.on('dialog', (d) => d.accept());
 const stamp = Date.now().toString(36);
 try {
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(`ratio_${stamp}@example.com`);
-  await page.getByPlaceholder('6자 이상').fill('password123');
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`ratio_${stamp}`);
-  await page.getByPlaceholder('하은').fill('비율');
-  await page.getByRole('button', { name: '시작하기' }).click();
+  await signUp(page, { base: BASE, email: `ratio_${stamp}@example.com`, username: `ratio_${stamp}`, displayName: '비율' });
   await page.goto(`${BASE}/projects`);
   await page.getByRole('button', { name: '편물 만들기' }).first().click({ timeout: 30000 });
   await page.getByPlaceholder('예: 회색 라글란 스웨터').fill('비율 스웨터');

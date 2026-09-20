@@ -2,6 +2,8 @@
 // 실행 전: 로컬 Supabase, 웹 서버 8098
 import { chromium } from 'playwright';
 
+import { confirmLink } from './signup.mjs';
+
 const BASE = 'http://localhost:8098';
 const stamp = Date.now().toString(36);
 const email = `legal_${stamp}@example.com`;
@@ -40,7 +42,13 @@ try {
   await agree.click();
   check('동의하면 가입 가능', await enabled('가입하기'));
   await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`legal_${stamp}`);
+  // 이메일 확인이 켜져 있으면 메일 링크를 눌러야 첫 설정으로 간다
+  const waiting = page.getByText('확인 메일을 보냈어요', { exact: false });
+  const onboarding = page.getByPlaceholder('knitter_haeun');
+  await Promise.race([waiting.waitFor({ timeout: 60000 }).catch(() => {}), onboarding.waitFor({ timeout: 60000 }).catch(() => {})]);
+  if (await waiting.isVisible().catch(() => false)) await page.goto(await confirmLink(email), { timeout: 60000 });
+  await onboarding.waitFor({ timeout: 60000 });
+  await onboarding.fill(`legal_${stamp}`);
   await page.getByPlaceholder('하은').fill('약관');
   await page.getByRole('button', { name: '시작하기' }).click();
   await page.getByRole('button', { name: '편물 만들기' }).waitFor({ timeout: 60000 });

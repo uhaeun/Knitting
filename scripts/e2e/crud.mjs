@@ -2,6 +2,8 @@
 // 실행 전: 로컬 Supabase, 웹 서버 8098 --clear
 import { chromium } from 'playwright';
 
+import { signUp } from './signup.mjs';
+
 const BASE = 'http://localhost:8098'; const stamp = Date.now().toString(36);
 const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['camera'] });
@@ -13,14 +15,7 @@ const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
 // 앱 안 대화상자(DialogHost)의 버튼 누르기
 const choose = async (label) => page.getByRole('alert').getByRole('button', { name: label, exact: true }).click({ timeout: 15000 });
 try {
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(`cr_${stamp}@example.com`);
-  await page.getByPlaceholder('6자 이상').fill('password123');
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`cr_${stamp}`);
-  await page.getByPlaceholder('하은').fill('크루드');
-  await page.getByRole('button', { name: '시작하기' }).click();
+  await signUp(page, { base: BASE, email: `cr_${stamp}@example.com`, username: `cr_${stamp}`, displayName: '크루드' });
   await page.goto(`${BASE}/projects`);
   await page.getByRole('button', { name: '편물 만들기' }).click({ timeout: 30000 });
   await page.getByPlaceholder('예: 회색 라글란 스웨터').fill('원래 이름');

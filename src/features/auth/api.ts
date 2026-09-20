@@ -21,10 +21,28 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw new Error(friendlyAuthError(error.message));
 }
 
-export async function signUp(email: string, password: string): Promise<void> {
-  const { data, error } = await getSupabase().auth.signUp({ email: email.trim(), password });
+/**
+ * 가입. 이메일 확인이 켜져 있으면 세션 없이 돌아온다 → 화면이 "메일을 확인해 주세요"를 보여 준다.
+ * 확인 메일의 링크를 누르면 AuthProvider가 주소의 토큰으로 로그인시킨다.
+ */
+export async function signUp(email: string, password: string): Promise<{ needsConfirm: boolean }> {
+  const { data, error } = await getSupabase().auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: resetRedirectUrl() },
+  });
   if (error) throw new Error(friendlyAuthError(error.message));
-  if (!data.session) throw new Error('가입은 됐지만 로그인되지 않았어요. 대시보드에서 Confirm email이 꺼져 있는지 확인해 주세요.');
+  return { needsConfirm: !data.session };
+}
+
+/** 확인 메일 다시 보내기 */
+export async function resendConfirmation(email: string): Promise<void> {
+  const { error } = await getSupabase().auth.resend({
+    type: 'signup',
+    email: email.trim(),
+    options: { emailRedirectTo: resetRedirectUrl() },
+  });
+  if (error) throw new Error(friendlyAuthError(error.message));
 }
 
 /** 재설정 메일 보내기. 가입 안 된 주소여도 Supabase는 성공으로 답한다 (계정 유무를 알려주지 않으려고) */
@@ -107,6 +125,7 @@ export async function updateProfile(id: string, patch: Partial<Pick<Profile, 'di
 
 function friendlyAuthError(m: string): string {
   if (/invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않아요';
+  if (/email not confirmed/i.test(m)) return '메일의 확인 링크를 먼저 눌러 주세요';
   if (/password should be at least/i.test(m)) return '비밀번호는 6자 이상';
   if (/already registered/i.test(m)) return '이미 가입된 이메일이에요. 로그인해 주세요';
   if (/rate limit|too many requests/i.test(m)) return '잠시 후 다시 시도해 주세요';

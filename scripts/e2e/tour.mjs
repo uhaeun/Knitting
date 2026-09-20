@@ -1,6 +1,8 @@
 // 첫 사용 안내 E2E: 가입 직후 3단계가 뜨고, 끝내면 홈 화면 추가 안내로 이어지고, 다시 뜨지 않는다.
 // 실행 전: 로컬 Supabase, 웹 서버 8098 --clear
 import { chromium } from 'playwright';
+
+import { signUp } from './signup.mjs';
 const BASE = 'http://localhost:8098';
 let failed = 0;
 const check = (n, ok, d = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${n} ${d}`); if (!ok) failed += 1; };
@@ -11,14 +13,7 @@ const page = await ctx.newPage();
 page.on('dialog', (d) => d.accept());
 const stamp = Date.now().toString(36);
 try {
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(`tour_${stamp}@example.com`);
-  await page.getByPlaceholder('6자 이상').fill('password123');
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`tour_${stamp}`);
-  await page.getByPlaceholder('하은').fill('안내');
-  await page.getByRole('button', { name: '시작하기' }).click();
+  await signUp(page, { base: BASE, email: `tour_${stamp}@example.com`, username: `tour_${stamp}`, displayName: '안내' });
   await page.waitForTimeout(3000);
   const t1 = await page.locator('body').innerText();
   check('가입 직후 사용법이 뜬다', t1.includes('닛팅 쓰는 법') && t1.includes('같은 각도로 찍어요'));

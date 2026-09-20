@@ -1,6 +1,8 @@
 // 공유 창(폰) 저장 E2E: 결과 사진은 JPEG 1개, 성장 영상은 MP4 1개가 공유 창으로 넘어간다.
 // 실행 전: 로컬 Supabase, 웹 서버 8098 --clear
 import { chromium } from 'playwright';
+
+import { signUp } from './signup.mjs';
 // 공유 창이 있는 브라우저(폰)를 흉내 낸다: navigator.canShare/share를 가로채 넘겨받은 파일을 기록
 const BASE = 'http://localhost:8098'; const stamp = Date.now().toString(36);
 const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
@@ -17,14 +19,7 @@ page.on('dialog', async (d) => { console.log('[dialog]', d.message().slice(0, 20
 let failed = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name} ${detail}`); if (!ok) failed += 1; };
 try {
-  await page.goto(BASE, { timeout: 180000 });
-  await page.getByText('계정이 없어요, 가입할게요').click({ timeout: 120000 });
-  await page.getByPlaceholder('you@example.com').fill(`sh_${stamp}@example.com`);
-  await page.getByPlaceholder('6자 이상').fill('password123');
-  await page.getByRole('button', { name: '가입하기' }).click();
-  await page.getByPlaceholder('knitter_haeun').fill(`sh_${stamp}`);
-  await page.getByPlaceholder('하은').fill('공유');
-  await page.getByRole('button', { name: '시작하기' }).click();
+  await signUp(page, { base: BASE, email: `sh_${stamp}@example.com`, username: `sh_${stamp}`, displayName: '공유' });
   await page.goto(`${BASE}/projects`);
   await page.getByRole('button', { name: '편물 만들기' }).click({ timeout: 30000 });
   await page.getByPlaceholder('예: 회색 라글란 스웨터').fill('공유 스웨터');
