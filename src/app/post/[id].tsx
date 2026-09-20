@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -19,6 +19,7 @@ import {
   useAddComment,
   useComments,
   useDeleteComment,
+  useEditComment,
   useMyLikes,
   usePost,
   useToggleLike,
@@ -46,9 +47,12 @@ export default function PostScreen() {
   const toggleLike = useToggleLike();
   const addComment = useAddComment(id);
   const delComment = useDeleteComment(id);
+  const editComment = useEditComment(id);
   const delPost = useDeletePost();
   const [body, setBody] = useState('');
   const [editingCaption, setEditingCaption] = useState(false);
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [showLikers, setShowLikers] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ kind: 'post' | 'comment'; id: string; author: string } | null>(null);
 
@@ -84,13 +88,45 @@ export default function PostScreen() {
     ]);
   };
 
+  // 원 댓글 아래에 그 답글을 붙여 한 줄로 늘어놓는다 (답글은 한 단계까지)
+  const threaded = useMemo(() => {
+    const all = comments.data ?? [];
+    const roots = all.filter((c) => !c.parent_id);
+    return roots.flatMap((root) => [root, ...all.filter((c) => c.parent_id === root.id)]);
+  }, [comments.data]);
+
   const submit = () => {
     const text = body.trim();
     if (!text) return;
-    addComment.mutate(text, {
-      onSuccess: () => setBody(''),
-      onError: (e) => showAlert('댓글을 달지 못했어요', e instanceof Error ? e.message : String(e)),
-    });
+    if (editing) {
+      editComment.mutate(
+        { commentId: editing.id, body: text },
+        {
+          onSuccess: () => { setBody(''); setEditing(null); },
+          onError: (e) => showAlert('고치지 못했어요', e instanceof Error ? e.message : String(e)),
+        },
+      );
+      return;
+    }
+    addComment.mutate(
+      { body: text, parentId: replyTo?.id ?? null },
+      {
+        onSuccess: () => { setBody(''); setReplyTo(null); },
+        onError: (e) => showAlert('댓글을 달지 못했어요', e instanceof Error ? e.message : String(e)),
+      },
+    );
+  };
+
+  const startReply = (commentId: string, name: string) => {
+    setEditing(null);
+    setBody('');
+    setReplyTo({ id: commentId, name });
+  };
+
+  const startEdit = (commentId: string, name: string, current: string) => {
+    setReplyTo(null);
+    setEditing({ id: commentId, name });
+    setBody(current);
   };
 
   return (
@@ -117,7 +153,7 @@ export default function PostScreen() {
         </View>
 
         <FlatList
-          data={comments.data ?? []}
+          data={threaded}
           keyExtractor={(c) => c.id}
           ListHeaderComponent={
             <View>
@@ -163,47 +199,86 @@ export default function PostScreen() {
           }
           ListEmptyComponent={comments.isPending ? null : <Text style={styles.noComments}>첫 댓글을 남겨 보세요</Text>}
           renderItem={({ item }) => {
-            const mine = item.author_id === me || isMine;
+            const author = item.profiles.display_name;
+            const mineComment = item.author_id === me; // 내가 쓴 댓글 (고치기 가능)
+            const canDelete = mineComment || isMine; // 내 기록의 댓글은 지울 수 있다
             return (
-              <View style={styles.comment}>
+              <View style={[styles.comment, item.parent_id ? styles.reply : null]}>
                 <View style={styles.commentBody}>
                   <Text style={styles.commentAuthor}>
-                    {item.profiles.display_name} <Text style={styles.time}>{relativeTime(item.created_at)}</Text>
+                    {author}{' '}
+                    <Text style={styles.time}>
+                      {relativeTime(item.created_at)}{item.edited_at ? ' · 수정됨' : ''}
+                    </Text>
                   </Text>
                   <Text style={styles.commentText}>{item.body}</Text>
+                  <View style={styles.commentActions}>
+                    {item.parent_id ? null : (
+                      <Pressable accessibilityRole="button" onPress={() => startReply(item.id, author)}>
+                        <Text style={styles.commentActionText}>답글</Text>
+                      </Pressable>
+                    )}
+                    {mineComment ? (
+                      <Pressable accessibilityRole="button" onPress={() => startEdit(item.id, author, item.body)}>
+                        <Text style={styles.commentActionText}>고치기</Text>
+                      </Pressable>
+                    ) : null}
+                    {canDelete ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() =>
+                          showAlert('댓글을 삭제할까요?', '', [
+                            { text: '취소', style: 'cancel' },
+                            { text: '삭제', style: 'destructive', onPress: () => delComment.mutate(item.id) },
+                          ])
+                        }
+                      >
+                        <Text style={styles.commentActionText}>삭제</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setReportTarget({ kind: 'comment', id: item.id, author: item.author_id })}
+                      >
+                        <Text style={styles.commentActionText}>신고</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={mine ? '삭제' : '신고'}
-                  onPress={() =>
-                    mine
-                      ? showAlert('댓글을 삭제할까요?', '', [
-                          { text: '취소', style: 'cancel' },
-                          { text: '삭제', style: 'destructive', onPress: () => delComment.mutate(item.id) },
-                        ])
-                      : setReportTarget({ kind: 'comment', id: item.id, author: item.author_id })
-                  }
-                  style={styles.commentAction}
-                >
-                  <Text style={styles.commentActionText}>{mine ? '삭제' : '신고'}</Text>
-                </Pressable>
               </View>
             );
           }}
         />
 
+        {replyTo || editing ? (
+          <View style={styles.composerHint}>
+            <Text style={styles.composerHintText} numberOfLines={1}>
+              {editing ? '댓글 고치는 중' : `${replyTo?.name}님에게 답글`}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => { setReplyTo(null); setEditing(null); setBody(''); }}
+            >
+              <Text style={styles.composerCancel}>취소</Text>
+            </Pressable>
+          </View>
+        ) : null}
         <View style={styles.composer}>
           <TextInput
             value={body}
             onChangeText={setBody}
-            placeholder="댓글 달기"
+            placeholder={editing ? '댓글 고치기' : replyTo ? '답글 달기' : '댓글 달기'}
             placeholderTextColor={color.textMuted}
             maxLength={300}
             style={styles.input}
             returnKeyType="send"
             onSubmitEditing={submit}
           />
-          <Button label="등록" disabled={!body.trim() || addComment.isPending} onPress={submit} />
+          <Button
+            label={editing ? '저장' : '등록'}
+            disabled={!body.trim() || addComment.isPending || editComment.isPending}
+            onPress={submit}
+          />
         </View>
       </View>
 
@@ -232,6 +307,14 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, textAlign: 'center', fontSize: fontSize.label, fontWeight: fontWeight.semibold, color: color.text },
   more: { fontSize: fontSize.heading, color: color.textMuted },
   photo: { backgroundColor: color.border },
+  reply: { paddingLeft: space.xl * 2 },
+  commentActions: { flexDirection: 'row', gap: space.lg, paddingTop: space.xs },
+  composerHint: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: space.xl, paddingVertical: space.xs, backgroundColor: color.accentSoft,
+  },
+  composerHintText: { flex: 1, fontSize: fontSize.caption, color: color.text },
+  composerCancel: { fontSize: fontSize.caption, color: color.textMuted, paddingHorizontal: space.sm, minHeight: 28 },
   caption: { paddingHorizontal: space.xl, paddingTop: space.sm, fontSize: fontSize.label, color: color.text, lineHeight: fontSize.label * 1.6 },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, paddingHorizontal: space.xl, paddingTop: space.md },
   author: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },

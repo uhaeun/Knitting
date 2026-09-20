@@ -274,13 +274,21 @@ export async function fetchComments(postId: string): Promise<(Comment & { profil
   return (data ?? []) as unknown as (Comment & { profiles: Profile })[];
 }
 
-export async function addComment(postId: string, body: string): Promise<void> {
+export async function addComment(postId: string, body: string, parentId: string | null = null): Promise<void> {
   const sb = getSupabase();
   const me = (await sb.auth.getUser()).data.user;
   if (!me) throw new Error('로그인이 필요해요');
   const text = body.trim();
   if (text.length < 1 || text.length > 300) throw new Error('댓글은 1~300자');
-  const { error } = await sb.from('comments').insert({ post_id: postId, author_id: me.id, body: text });
+  const { error } = await sb.from('comments').insert({ post_id: postId, author_id: me.id, body: text, parent_id: parentId });
+  if (error) throw new Error(error.message);
+}
+
+/** 댓글 고치기. 글쓴이만 (RLS가 판정). 고치면 "수정됨"이 붙는다 */
+export async function editComment(commentId: string, body: string): Promise<void> {
+  const text = body.trim();
+  if (text.length < 1 || text.length > 300) throw new Error('댓글은 1~300자');
+  const { error } = await getSupabase().from('comments').update({ body: text }).eq('id', commentId);
   if (error) throw new Error(error.message);
 }
 

@@ -79,11 +79,20 @@ export function useComments(postId: string) {
 export function useAddComment(postId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: string) => api.addComment(postId, body),
+    mutationFn: (v: string | { body: string; parentId: string | null }) =>
+      typeof v === 'string' ? api.addComment(postId, v) : api.addComment(postId, v.body, v.parentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: socialKeys.comments(postId) });
       qc.invalidateQueries({ queryKey: socialKeys.post(postId) });
     },
+  });
+}
+
+export function useEditComment(postId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { commentId: string; body: string }) => api.editComment(v.commentId, v.body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: socialKeys.comments(postId) }),
   });
 }
 

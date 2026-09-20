@@ -60,6 +60,8 @@ export type Comment = {
   post_id: string;
   author_id: string;
   body: string;
+  parent_id: string | null; // 답글이면 원 댓글 id (한 단계만)
+  edited_at: string | null;
   hidden_at: string | null;
   created_at: string;
   deleted_at: string | null;
