@@ -117,7 +117,7 @@ export async function createProfile(input: {
   return data as Profile;
 }
 
-export async function updateProfile(id: string, patch: Partial<Pick<Profile, 'display_name' | 'bio' | 'is_private'>>): Promise<Profile> {
+export async function updateProfile(id: string, patch: Partial<Pick<Profile, 'display_name' | 'bio' | 'is_private' | 'avatar_path'>>): Promise<Profile> {
   const { data, error } = await getSupabase().from('profiles').update(patch).eq('id', id).select('*').single();
   if (error) throw new Error(error.message);
   return data as Profile;

@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBlocked, useToggleBlock } from '@/features/social/queries';
+import { Avatar } from '@/shared/ui/Avatar';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
@@ -32,9 +33,7 @@ export default function BlockedScreen() {
         contentContainerStyle={(blocked.data?.length ?? 0) === 0 ? styles.emptyBox : undefined}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{item.display_name.slice(0, 1)}</Text>
-            </View>
+            <Avatar path={item.avatar_path} name={item.display_name} size={40} />
             <View style={styles.text}>
               <Text style={styles.name}>{item.display_name}</Text>
               <Text style={styles.handle}>@{item.username}</Text>

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { relativeTime } from '@/shared/lib/relativeTime';
 import type { FeedPost } from '@/shared/types/remote';
+import { Avatar } from '@/shared/ui/Avatar';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 import { VideoBadge } from '@/shared/ui/VideoBadge';
 
@@ -26,9 +27,7 @@ export function PostCard({ post, photoUrl, liked, onToggleLike, onMore }: Props)
     <View style={styles.card}>
       <View style={styles.head}>
         <Pressable accessibilityRole="button" onPress={openUser} style={styles.author}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{author.display_name.slice(0, 1)}</Text>
-          </View>
+          <Avatar path={author.avatar_path} name={author.display_name} size={36} />
           <View style={styles.authorText}>
             <Text style={styles.name} numberOfLines={1}>{author.display_name}</Text>
             <Text style={styles.meta} numberOfLines={1}>

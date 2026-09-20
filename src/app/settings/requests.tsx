@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePendingRequests, useRespondRequest } from '@/features/social/queries';
+import { Avatar } from '@/shared/ui/Avatar';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
@@ -36,9 +37,7 @@ export default function RequestsScreen() {
               onPress={() => router.push({ pathname: '/user/[username]', params: { username: item.profiles.username } })}
               style={styles.person}
             >
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.profiles.display_name.slice(0, 1)}</Text>
-              </View>
+              <Avatar path={item.profiles.avatar_path} name={item.profiles.display_name} size={40} />
               <View style={styles.text}>
                 <Text style={styles.name}>{item.profiles.display_name}</Text>
                 <Text style={styles.handle}>@{item.profiles.username}</Text>

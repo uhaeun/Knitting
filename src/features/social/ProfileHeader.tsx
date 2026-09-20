@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Profile } from '@/shared/types/remote';
+import { Avatar } from '@/shared/ui/Avatar';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 
 type Props = {
@@ -14,9 +15,7 @@ export function ProfileHeader({ profile, counts, postCount, right }: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.top}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{profile.display_name.slice(0, 1)}</Text>
-        </View>
+        <Avatar path={profile.avatar_path} name={profile.display_name} size={72} />
         <View style={styles.stats}>
           <Stat label="사진" value={postCount} />
           <Stat label="팔로워" value={counts?.followers ?? null} />

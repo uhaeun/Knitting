@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { flattenFeed, useExploreFeed, useSearchProfiles } from '@/features/social/queries';
+import { Avatar } from '@/shared/ui/Avatar';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Field } from '@/shared/ui/Field';
 import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
@@ -60,9 +61,7 @@ export default function ExploreScreen() {
               onPress={() => router.push({ pathname: '/user/[username]', params: { username: item.username } })}
               style={styles.person}
             >
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.display_name.slice(0, 1)}</Text>
-              </View>
+              <Avatar path={item.avatar_path} name={item.display_name} size={40} />
               <View style={styles.personText}>
                 <Text style={styles.personName}>{item.display_name}</Text>
                 <Text style={styles.personHandle}>@{item.username}{item.is_private ? ' · 비공개' : ''}</Text>

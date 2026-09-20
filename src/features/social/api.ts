@@ -13,7 +13,7 @@ const SIGNED_URL_TTL = 3600;
 
 const FEED_SELECT = `
   *,
-  profiles!posts_owner_id_fkey ( id, username, display_name, is_private ),
+  profiles!posts_owner_id_fkey ( id, username, display_name, is_private, avatar_path ),
   projects!posts_project_id_fkey ( id, name, started_at )
 `;
 

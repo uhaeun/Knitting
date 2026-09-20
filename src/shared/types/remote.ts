@@ -69,6 +69,6 @@ export type ReportTarget = 'post' | 'comment' | 'profile';
 
 /** 피드 카드 하나. posts + 작성자 + 편물 이름 조인 */
 export type FeedPost = RemotePost & {
-  profiles: Pick<Profile, 'id' | 'username' | 'display_name' | 'is_private'>;
+  profiles: Pick<Profile, 'id' | 'username' | 'display_name' | 'is_private' | 'avatar_path'>;
   projects: Pick<RemoteProject, 'id' | 'name' | 'started_at'>;
 };
