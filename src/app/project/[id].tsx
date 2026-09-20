@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CaptionSheet } from '@/features/capture/CaptionSheet';
 import { useDeletePost, usePosts } from '@/features/capture/queries';
 import { MakeVideoSheet } from '@/features/media/MakeVideoSheet';
 import { mediaOf } from '@/features/media/mediaItem';
@@ -35,6 +36,7 @@ export default function ProjectScreen() {
   const video = useMakeVideo(id);
   const delPost = useDeletePost();
   const [renaming, setRenaming] = useState(false);
+  const [editingCaption, setEditingCaption] = useState(false);
 
   const items = posts.data ?? [];
   const total = items.length;
@@ -145,6 +147,16 @@ export default function ProjectScreen() {
             <Text style={styles.date}>{current ? formatDateTime(current.taken_at) : ''}</Text>
             <Text style={styles.counter}>{index + 1}번째 / {total}</Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={current?.caption ? '메모 고치기' : '메모 추가'}
+            onPress={() => setEditingCaption(true)}
+            style={styles.memoRow}
+          >
+            <Text style={current?.caption ? styles.memo : styles.memoEmpty} numberOfLines={3}>
+              {current?.caption ?? '메모 추가'}
+            </Text>
+          </Pressable>
           <View style={styles.stitches}>
             <StitchRow total={total} index={index} unit={14} perRow={14} onSelect={setIndex} />
           </View>
@@ -177,6 +189,9 @@ export default function ProjectScreen() {
         onRetry={video.start}
         onSave={video.save}
       />
+      {editingCaption && current ? (
+        <CaptionSheet postId={current.id} current={current.caption} onClose={() => setEditingCaption(false)} />
+      ) : null}
       {renaming ? <RenameProjectSheet visible projectId={id} currentName={p?.name ?? ''} onClose={() => setRenaming(false)} /> : null}
     </SafeAreaView>
   );
@@ -192,6 +207,9 @@ const styles = StyleSheet.create({
   meta: { fontSize: fontSize.caption, color: color.textMuted },
   more: { fontSize: fontSize.heading, color: color.textMuted },
   photo: { alignSelf: 'center', backgroundColor: color.border },
+  memoRow: { paddingHorizontal: space.xl, paddingBottom: space.sm },
+  memo: { fontSize: fontSize.label, color: color.text, lineHeight: fontSize.label * 1.6 },
+  memoEmpty: { fontSize: fontSize.label, color: color.textMuted },
   captionRow: { paddingHorizontal: space.xl, paddingTop: space.lg, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   date: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
   counter: { fontSize: fontSize.caption, color: color.textMuted, fontVariant: ['tabular-nums'] },

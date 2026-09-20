@@ -48,6 +48,10 @@ export function PostCard({ post, photoUrl, liked, onToggleLike, onMore }: Props)
         </View>
       </Pressable>
 
+      {post.caption ? (
+        <Text style={styles.caption} numberOfLines={2}>{post.caption}</Text>
+      ) : null}
+
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
@@ -83,6 +87,7 @@ const styles = StyleSheet.create({
   more: { width: size.tap, height: size.tap, alignItems: 'center', justifyContent: 'center' },
   moreText: { fontSize: fontSize.heading, color: color.textMuted },
   photo: { width: '100%', aspectRatio: 1, backgroundColor: color.border },
+  caption: { paddingHorizontal: space.md, paddingTop: space.sm, fontSize: fontSize.label, color: color.text, lineHeight: fontSize.label * 1.6 },
   actions: { flexDirection: 'row', paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.xl },
   action: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: size.tap },
   heart: {

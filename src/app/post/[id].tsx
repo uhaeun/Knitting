@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/store';
+import { CaptionSheet } from '@/features/capture/CaptionSheet';
 import { confirmDeletePost } from '@/features/capture/confirmDeletePost';
 import { useDeletePost } from '@/features/capture/queries';
 import {
@@ -46,6 +47,7 @@ export default function PostScreen() {
   const delComment = useDeleteComment(id);
   const delPost = useDeletePost();
   const [body, setBody] = useState('');
+  const [editingCaption, setEditingCaption] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ kind: 'post' | 'comment'; id: string; author: string } | null>(null);
 
   if (post.isError) {
@@ -64,6 +66,7 @@ export default function PostScreen() {
     if (!p) return;
     const kind = p.media_type === 'video' ? '영상' : '사진';
     showAlert(p.projects.name, undefined, [
+      { text: p.caption ? '메모 고치기' : '메모 쓰기', onPress: () => setEditingCaption(true) },
       {
         text: `이 ${kind} 지우기`,
         style: 'destructive',
@@ -133,6 +136,7 @@ export default function PostScreen() {
                 </Pressable>
                 <Text style={styles.time}>{p ? relativeTime(p.created_at) : ''}</Text>
               </View>
+              {p?.caption ? <Text style={styles.caption}>{p.caption}</Text> : null}
               <View style={styles.actions}>
                 <Pressable
                   accessibilityRole="button"
@@ -193,6 +197,7 @@ export default function PostScreen() {
         </View>
       </View>
 
+      {editingCaption && p ? <CaptionSheet postId={p.id} current={p.caption} onClose={() => setEditingCaption(false)} /> : null}
       <ReportSheet
         visible={!!reportTarget}
         target={reportTarget?.kind ?? 'post'}
@@ -216,6 +221,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, textAlign: 'center', fontSize: fontSize.label, fontWeight: fontWeight.semibold, color: color.text },
   more: { fontSize: fontSize.heading, color: color.textMuted },
   photo: { backgroundColor: color.border },
+  caption: { paddingHorizontal: space.xl, paddingTop: space.sm, fontSize: fontSize.label, color: color.text, lineHeight: fontSize.label * 1.6 },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, paddingHorizontal: space.xl, paddingTop: space.md },
   author: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
   time: { fontSize: fontSize.caption, color: color.textMuted },

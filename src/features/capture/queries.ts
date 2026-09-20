@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { deletePost, latestPost, listPosts, savePost, saveVideoPost } from '@/features/capture/repository';
+import { deletePost, latestPost, listPosts, savePost, saveVideoPost, updateCaption } from '@/features/capture/repository';
 import { projectKeys } from '@/features/project/queries';
 
 export function usePosts(projectId: string) {
@@ -34,6 +34,19 @@ export function useSaveVideoPost(projectId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });
       qc.invalidateQueries({ queryKey: projectKeys.all });
+    },
+  });
+}
+
+/** 기록 메모 고치기. 편물 화면·게시물 상세 어디서 고쳐도 다른 화면에 옛 글이 남지 않게 한다 */
+export function useUpdateCaption() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { postId: string; caption: string }) => updateCaption(v.postId, v.caption),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: projectKeys.all });
+      qc.invalidateQueries({ queryKey: ['feed'] });
+      qc.invalidateQueries({ queryKey: ['post'] });
     },
   });
 }

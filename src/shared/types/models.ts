@@ -26,6 +26,7 @@ export type Post = {
   thumb_path: string;
   width: number;
   height: number;
+  caption: string | null; // 기록에 남긴 한 줄 메모 (500자까지)
   taken_at: string; // ISO
   visibility: Visibility;
   created_at: string;

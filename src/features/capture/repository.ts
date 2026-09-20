@@ -25,6 +25,7 @@ async function withUrls(rows: RemotePost[]): Promise<Post[]> {
     duration_ms: r.duration_ms,
     width: r.width,
     height: r.height,
+    caption: r.caption,
     taken_at: r.taken_at,
     visibility: r.visibility,
     created_at: r.created_at,
@@ -92,7 +93,7 @@ export async function savePost(input: {
   }
 
   const now = new Date().toISOString();
-  const row: Omit<RemotePost, 'like_count' | 'comment_count' | 'hidden_at' | 'caption'> = {
+  const row: Omit<RemotePost, 'like_count' | 'comment_count' | 'hidden_at'> = {
     id,
     project_id: input.projectId,
     media_type: 'photo',
@@ -105,6 +106,7 @@ export async function savePost(input: {
     height: photo.height,
     taken_at: (input.takenAt ?? new Date()).toISOString(),
     visibility: (project as { default_visibility: Post['visibility'] } | null)?.default_visibility ?? 'private',
+    caption: null,
     created_at: now,
     updated_at: now,
     deleted_at: null,
@@ -167,7 +169,7 @@ export async function saveVideoPost(input: {
     }
 
     const now = new Date().toISOString();
-    const row: Omit<RemotePost, 'like_count' | 'comment_count' | 'hidden_at' | 'caption'> = {
+    const row: Omit<RemotePost, 'like_count' | 'comment_count' | 'hidden_at'> = {
       id,
       project_id: input.projectId,
       owner_id: owner,
@@ -180,6 +182,7 @@ export async function saveVideoPost(input: {
       height: photo.height,
       taken_at: (input.takenAt ?? new Date()).toISOString(),
       visibility: (project as { default_visibility: Post['visibility'] } | null)?.default_visibility ?? 'private',
+      caption: null,
       created_at: now,
       updated_at: now,
       deleted_at: null,
@@ -194,6 +197,16 @@ export async function saveVideoPost(input: {
   } finally {
     URL.revokeObjectURL(clip.posterUri);
   }
+}
+
+/** 기록에 남기는 한 줄 메모. 빈 값이면 지운다 (DB는 500자까지) */
+export async function updateCaption(id: string, caption: string): Promise<void> {
+  const text = caption.trim();
+  const { error } = await getSupabase()
+    .from('posts')
+    .update({ caption: text.length > 0 ? text : null, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(`메모를 저장하지 못했어요: ${error.message}`);
 }
 
 export async function deletePost(id: string): Promise<void> {
