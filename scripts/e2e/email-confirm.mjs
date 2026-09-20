@@ -48,8 +48,9 @@ try {
   await page.getByPlaceholder('you@example.com').fill(email);
   await page.getByPlaceholder('6자 이상').fill('password123');
   await page.getByRole('button', { name: '로그인' }).click();
-  await page.getByText('메일의 확인 링크를 먼저 눌러 주세요').waitFor({ timeout: 30000 });
-  check('확인 전 로그인 차단', true);
+  // 서버가 뭐라고 답하든(확인 안 됨 / 맞지 않음) 방금 가입한 주소면 메일부터 안내한다
+  await page.getByText('확인 메일을 보냈어요', { exact: false }).waitFor({ timeout: 30000 });
+  check('확인 전 로그인하면 메일 안내로', true);
 
   console.log('\n== 메일 링크로 가입 마무리');
   const link = await linkFor(email);
