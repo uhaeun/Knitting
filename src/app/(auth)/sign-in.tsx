@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { forgetPending, isPending, rememberPending } from '@/features/auth/pendingConfirm';
+import { isPending, rememberPending } from '@/features/auth/pendingConfirm';
 import { useResendConfirmation, useSignIn, useSignUp } from '@/features/auth/queries';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Button } from '@/shared/ui/Button';
@@ -32,7 +32,6 @@ export default function SignInScreen() {
       signIn.mutate(
         { email, password },
         {
-          onSuccess: () => forgetPending(),
           onError: (e) => {
             // 실제 서버는 확인 안 된 계정도 "맞지 않아요"로 답한다. 방금 가입한 주소면 메일부터 안내한다
             if (isPending(email)) {

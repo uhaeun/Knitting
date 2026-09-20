@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import { fetchMyProfile } from '@/features/auth/api';
+import { forgetPending } from '@/features/auth/pendingConfirm';
 import { parseRecovery } from '@/features/auth/recovery';
 import { useAuth } from '@/features/auth/store';
 import { getSupabase, supabaseConfigured } from '@/shared/lib/supabase';
@@ -54,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+      // 한 번이라도 로그인되면 '확인 메일 기다리는 중' 표시는 필요 없다 (메일 링크·재설정·로그인 모두)
+      if (session) forgetPending();
       // 로그아웃·계정 전환 시 이전 계정의 편물·서명 URL이 캐시로 보이지 않게
       const userId = session?.user.id ?? null;
       if (lastUserId.current !== undefined && lastUserId.current !== userId) queryClient.clear();
