@@ -65,23 +65,28 @@ try {
       box.dispatchEvent(new Event('scroll', { bubbles: true }));
       return `${box.tagName} ${box.scrollTop}/${box.scrollHeight}`;
     });
-  // 한 묶음은 12개다. 세 번 내려 36개가 되는지 본다 (모자라면 끊긴 것, 넘치면 같은 글이 두 번 나온 것)
+  // 한 묶음은 12개다. 서버에 있는 만큼(최대 네 묶음)까지 내려 본다.
+  // GitHub 러너는 새 서버라 공개 글이 적고, 내 컴퓨터에는 지난 검사 글이 쌓여 있어서 기대값을 고정하면 안 된다
+  const target = Math.min(visible, 48);
   const growTo = async (want) => {
+    let last = 0;
     for (let i = 0; i < 40; i += 1) {
-      const where = await scrollToEnd();
-      if (i === 0) console.log('  스크롤 상자:', where);
+      await scrollToEnd();
       await page.waitForTimeout(600);
-      if ((await cells.count()) >= want) return true;
+      const now = await cells.count();
+      if (now >= want) return true;
+      if (now === last && i > 3) return false; // 더 안 늘어나면 끝
+      last = now;
     }
     return false;
   };
-  check('둘째 묶음', await growTo(24), String(await cells.count()));
-  check('셋째 묶음', await growTo(36), String(await cells.count()));
+  check(`${target}개까지 이어 받는다`, await growTo(target), `${await cells.count()} / ${target}`);
   const after = await cells.count();
   check('스크롤하면 더 나온다', after > 12, String(after));
 
   // 개수가 서버의 공개 글 수와 정확히 같아야 한다 (모자라면 끊긴 것, 넘치면 같은 글이 두 번 나온 것)
-  check('세 묶음이 정확히 36개', after === 36, `화면 ${after} / 서버 ${visible}`);
+  // 정확히 같아야 한다. 모자라면 끊긴 것, 넘치면 같은 글이 두 번 나온 것
+  check('개수가 정확히 맞는다', after === target, `화면 ${after} / 목표 ${target} / 서버 ${visible}`);
 } catch (e) {
   failed += 1; console.log('ERROR', e.message.slice(0, 300));
   await page.screenshot({ path: '/tmp/pop-fail.png' }).catch(() => {});
