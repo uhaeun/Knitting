@@ -1,0 +1,25 @@
+# 올릴 때마다 타입 검사와 단위 테스트를 돌린다.
+# E2E(Playwright)는 로컬 Supabase가 필요해서 여기서 돌리지 않는다 (맥에서 `npm run e2e`).
+name: 검사
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: 타입 검사
+        run: npx tsc --noEmit
+      - name: 단위 테스트
+        run: npx jest --ci
