@@ -1,0 +1,45 @@
+name: Android APK 빌드
+
+# main에 배포되는 것과 똑같은 방식(웹 화면을 앱 안에 담는 off 모드)으로 APK를 만든다.
+# live-android(scripts/app-dev.sh)는 매일 QA용이고, 이 빌드는
+# 새 테스터 온보딩·네이티브 변경(권한·아이콘·플러그인)·출시 전 최종 검증용이다.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm ci
+
+      - name: 웹 빌드 (dist)
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npx expo export -p web
+
+      - name: Capacitor 안드로이드에 동기화
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: APK 빌드
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: knitting-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

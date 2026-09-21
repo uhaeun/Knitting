@@ -26,7 +26,10 @@ export default function SignInScreen() {
   const signUp = useSignUp();
   const resend = useResendConfirmation();
   const busy = signIn.isPending || signUp.isPending;
-  const canSubmit = email.includes('@') && password.length >= PASSWORD_MIN && !busy && (mode === 'in' || agreed);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const emailHint = email.length > 0 && !emailValid ? '이메일 형식으로 입력해 주세요 (example@domain.com)' : undefined;
+  const passwordHint = password.length > 0 && password.length < PASSWORD_MIN ? `${PASSWORD_MIN}자 이상 입력해 주세요` : undefined;
+  const canSubmit = emailValid && password.length >= PASSWORD_MIN && !busy && (mode === 'in' || agreed);
 
   const submit = () => {
     setError(null);
@@ -111,6 +114,7 @@ export default function SignInScreen() {
               autoComplete="email"
               keyboardType="email-address"
               inputMode="email"
+              hint={emailHint}
             />
             <Field
               label="비밀번호"
@@ -122,6 +126,7 @@ export default function SignInScreen() {
               autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
               returnKeyType="done"
               onSubmitEditing={canSubmit ? submit : undefined}
+              hint={passwordHint}
             />
             {mode === 'up' ? (
               <Checkbox checked={agreed} onChange={setAgreed} label="약관과 개인정보처리방침에 동의합니다">

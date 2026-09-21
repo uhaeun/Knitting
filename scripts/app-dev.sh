@@ -2,10 +2,11 @@
 # 개발용 앱: 앱이 내 컴퓨터 개발 서버(8110)를 불러온다. 한 번 설치하면 화면 코드를 고쳐도 다시 빌드할 필요가 없다.
 #
 #   npm run dev:app              # 1) 개발 서버 (터미널 하나를 계속 차지)
-#   scripts/app-dev.sh android   # 2) 에뮬레이터·USB 폰에 개발용 앱 설치
-#   scripts/app-dev.sh ios       # 2) 아이폰에 개발용 앱 설치 (맥과 같은 와이파이)
-#   scripts/app-dev.sh live-ios  # 아이폰 앱이 배포된 웹 주소를 보게 (맥 없이도 켜지고 카메라도 됨)
-#   scripts/app-dev.sh off       # 테스터용으로 되돌리기. 테스터에게 줄 빌드 전에 반드시 실행
+#   scripts/app-dev.sh android      # 2) 에뮬레이터·USB 폰에 개발용 앱 설치
+#   scripts/app-dev.sh ios          # 2) 아이폰에 개발용 앱 설치 (맥과 같은 와이파이)
+#   scripts/app-dev.sh live-ios     # 아이폰 앱이 배포된 웹 주소를 보게 (맥 없이도 켜지고 카메라도 됨)
+#   scripts/app-dev.sh live-android # 안드로이드 테스터에게 한 번만 설치. 이후 웹 배포마다 앱도 같이 바뀐다
+#   scripts/app-dev.sh off          # 테스터용으로 되돌리기. 테스터에게 줄 빌드 전에 반드시 실행
 #
 # 주의
 # - 안드로이드는 adb reverse로 localhost를 쓰기 때문에 카메라가 된다.
@@ -49,11 +50,20 @@ case "${1:-}" in
     xcrun devicectl device install app --device "$IOS_COREDEVICE" /tmp/knitting-device/Build/Products/Debug-iphoneos/App.app
     echo "아이폰 앱 → https://knitting-pied.vercel.app (배포하면 앱도 같이 바뀐다)"
     ;;
+  live-android)
+    # live-ios와 같은 방식. 다희에게 이 apk를 한 번만 전달하면 된다.
+    # 이후에는 main에 배포될 때마다 이미 깔린 앱 내용도 자동으로 바뀐다 (파일을 다시 받을 필요 없음).
+    # 네이티브 코드(권한, 플러그인, 아이콘 등)를 바꿨을 때만 새로 빌드해서 다시 전달한다.
+    CAP_DEV_URL="https://knitting-pied.vercel.app" npx cap sync android
+    (cd android && ./gradlew assembleDebug -q)
+    echo "빌드 끝 → android/app/build/outputs/apk/debug/app-debug.apk"
+    echo "이 파일을 다희에게 한 번만 전달. 이후 웹 배포마다 앱도 같이 바뀐다"
+    ;;
   off)
     npx expo export -p web >/dev/null
     npx cap sync
     echo "테스터용 설정으로 되돌림 (앱이 dist를 쓴다). 폰에 넣으려면 평소처럼 다시 빌드·설치"
     ;;
   *)
-    echo "사용법: scripts/app-dev.sh android|ios|live-ios|off"; exit 1 ;;
+    echo "사용법: scripts/app-dev.sh android|ios|live-ios|live-android|off"; exit 1 ;;
 esac
