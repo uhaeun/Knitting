@@ -1,0 +1,76 @@
+# 웹 화면 검사(Playwright) 27개를 GitHub에서 돌린다.
+#
+# 리눅스 러너에는 도커가 있어서 로컬 Supabase를 띄울 수 있다 (맥 러너에는 없다).
+# 덕분에 각자 컴퓨터에 도커를 깔지 않아도 올릴 때마다 검사가 돈다.
+name: 웹 검사 (E2E)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: ffmpeg 설치 (영상 검사가 쓴다)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: 브라우저 설치
+        run: npx playwright install --with-deps chromium
+
+      - name: 로컬 Supabase 띄우기
+        run: |
+          # supabase start는 자기 방식으로 마이그레이션을 적용한다.
+          # 우리 파일 이름은 0001_… 꼴이라 순서를 확실히 하려고 잠시 치워 두고 직접 넣는다
+          mv supabase/migrations /tmp/migrations
+          mkdir -p supabase/migrations
+          npx supabase start
+          for f in /tmp/migrations/*.sql; do
+            echo "== $f"
+            psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          mv /tmp/migrations/*.sql supabase/migrations/
+
+      - name: 서버 주소·열쇠 꺼내기
+        run: |
+          npx supabase status -o env | sed 's/^/SB_/' >> "$GITHUB_ENV"
+
+      - name: 웹 서버 띄우기
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+        run: |
+          KEY=$(npx supabase status -o env | grep '^ANON_KEY=' | cut -d= -f2- | tr -d '"')
+          EXPO_PUBLIC_SUPABASE_ANON_KEY="$KEY" \
+          EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 \
+            npx expo start --web --port 8098 > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8098 > /dev/null && break
+            sleep 5
+          done
+          curl -sf http://localhost:8098 > /dev/null || { echo "웹 서버가 안 떴다"; tail -30 /tmp/web.log; exit 1; }
+
+      - name: 검사 27개
+        run: |
+          SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
+          SUPABASE_SERVICE_KEY="$SERVICE" npm run e2e
+
+      - name: 실패하면 화면 사진 올리기
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 실패-화면
+          path: |
+            /tmp/*.png
+            /tmp/web.log
+          if-no-files-found: ignore
