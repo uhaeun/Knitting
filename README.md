@@ -24,6 +24,14 @@ Supabase 설정은 [supabase/README.md](supabase/README.md).
 - 단위: `npm test`
 - RLS·서버 함수: `supabase/tests/rls_matrix.sql` (마지막 줄 `ALL PASS`)
 
+## AI 사용 범위
+
+커밋의 `Co-Authored-By: Claude` 서명은 AI 코딩 에이전트(Claude Code)와 함께 작업한 범위를 그대로 남긴 것이다.
+
+- **AI가 한 것** — 화면과 기능 코드 구현, 단위 테스트와 E2E 스크립트 타이핑, 문서 초안
+- **사람이 한 것** — 기능명세서·화면정의서·테스트계획의 결정, 웹 전환과 하이브리드 결정, 테스트 범위와 완료 조건, 네이티브 검사 항목 선정, 버그 판정
+- **규칙** — [CLAUDE.md](CLAUDE.md)의 "완료의 정의"대로, 데스크톱에서 자동 검증한 것과 폰에서 확인 못 한 것을 구분해 적는다
+
 ## 문서
 
 - [CLAUDE.md](CLAUDE.md) — 개발 규칙 (웹 전환 결정 포함)

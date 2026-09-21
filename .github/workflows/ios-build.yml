@@ -1,0 +1,53 @@
+# iOS 앱이 깨졌는지 본다. 시뮬레이터용으로 **서명 없이** 빌드한다.
+#
+# 인증서가 없어도 된다 — 실제 폰에 설치할 파일을 만드는 게 아니라,
+# "플러그인·설정을 바꾼 뒤에도 iOS에서 빌드가 되는가"만 확인한다.
+# 폰에 깔 파일(.ipa)은 유료 애플 개발자 계정이 생기면 그때 붙인다 (docs/자동빌드.md).
+name: iOS 빌드 확인
+
+on:
+  push:
+    branches: [main]
+    paths: # iOS에 영향 주는 것이 바뀔 때만 (맥 러너는 느리다)
+      - 'ios/**'
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 웹 빌드 (앱 안에 들어갈 화면)
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npx expo export -p web
+
+      - name: Capacitor 동기화
+        run: npx cap sync ios
+
+      - name: 시뮬레이터용 빌드 (서명 없음)
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build \
+            | tail -40
