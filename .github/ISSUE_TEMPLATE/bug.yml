@@ -1,0 +1,57 @@
+name: 버그
+description: QA 중 발견한 문제
+labels: [bug]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: 어디서
+      placeholder: 촬영 화면 / 결과 사진 / 소식 …
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: 이렇게 하면 나온다
+      description: 순서대로 적어 주세요. 다른 사람이 그대로 따라 할 수 있게.
+      placeholder: |
+        1. 편물 만들기
+        2. 사진 3장 찍기
+        3. 결과 사진 → 3분할
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: 이렇게 되어야 하는데
+    validations: { required: true }
+  - type: textarea
+    id: actual
+    attributes:
+      label: 이렇게 된다
+      description: 화면 사진이나 녹화를 붙여 주세요.
+    validations: { required: true }
+  - type: dropdown
+    id: env
+    attributes:
+      label: 어디서 봤나
+      options:
+        - iPhone Safari (웹)
+        - iPhone 앱
+        - Android Chrome (웹)
+        - Android 앱
+        - 맥 크롬
+    validations: { required: true }
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 얼마나 급한가
+      options:
+        - P0 - 못 쓴다 (가입·촬영·저장이 막힘)
+        - P1 - 불편하지만 돌아갈 길이 있다
+        - P2 - 거슬리는 정도
+    validations: { required: true }
+  - type: input
+    id: when
+    attributes:
+      label: 언제 (시각)
+      description: 대시보드 client_errors 표에서 같은 시각의 오류를 찾을 때 씁니다.
+      placeholder: 9/22 오후 3시 10분쯤

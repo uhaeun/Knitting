@@ -1,0 +1,20 @@
+name: 할 일
+description: 기능·문서·설정 작업
+labels: [task]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 무엇을
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes:
+      label: 왜 필요한가
+    validations: { required: true }
+  - type: textarea
+    id: done
+    attributes:
+      label: 무엇이 되면 끝인가
+      description: 확인할 수 있는 문장으로. "테스터가 메일을 5분 안에 받는다"처럼.
+    validations: { required: true }
