@@ -43,7 +43,8 @@ let landed = false;
 /** 세션·프로필 상태에 따라 로그인 → 온보딩 → 앱 순으로 보낸다. */
 function AuthGate() {
   const { ready, session, profile, recovering } = useAuth();
-  const segments = useSegments();
+  // 경로 조각. expo-router가 만들어 주는 타입은 기기마다(생성 여부에 따라) 달라서 문자열로 다룬다
+  const segments = useSegments() as string[];
   const inAuthGroup = segments[0] === '(auth)';
 
   if (!ready) {
@@ -85,7 +86,7 @@ function AuthGate() {
   // 게시물 링크처럼 다른 주소로 들어오면 그대로 둔다
   if (!needsSignIn && !needsOnboarding && !landed) {
     landed = true;
-    const atRoot = segments[0] === '(tabs)' && (segments.length === 1 || (segments as string[])[1] === 'index');
+    const atRoot = segments[0] === '(tabs)' && (segments.length === 1 || segments[1] === 'index');
     if (atRoot) return <Redirect href="/projects" />;
   }
 
