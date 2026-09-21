@@ -2,10 +2,10 @@ import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-na
 
 import { color, fontSize, radius, size, space } from '@/shared/ui/tokens';
 
-type Props = TextInputProps & { label: string };
+type Props = TextInputProps & { label: string; hint?: string };
 
-/** 라벨 + 입력 하나. 시트의 "편물 이름" 등. */
-export function Field({ label, style, ...input }: Props) {
+/** 라벨 + 입력 하나 + (선택) 아래 작은 안내문. 시트의 "편물 이름" 등. */
+export function Field({ label, hint, style, ...input }: Props) {
   return (
     <View style={styles.root}>
       <Text style={styles.label}>{label}</Text>
@@ -17,6 +17,7 @@ export function Field({ label, style, ...input }: Props) {
         style={[styles.input, style]}
         {...input}
       />
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
   );
 }
@@ -24,6 +25,7 @@ export function Field({ label, style, ...input }: Props) {
 const styles = StyleSheet.create({
   root: { gap: space.sm },
   label: { fontSize: fontSize.caption, color: color.textMuted },
+  hint: { fontSize: fontSize.caption, color: color.danger },
   input: {
     height: size.inputHeight,
     borderWidth: size.hairline,
