@@ -63,6 +63,23 @@ export default function ProjectScreen() {
       { text: '삭제', style: 'destructive', onPress: () => del.mutate(id, { onSuccess: () => router.back() }) },
     ]);
   };
+  /** 사진당 유지 시간 → 전환 효과 순으로 고른 뒤 시작한다. 그대로 두면 기존과 같은 동작(자동 속도 · 컷) */
+  const chooseVideoOptions = () => {
+    const holdLabels = ['자동 (기록 수에 맞게)', '0.25초씩', '0.5초씩', '1초씩', '2초씩'] as const;
+    const holdValues: (number | undefined)[] = [undefined, 250, 500, 1000, 2000];
+    const chooseTransition = (holdMs: number | undefined) => {
+      showAlert('전환 효과', undefined, [
+        { text: '컷 (바로 전환)', onPress: () => video.start({ holdMs, transition: 'cut' }) },
+        { text: '부드럽게 (페이드)', onPress: () => video.start({ holdMs, transition: 'fade' }) },
+        { text: '취소', style: 'cancel' as const },
+      ]);
+    };
+    showAlert('사진 한 장당 얼마나 보여줄까요?', undefined, [
+      ...holdLabels.map((l, i) => ({ text: l, onPress: () => chooseTransition(holdValues[i]) })),
+      { text: '취소', style: 'cancel' as const },
+    ]);
+  };
+
   const chooseVisibility = () => {
     const labels = ['나만 보기', '팔로워에게', '전체 공개'] as const;
     const values = ['private', 'followers', 'public'] as const;
@@ -216,7 +233,7 @@ export default function ProjectScreen() {
                 variant="secondary"
                 large
                 disabled={total < MIN_RECORDS}
-                onPress={video.start}
+                onPress={chooseVideoOptions}
                 style={styles.half}
               />
             </View>
