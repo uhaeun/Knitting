@@ -92,6 +92,17 @@ export default function ResultScreen() {
               ? `첫 사진과 가장 최근 사진을 ${out.height > out.width ? '위아래로' : '나란히'} 놓아요.`
               : '첫 사진, 기간의 한가운데 사진, 가장 최근 사진을 위아래로 쌓아요.'}
         </Text>
+        {r.kind === 'triple' ? (
+          <View style={styles.focusRows}>
+            {(['위 칸', '가운데 칸', '아래 칸'] as const).map((label, i) => (
+              <View key={label} style={styles.focusRow}>
+                <Text style={styles.focusLabel}>{label}</Text>
+                <Button label="▲ 위로" variant="secondary" onPress={() => r.nudgeFocus(i, -1)} style={styles.focusButton} />
+                <Button label="▼ 아래로" variant="secondary" onPress={() => r.nudgeFocus(i, 1)} style={styles.focusButton} />
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.spacer} />
@@ -118,6 +129,10 @@ const styles = StyleSheet.create({
   busyText: { fontSize: fontSize.caption, color: color.onDark, textAlign: 'center', lineHeight: fontSize.caption * 1.5 },
   controls: { paddingHorizontal: space.xl, paddingTop: space.lg, gap: space.sm },
   hint: { fontSize: fontSize.caption, color: color.textMuted },
+  focusRows: { gap: space.sm, paddingTop: space.xs },
+  focusRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  focusLabel: { fontSize: fontSize.caption, color: color.textMuted, width: 64 },
+  focusButton: { flex: 1, paddingHorizontal: space.sm },
   spacer: { flex: 1 },
   actions: { paddingHorizontal: space.xl, paddingBottom: space.md, gap: space.sm },
 });
