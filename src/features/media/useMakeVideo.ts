@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { makeVideo, type EncodeResult } from '@/features/media/makeVideo';
+import type { VideoOptions } from '@/features/media/plan';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveOrShare } from '@/shared/lib/saveFile';
 
@@ -15,6 +16,8 @@ export function useMakeVideo(projectId: string) {
   const [state, setState] = useState<MakeVideoState>({ status: 'idle' });
   const job = useRef<AbortController | null>(null);
   const doneUri = useRef<string | null>(null);
+  /** 다시 시도할 때 같은 설정을 쓴다 */
+  const lastOptions = useRef<VideoOptions>({});
 
   const releaseDone = () => {
     if (doneUri.current) URL.revokeObjectURL(doneUri.current);
@@ -29,7 +32,8 @@ export function useMakeVideo(projectId: string) {
     [],
   );
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (options?: VideoOptions) => {
+    if (options) lastOptions.current = options;
     job.current?.abort();
     releaseDone();
     const controller = new AbortController();
@@ -39,6 +43,7 @@ export function useMakeVideo(projectId: string) {
     try {
       const result = await makeVideo(
         projectId,
+        lastOptions.current,
         (p) => {
           if (!signal.aborted) setState({ status: 'encoding', progress: p.progress });
         },

@@ -1,4 +1,4 @@
-import { buildSegments, clipCapMs, estimateDurationMs, LAST_HOLD_MS, MAX_GROWTH_MS, MIN_CLIP_MS, photoHoldMs, segmentAt, totalDurationMs } from '@/features/media/plan';
+import { buildSegments, clipCapMs, estimateDurationMs, LAST_HOLD_MS, MAX_GROWTH_MS, MIN_CLIP_MS, photoHoldMs, segmentAlpha, segmentAt, totalDurationMs } from '@/features/media/plan';
 import type { MediaItem } from '@/features/media/mediaItem';
 
 const photo = (uri: string): MediaItem => ({ kind: 'photo', uri });
@@ -60,6 +60,42 @@ describe('clipCapMs', () => {
   });
   it('상한은 MIN_CLIP_MS 아래로 내려가지 않는다', () => {
     expect(clipCapMs([5000, 5000], 100)).toBe(MIN_CLIP_MS);
+  });
+});
+
+describe('buildSegments holdMs 지정', () => {
+  it('holdMs를 주면 사진 수와 무관하게 그 값을 쓴다', () => {
+    const s = buildSegments([photo('a'), photo('b'), photo('c')], { holdMs: 2000 });
+    expect(s.map((x) => x.durationMs)).toEqual([2000, 2000, 2000 + LAST_HOLD_MS]);
+  });
+  it('holdMs를 안 주면 기존처럼 기록 수에 맞춰 자동', () => {
+    const s = buildSegments([photo('a'), photo('b')], {});
+    expect(s[0]?.durationMs).toBe(500);
+  });
+});
+
+describe('segmentAlpha (전환 효과)', () => {
+  it('cut이면 항상 1 (안 어두워짐)', () => {
+    expect(segmentAlpha(0, 1000, false, false, 'cut')).toBe(1);
+    expect(segmentAlpha(999, 1000, false, false, 'cut')).toBe(1);
+  });
+  it('fade: 맨 첫 구간은 시작할 때 페이드인 하지 않는다', () => {
+    expect(segmentAlpha(0, 1000, true, false, 'fade', 250)).toBe(1);
+  });
+  it('fade: 첫 구간이 아니면 0에서 서서히 밝아진다', () => {
+    expect(segmentAlpha(0, 1000, false, false, 'fade', 250)).toBe(0);
+    expect(segmentAlpha(125, 1000, false, false, 'fade', 250)).toBe(0.5);
+    expect(segmentAlpha(250, 1000, false, false, 'fade', 250)).toBe(1);
+  });
+  it('fade: 마지막 구간이 아니면 끝에서 서서히 어두워진다', () => {
+    expect(segmentAlpha(1000, 1000, false, false, 'fade', 250)).toBe(0);
+    expect(segmentAlpha(875, 1000, false, false, 'fade', 250)).toBe(0.5);
+  });
+  it('fade: 맨 마지막 구간은 끝에서 어두워지지 않는다', () => {
+    expect(segmentAlpha(1000, 1000, false, true, 'fade', 250)).toBe(1);
+  });
+  it('구간이 짧으면(사진이 아주 많을 때) fade 폭을 구간 길이의 절반으로 줄인다', () => {
+    expect(segmentAlpha(50, 200, false, false, 'fade', 250)).toBe(0.5);
   });
 });
 
