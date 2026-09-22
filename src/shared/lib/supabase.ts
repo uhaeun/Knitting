@@ -31,3 +31,11 @@ export function remoteThumbPath(ownerId: string, projectId: string, postId: stri
 export function remoteVideoPath(ownerId: string, projectId: string, postId: string): string {
   return `${ownerId}/${projectId}/${postId}.mp4`;
 }
+
+/** 결과물(피드에 발행한 결과 사진·영상) 경로. posts와 섞이지 않게 results/ 아래에 둔다 */
+export function remoteResultPath(ownerId: string, projectId: string, resultId: string, ext: 'jpg' | 'mp4'): string {
+  return `${ownerId}/${projectId}/results/${resultId}.${ext}`;
+}
+export function remoteResultThumbPath(ownerId: string, projectId: string, resultId: string): string {
+  return `${ownerId}/${projectId}/results/${resultId}_t.jpg`;
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePosts } from '@/features/capture/queries';
 import { composeResult } from '@/features/media/composeResult';
 import { buildScene, minPhotosFor, outputKindOf, resolveRatio, type ResultKind, type ResultRatio } from '@/features/media/resultPlan';
+import { usePublishResult } from '@/features/media/resultsQueries';
 import { useProject } from '@/features/project/queries';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveOrShare } from '@/shared/lib/saveFile';
@@ -58,6 +59,19 @@ export function useResultPhoto(projectId: string) {
     if (outcome === 'saved') showAlert('사진첩에 저장했어요');
   };
 
+  const publish = usePublishResult();
+  /** 지금 만든 결과물을 피드에 올린다. 공개 범위는 편물의 공개 범위를 따른다 */
+  const publishToFeed = () => {
+    if (!result.data || !project.data) return;
+    publish.mutate(
+      { projectId, kind, ratio, visibility: project.data.default_visibility, composed: result.data },
+      {
+        onSuccess: () => showAlert('피드에 올렸어요'),
+        onError: (e) => showAlert('피드에 올리지 못했어요', e instanceof Error ? e.message : String(e)),
+      },
+    );
+  };
+
   return {
     projectName: project.data?.name ?? '',
     photoCount,
@@ -73,5 +87,7 @@ export function useResultPhoto(projectId: string) {
     error: result.error ? (result.error instanceof Error ? result.error.message : String(result.error)) : null,
     retry: () => void result.refetch(),
     save,
+    publishToFeed,
+    publishing: publish.isPending,
   };
 }

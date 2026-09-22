@@ -11,6 +11,8 @@ export type Project = {
   finished_at: string | null;
   cover_post_id: string | null;
   default_visibility: Visibility;
+  /** true면 이 편물의 일상 사진은 남에게 안 보인다. 발행한 결과물은 영향 없음 */
+  photos_hidden_from_others: boolean;
   created_at: string; // ISO
   updated_at: string;
   deleted_at: string | null;

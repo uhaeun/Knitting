@@ -100,6 +100,12 @@ export default function ResultScreen() {
           <Text style={styles.hint}>{saveHint(r.output === 'mp4' ? 'video' : 'image')}</Text>
         ) : null}
         <Button label={saveLabel()} large disabled={!ready} onPress={guard('저장하지 못했어요', r.save)} />
+        <Button
+          label={r.publishing ? '올리는 중…' : '피드에 올리기'}
+          variant="secondary"
+          disabled={!ready || r.publishing}
+          onPress={r.publishToFeed}
+        />
       </View>
     </SafeAreaView>
   );
