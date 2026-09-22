@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 
 import { pickRecorderMime } from '@/features/capture/clip';
+import { captureCanvasSize } from '@/features/capture/image';
 import { color, fontSize, space } from '@/shared/ui/tokens';
 
 /**
@@ -130,12 +131,15 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
     takePictureAsync: async () => {
       const v = video.current;
       if (!v || v.videoWidth === 0) throw new Error('카메라가 아직 준비되지 않았어요');
+      // 안드로이드는 위 ideal 힌트보다 훨씬 큰 원본 해상도를 그대로 줄 때가 많다.
+      // 그 해상도 그대로 그리고 인코딩하면 셔터를 누른 뒤 오래 멈춰(버튼이 busy로 막힘) 있는 것처럼 느껴진다.
+      const { width, height } = captureCanvasSize(v.videoWidth, v.videoHeight, IDEAL_SIDE);
       const canvas = document.createElement('canvas');
-      canvas.width = v.videoWidth;
-      canvas.height = v.videoHeight;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) throw new Error('사진을 만들지 못했어요');
-      ctx.drawImage(v, 0, 0);
+      ctx.drawImage(v, 0, 0, width, height);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY));
       if (!blob) throw new Error('사진을 만들지 못했어요');
       return { uri: URL.createObjectURL(blob), width: canvas.width, height: canvas.height };
