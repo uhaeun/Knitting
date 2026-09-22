@@ -21,6 +21,23 @@ export function centerSquare(width: number, height: number): {
   };
 }
 
+/**
+ * 디지털 줌: 원본에서 가운데 (1/zoom) 크기만큼만 오려낸 영역. zoom=1은 원본 그대로.
+ * 하드웨어 줌(트랙 zoom 제약)은 브라우저마다 지원이 갈려(iOS Safari 없음) 캔버스로 직접 자른다.
+ * 순수 계산. 테스트 가능.
+ */
+export function zoomCropRect(sourceWidth: number, sourceHeight: number, zoom: number): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const z = Math.max(1, zoom);
+  const width = sourceWidth / z;
+  const height = sourceHeight / z;
+  return { x: (sourceWidth - width) / 2, y: (sourceHeight - height) / 2, width, height };
+}
+
 export type ProcessedImage = { photo: ImageResult; thumb: ImageResult };
 
 /**
