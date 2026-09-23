@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { usePosts } from '@/features/capture/queries';
 import { composeResult } from '@/features/media/composeResult';
-import { buildScene, minPhotosFor, outputKindOf, resolveRatio, type ResultKind, type ResultRatio } from '@/features/media/resultPlan';
+import { buildScene, minPhotosFor, outputKindOf, pickPanels, resolveRatio, type ResultKind, type ResultRatio } from '@/features/media/resultPlan';
 import { useProject } from '@/features/project/queries';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveOrShare } from '@/shared/lib/saveFile';
@@ -60,10 +60,14 @@ export function useResultPhoto(projectId: string) {
     if (outcome === 'saved') showAlert('사진첩에 저장했어요');
   };
 
-  const STEP = 0.15;
-  const nudgeFocus = (index: number, dir: -1 | 1) => {
-    setFocusY((prev) => prev.map((v, i) => (i === index ? Math.min(1, Math.max(0, v + dir * STEP)) : v)));
+  const setFocus = (index: number, value: number) => {
+    setFocusY((prev) => prev.map((v, i) => (i === index ? Math.min(1, Math.max(0, value)) : v)));
   };
+
+  // 3분할 위치 조정 화면이 각 칸의 원본 사진을 직접 보여 주고 끌 수 있게 (합성된 결과 대신)
+  const panelUris = kind === 'triple' && posts.data && photoCount >= minPhotosFor(kind)
+    ? pickPanels(kind, posts.data).map((p) => p.photo_path)
+    : [];
 
   return {
     projectName: project.data?.name ?? '',
@@ -77,7 +81,8 @@ export function useResultPhoto(projectId: string) {
     ratio,
     chooseRatio: setRatio,
     focusY,
-    nudgeFocus,
+    setFocus,
+    panelUris,
     uri,
     output: result.data?.output ?? null,
     progress,
