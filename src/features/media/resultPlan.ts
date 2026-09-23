@@ -65,7 +65,7 @@ export type Rect = { x: number; y: number; width: number; height: number };
 
 type TimedPost = { taken_at: string; created_at: string };
 
-export type ScenePanel = { media: MediaItem; dst: Rect; label: string | null };
+export type ScenePanel = { media: MediaItem; dst: Rect; label: string | null; focusY: number };
 export type Scene = {
   ratio: ResultRatio;
   width: number;
@@ -122,15 +122,25 @@ export function layoutPanels(
   });
 }
 
-/** 원본(imageW×imageH)에서 dst와 같은 비율의 가운데 영역. 늘이지 않고 잘라서 채운다 */
-export function centerCropFor(dst: Pick<Rect, 'width' | 'height'>, imageW: number, imageH: number): Rect {
+/**
+ * 원본(imageW×imageH)에서 dst와 같은 비율의 영역. 늘이지 않고 잘라서 채운다.
+ * 위아래를 자르는 칸(3분할처럼 옆으로 넓은 칸에 정사각 사진)은 focusY(0~1, 기본 0.5=가운데)로
+ * 자르는 위치를 위(0)·아래(1) 쪽으로 옮길 수 있다. 좌우를 자르는 칸은 이 값과 무관하게 항상 가운데다.
+ */
+export function centerCropFor(
+  dst: Pick<Rect, 'width' | 'height'>,
+  imageW: number,
+  imageH: number,
+  focusY: number = 0.5,
+): Rect {
   const target = dst.width / dst.height;
   if (imageW / imageH > target) {
     const width = imageH * target;
     return { x: (imageW - width) / 2, y: 0, width, height: imageH };
   }
   const height = imageW / target;
-  return { x: 0, y: (imageH - height) / 2, width: imageW, height };
+  const maxY = imageH - height;
+  return { x: 0, y: maxY * Math.min(1, Math.max(0, focusY)), width: imageW, height };
 }
 
 export function buildScene<T extends TimedPost & MediaPost>(input: {
@@ -138,6 +148,8 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
   project: { name: string; started_at: string };
   posts: readonly T[];
   ratio?: ResultRatio;
+  /** 칸별 위아래 자르는 위치 (0=위쪽 그대로, 1=아래쪽 그대로). picked 순서와 같다. 기본은 가운데(0.5) */
+  panelFocusY?: readonly number[];
 }): Scene {
   const ratio = resolveRatio(input.kind, input.ratio ?? null);
   const { width, height } = ratioSize(ratio);
@@ -150,6 +162,7 @@ export function buildScene<T extends TimedPost & MediaPost>(input: {
     media: mediaOf(p),
     dst: rects[i] as Rect,
     label: input.kind === 'single' ? null : labelOf(p),
+    focusY: input.panelFocusY?.[i] ?? 0.5,
   }));
   const current = picked[picked.length - 1] as T;
   return {

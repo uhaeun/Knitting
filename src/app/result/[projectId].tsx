@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RESULT_KINDS, ratiosFor, ratioSize } from '@/features/media/resultPlan';
+import { TriplePositionEditor } from '@/features/media/TriplePositionEditor';
 import { useResultPhoto } from '@/features/media/useResultPhoto';
 import { showAlert } from '@/shared/lib/dialog';
 import { saveHint, saveLabel } from '@/shared/lib/saveFile';
@@ -80,6 +81,15 @@ export default function ResultScreen() {
             <Button label="다시 시도" variant="secondary" onPress={r.retry} />
           </View>
         ) : null}
+        {r.kind === 'triple' && !r.composing && !r.loadingPhotos && !r.error ? (
+          <TriplePositionEditor
+            uris={r.panelUris}
+            focusY={r.focusY}
+            width={previewW}
+            height={previewH}
+            onCommit={r.setFocus}
+          />
+        ) : null}
       </View>
 
       <View style={styles.controls}>
@@ -90,7 +100,7 @@ export default function ResultScreen() {
             ? '가장 최근 사진에 편물 이름과 찍은 날짜를 적어요.'
             : r.kind === 'beforeAfter'
               ? `첫 사진과 가장 최근 사진을 ${out.height > out.width ? '위아래로' : '나란히'} 놓아요.`
-              : '첫 사진, 기간의 한가운데 사진, 가장 최근 사진을 위아래로 쌓아요.'}
+              : '첫 사진, 기간의 한가운데 사진, 가장 최근 사진을 위아래로 쌓아요. 사진을 눌러 고르고, 눌린 채로 위아래로 끌면 자르는 위치를 옮길 수 있어요.'}
         </Text>
       </View>
 

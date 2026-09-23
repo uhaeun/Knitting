@@ -79,6 +79,15 @@ describe('centerCropFor', () => {
   it('세로로 긴 원본을 정사각 칸에 맞추면 위아래를 자른다', () => {
     expect(centerCropFor({ width: 100, height: 100 }, 1200, 1600)).toEqual({ x: 0, y: 200, width: 1200, height: 1200 });
   });
+  it('focusY 0은 위쪽 그대로 (위를 안 자름)', () => {
+    expect(centerCropFor({ width: 100, height: 100 }, 1200, 1600, 0)).toEqual({ x: 0, y: 0, width: 1200, height: 1200 });
+  });
+  it('focusY 1은 아래쪽 그대로 (아래를 안 자름)', () => {
+    expect(centerCropFor({ width: 100, height: 100 }, 1200, 1600, 1)).toEqual({ x: 0, y: 400, width: 1200, height: 1200 });
+  });
+  it('가로를 자르는 칸(위아래 긴 칸)은 focusY와 무관하게 항상 가운데', () => {
+    expect(centerCropFor({ width: 537, height: 1080 }, 1440, 1440, 0)).toEqual({ x: (1440 - 716) / 2, y: 0, width: 716, height: 1440 });
+  });
 });
 
 describe('buildScene', () => {
