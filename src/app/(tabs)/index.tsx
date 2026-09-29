@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/store';
 import { confirmDeletePost } from '@/features/capture/confirmDeletePost';
 import { useDeletePost } from '@/features/capture/queries';
+import { ResultStrip } from '@/features/media/ResultStrip';
 import { PostActionsSheet } from '@/features/social/PostActionsSheet';
 import { PostCard } from '@/features/social/PostCard';
 import { flattenFeed, useFollowingFeed, useMyLikes, useToggleLike, useUnreadCount } from '@/features/social/queries';
@@ -53,6 +54,7 @@ export default function FeedScreen() {
           data={posts}
           keyExtractor={(p) => p.id}
           refreshControl={<RefreshControl refreshing={feed.isRefetching} onRefresh={feed.refetch} tintColor={color.accent} />}
+          ListHeaderComponent={<ResultStrip />}
           onEndReachedThreshold={0.5}
           onEndReached={() => feed.hasNextPage && !feed.isFetchingNextPage && feed.fetchNextPage()}
           ListFooterComponent={feed.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={color.accent} /> : null}

@@ -1,7 +1,7 @@
 -- RLS 가시성 검증 매트릭스. 설계도 v1.1 4장의 조합표를 실행 가능한 형태로 고정한다.
 -- 정책은 눈으로 검증할 수 없다. 이 파일이 그 역할을 한다.
 --
--- 전제: migrations 0001~0005 적용.
+-- 전제: migrations 0001~0013 적용.
 -- 실행: Supabase SQL Editor에 통째로 붙여넣는다. 마지막 줄이 ALL PASS여야 한다.
 -- 전체가 rollback으로 끝나므로 데이터는 남지 않는다.
 -- ⚠️ auth.users에 임시 행을 넣으므로 개발 프로젝트에서만 실행할 것.
@@ -232,6 +232,53 @@ insert into t_result values
   (19,'삭제 후 A의 편물·사진이 모두 deleted_at', true,
       (select deleted_at is not null from projects where id = 'a0000000-0000-4000-8000-000000000001')
       and not exists (select 1 from posts where project_id = 'a0000000-0000-4000-8000-000000000001' and deleted_at is null));
+
+-- 0013 결과물(results) + photos_hidden_from_others ------------------
+insert into projects (id, owner_id, name, default_visibility, photos_hidden_from_others)
+values
+  ('a0000000-0000-4000-8000-000000000002', (select id from t_ids where label='A'), 'A의 결과물용 편물', 'public', false),
+  ('a0000000-0000-4000-8000-000000000003', (select id from t_ids where label='A'), 'A의 숨긴 편물', 'public', true);
+
+insert into posts (id, project_id, owner_id, photo_path, thumb_path, width, height, taken_at, visibility)
+values ('c0000000-0000-4000-8000-000000000030', 'a0000000-0000-4000-8000-000000000003',
+        (select id from t_ids where label='A'), 'a/30.jpg', 'a/30_t.jpg', 1440, 1440, now(), 'public');
+
+insert into results (id, project_id, owner_id, kind, ratio, output, file_path, thumb_path, visibility)
+values
+  ('f0000000-0000-4000-8000-000000000031', 'a0000000-0000-4000-8000-000000000002',
+   (select id from t_ids where label='A'), 'single', '1:1', 'jpeg', 'a/31.jpg', 'a/31_t.jpg', 'public'),
+  ('f0000000-0000-4000-8000-000000000032', 'a0000000-0000-4000-8000-000000000003',
+   (select id from t_ids where label='A'), 'triple', '9:16', 'jpeg', 'a/32.jpg', 'a/32_t.jpg', 'public'),
+  ('f0000000-0000-4000-8000-000000000033', 'a0000000-0000-4000-8000-000000000002',
+   (select id from t_ids where label='A'), 'single', '1:1', 'jpeg', 'a/33.jpg', 'a/33_t.jpg', 'private');
+
+create or replace function pg_temp.result_visible_as(viewer uuid, rid uuid)
+returns boolean language plpgsql as $$
+declare n int;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', viewer)::text, true);
+  select count(*) into n from results where id = rid;
+  perform set_config('role', 'postgres', true);
+  return n > 0;
+end $$;
+
+insert into t_result values
+  (29,'공개 결과물을 타인(C)이 조회', true,
+      pg_temp.result_visible_as((select id from t_ids where label='C'), 'f0000000-0000-4000-8000-000000000031')),
+  (30,'비공개 결과물을 타인(C)이 조회', false,
+      pg_temp.result_visible_as((select id from t_ids where label='C'), 'f0000000-0000-4000-8000-000000000033')),
+  (31,'타인(C)이 A의 편물에 결과물 추가는 거부', false,
+      pg_temp.writes_as((select id from t_ids where label='C'),
+        $$insert into results (id, project_id, owner_id, kind, ratio, output, file_path, thumb_path)
+          values ('f0000000-0000-4000-8000-000000000034', 'a0000000-0000-4000-8000-000000000002',
+                  '33333333-3333-3333-3333-333333333333', 'single', '1:1', 'jpeg', 'a/34.jpg', 'a/34_t.jpg')$$)),
+  (32,'photos_hidden_from_others인 편물의 공개 사진을 타인(C)이 조회 → 숨김', false,
+      pg_temp.visible_as((select id from t_ids where label='C'), 'c0000000-0000-4000-8000-000000000030')),
+  (33,'photos_hidden_from_others여도 본인(A)은 자기 사진을 본다', true,
+      pg_temp.visible_as((select id from t_ids where label='A'), 'c0000000-0000-4000-8000-000000000030')),
+  (34,'photos_hidden_from_others인 편물이어도 결과물은 그대로 보인다', true,
+      pg_temp.result_visible_as((select id from t_ids where label='C'), 'f0000000-0000-4000-8000-000000000032'));
 
 -- 트리거 검증도 함께
 create temporary table t_trigger (항목 text, 기대 text, 실제 text);

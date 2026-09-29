@@ -18,7 +18,7 @@ import { color } from '@/shared/ui/tokens';
  * 결과는 미리보기용 blob URL과 저장용 File.
  */
 
-export type ComposedResult = { output: 'jpeg' | 'mp4'; uri: string; file: File };
+export type ComposedResult = { output: 'jpeg' | 'mp4'; uri: string; file: File; posterBlob: Blob };
 type Drawable = ImageBitmap | HTMLCanvasElement | OffscreenCanvas;
 
 const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
@@ -36,15 +36,18 @@ export async function composeResult(
     : composeJpeg(scene, projectId, kind, signal);
 }
 
-/** 취소됐으면 blob URL을 만들지 않고(만들었으면 해제하고) 취소 사유를 던진다 */
-function toResult(blob: Blob, output: 'jpeg' | 'mp4', fileName: string, signal?: AbortSignal): ComposedResult {
+/**
+ * 취소됐으면 blob URL을 만들지 않고(만들었으면 해제하고) 취소 사유를 던진다.
+ * posterBlob: 피드 발행용 대표 이미지(JPEG). 사진 결과는 자기 자신, 영상 결과는 첫 프레임.
+ */
+function toResult(blob: Blob, output: 'jpeg' | 'mp4', fileName: string, posterBlob: Blob, signal?: AbortSignal): ComposedResult {
   signal?.throwIfAborted();
   const uri = URL.createObjectURL(blob);
   if (signal?.aborted) {
     URL.revokeObjectURL(uri);
     throw signal.reason;
   }
-  return { output, uri, file: new File([blob], fileName, { type: blob.type }) };
+  return { output, uri, file: new File([blob], fileName, { type: blob.type }), posterBlob };
 }
 
 async function composeJpeg(scene: Scene, projectId: string, kind: ResultKind, signal?: AbortSignal): Promise<ComposedResult> {
@@ -68,7 +71,7 @@ async function composeJpeg(scene: Scene, projectId: string, kind: ResultKind, si
   }
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', RESULT_JPEG_QUALITY));
   if (!blob) throw new Error('결과 사진을 만들지 못했어요');
-  return toResult(blob, 'jpeg', resultFileName(projectId, kind, 'jpg', scene.ratio), signal);
+  return toResult(blob, 'jpeg', resultFileName(projectId, kind, 'jpg', scene.ratio), blob, signal);
 }
 
 async function composeVideo(
@@ -95,6 +98,7 @@ async function composeVideo(
     if (openFailed) throw openFailed.reason;
     const frameCount = Math.max(1, Math.ceil((sceneDurationMs(scene) * RESULT_VIDEO_FPS) / 1000));
     const dt = 1 / RESULT_VIDEO_FPS;
+    let poster: Blob | null = null;
     for (let f = 0; f < frameCount; f += 1) {
       signal?.throwIfAborted();
       const t = f * dt;
@@ -104,10 +108,16 @@ async function composeVideo(
         images.push(clip ? await clip.cursor.frameAt(t + 1e-6) : (bitmaps.get(i) ?? null));
       }
       drawFrame(writer.ctx, scene, images);
+      // 피드 발행용 대표 이미지: 첫 프레임을 그대로 캡처 (영상을 다시 열어 읽지 않는다)
+      if (f === 0) {
+        poster = await new Promise<Blob | null>((resolve) => writer.ctx.canvas.toBlob(resolve, 'image/jpeg', RESULT_JPEG_QUALITY));
+      }
       await writer.add(t, dt);
       onProgress?.((f + 1) / frameCount);
     }
+    if (!poster) throw new Error('대표 이미지를 만들지 못했어요');
     blob = await writer.finish();
+    return toResult(blob, 'mp4', resultFileName(projectId, kind, 'mp4', scene.ratio), poster, signal);
   } catch (e) {
     await writer.cancel().catch(() => {});
     throw e;
@@ -115,7 +125,6 @@ async function composeVideo(
     for (const b of bitmaps.values()) b.close();
     for (const c of clips.values()) c.close();
   }
-  return toResult(blob, 'mp4', resultFileName(projectId, kind, 'mp4', scene.ratio), signal);
 }
 
 /** 칸 이미지 + 라벨 + 캡션을 한 프레임으로. 이미지가 없는 칸(아직 프레임 없음)은 바탕색 */

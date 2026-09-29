@@ -16,7 +16,7 @@ import { ProjectDatesSheet } from '@/features/project/ProjectDatesSheet';
 import { RenameProjectSheet } from '@/features/project/RenameProjectSheet';
 import { Scrubber } from '@/features/project/Scrubber';
 import { StitchRow } from '@/shared/ui/StitchRow';
-import { useDeleteProject, useProject, useSetVisibility } from '@/features/project/queries';
+import { useDeleteProject, useProject, useSetPhotosHiddenFromOthers, useSetVisibility } from '@/features/project/queries';
 import { formatDateTime, formatMonthDay } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
@@ -35,6 +35,7 @@ export default function ProjectScreen() {
   const posts = usePosts(id);
   const del = useDeleteProject();
   const setVis = useSetVisibility();
+  const setPhotosHidden = useSetPhotosHiddenFromOthers();
   const video = useMakeVideo(id);
   const delPost = useDeletePost();
   const [renaming, setRenaming] = useState(false);
@@ -115,6 +116,10 @@ export default function ProjectScreen() {
       { text: '이름 바꾸기', onPress: () => setRenaming(true) },
       { text: p?.finished_at ? '날짜·완성 표시 바꾸기' : '날짜 바꾸기 · 완성 표시', onPress: () => setEditingDates(true) },
       { text: '공개 범위 바꾸기', onPress: chooseVisibility },
+      {
+        text: p?.photos_hidden_from_others ? '일상 사진 다시 보이기' : '일상 사진 남에게 숨기기 (결과물만 보이게)',
+        onPress: () => setPhotosHidden.mutate({ id, hidden: !p?.photos_hidden_from_others }),
+      },
       { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
       { text: '취소', style: 'cancel' },
     ]);
@@ -142,6 +147,7 @@ export default function ProjectScreen() {
               {formatMonthDay(p.started_at)} 시작 · 기록 {total}개 ·{' '}
               {p.finished_at ? `${formatMonthDay(p.finished_at)} 완성 · ` : ''}
               {p.default_visibility === 'public' ? '전체 공개' : p.default_visibility === 'followers' ? '팔로워' : '나만'}
+              {p.photos_hidden_from_others ? ' · 일상 사진 숨김' : ''}
             </Text>
           ) : null}
         </View>
