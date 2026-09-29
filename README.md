@@ -1,38 +1,94 @@
 # 닛팅 (Knitting)
 
-뜨개 편물을 같은 각도로 찍어 쌓고, 성장 영상과 결과 사진(전체 · 전후 · 3분할)을 만드는 웹앱.
-Expo(react-native-web) + TypeScript + Supabase.
+뜨개 편물을 같은 각도로 기록하고, 쌓인 사진·영상을 성장 영상과 비교 사진으로 만드는 서비스.
 
-## 켜기
+[웹 열기](https://knitting-pied.vercel.app) · [현재 구현·검증 상태](docs/MVP_상태.md) · [10월 초 완료 계획](docs/포트폴리오_완료계획_1002.md)
 
-1. `npm install`
-2. `.env` 만들기 (`.env.example` 참고): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-3. `npm run web -- --port 8099` → http://localhost:8099 (VS Code에서는 Tasks → **닛팅 웹 켜기**)
+## 핵심 흐름
 
-Supabase 설정은 [supabase/README.md](supabase/README.md).
+편물 만들기 → 이전 사진을 겹쳐 보며 촬영 → 기록 관리 → 전체·전후·3분할 사진 또는 성장 영상 생성 → 저장·피드 발행. 일상 사진은 다른 사람에게 숨기고 결과물만 공유할 수 있다.
 
-## 빌드
+## 구조
 
-운영: **https://knitting-pied.vercel.app** (Vercel 프로젝트 `knitting`)
+Expo 57·React Native Web·TypeScript의 웹 화면을 Vercel에 배포하고, Capacitor로 감싼 iOS·Android 앱에서도 사용한다. 별도의 네이티브 화면 구현은 없다.
 
-- 배포: `npx vercel deploy --prod` — Vercel 서버가 `npx expo export -p web`으로 빌드한다 (`vercel.json`)
-- Supabase URL·공개 키는 Vercel 환경변수에 등록돼 있다. 바꾸면 `npx vercel env add … --force` 후 다시 배포
-- 모든 경로를 `index.html`로 돌린다(SPA). 카메라 때문에 HTTPS가 필요하다
+```mermaid
+flowchart LR
+  W[웹 브라우저] --> UI[Expo Router · React Native Web]
+  N[Capacitor iOS · Android] --> UI
+  UI --> Q[TanStack Query · repository/API]
+  Q --> A[Supabase Auth]
+  Q --> D[PostgreSQL · RLS]
+  Q --> S[Storage · 서명 URL]
+  UI --> M[Canvas · WebCodecs · Mediabunny]
+  M --> F[비교 사진 · 성장 영상]
+  F --> B[웹 공유 / 파일 다운로드]
+  F --> P[앱 사진첩 플러그인]
+```
 
-## 테스트
+- 촬영: `getUserMedia`·`MediaRecorder`. 사진 줌은 디지털 크롭이며 영상 줌은 미지원이다.
+- 저장: 사진·썸네일 업로드 후 DB 기록 생성. DB 저장 실패 시 업로드 파일을 정리한다.
+- 접근 제어: 공개 범위·팔로우·차단·삭제 가시성은 서버 RLS가 판단한다.
+- 미디어: Canvas로 비교 사진, WebCodecs·Mediabunny로 MP4를 생성한다.
+- 앱 차이: 사진첩 저장·로컬 알림은 Capacitor 플러그인을 사용한다. 카메라·영상 처리에는 WebView 제약도 적용된다.
 
-- 단위: `npm test`
-- RLS·서버 함수: `supabase/tests/rls_matrix.sql` (마지막 줄 `ALL PASS`)
+## 실행
 
-## AI 사용 범위
+Node.js 22.13 이상이 필요하며 CI는 Node 22를 사용한다. [Expo 57 문서](https://docs.expo.dev/versions/v57.0.0/)를 기준으로 개발한다.
 
-커밋의 `Co-Authored-By: Claude` 서명은 AI 코딩 에이전트(Claude Code)와 함께 작업한 범위를 그대로 남긴 것이다.
+```bash
+npm ci
+cp .env.example .env
+# .env에 개발용 Supabase URL·anon 공개 키 입력
+npm run web -- --port 8099
+```
 
-- **AI가 한 것** — 화면과 기능 코드 구현, 단위 테스트와 E2E 스크립트 타이핑, 문서 초안
-- **사람이 한 것** — 기능명세서·화면정의서·테스트계획의 결정, 웹 전환과 하이브리드 결정, 테스트 범위와 완료 조건, 네이티브 검사 항목 선정, 버그 판정
-- **규칙** — [CLAUDE.md](CLAUDE.md)의 "완료의 정의"대로, 데스크톱에서 자동 검증한 것과 폰에서 확인 못 한 것을 구분해 적는다
+`http://localhost:8099`에서 연다. 휴대폰 브라우저의 카메라는 HTTPS 주소에서 검사한다. Supabase 준비는 [서버 안내](supabase/README.md)를 따른다. 운영 service-role 키를 앱 환경변수에 넣지 않는다.
+
+## 검사
+
+```bash
+npm run lint -- --max-warnings 0
+npx tsc --noEmit
+npm test -- --runInBand
+npm run build
+```
+
+전체 E2E에는 8098 포트의 웹 서버와 **로컬 Supabase**가 필요하다. 준비 과정은 [e2e.yml](.github/workflows/e2e.yml)에 있다.
+
+```bash
+npm run e2e
+npm run e2e -- ux ready video-capture
+psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/rls_matrix.sql
+```
+
+영상 촬영 검사에는 로컬 Supabase의 `SUPABASE_SERVICE_KEY`가 필요하다. 키가 없어 건너뛴 결과를 전체 통과로 취급하지 않는다. 자동 검사는 운영 계정·데이터를 대상으로 실행하지 않는다.
+
+| 검사 | 범위 |
+|---|---|
+| PR | lint · TypeScript · Jest |
+| 전체 E2E | 사용자 흐름 30개 시나리오, 로컬 Supabase·가짜 카메라 |
+| DB 권한 | RLS·서버 함수 45개 확인, 실패 시 SQL 예외 |
+| Android 빌드 | 웹 산출물을 포함한 debug APK |
+| iOS 빌드 | 관련 파일 변경 시 시뮬레이터 빌드, 배포용 서명 없음 |
+| 실기기 QA | 권한·촬영 반응·화질·WebCodecs·사진첩 저장·알림 |
+
+실행 증거는 [현재 상태](docs/MVP_상태.md), Appium 준비는 [네이티브 검사 안내](tests/native/README.md)를 참고한다.
+
+## 배포와 앱
+
+웹은 `npx vercel deploy --prod`로 배포한다. Vercel이 `npm ci` 후 `npx expo export -p web`을 실행한다. Supabase 환경변수는 Vercel 프로젝트 `knitting`에 등록하며 스키마 변경 시 호환성과 적용 순서를 확인한다.
+
+Android APK는 [Actions](https://github.com/uhaeun/Knitting/actions)의 `Android APK 빌드`에서 받는다. 최종 앱 QA는 `CAP_DEV_URL` 없이 웹 파일을 포함한 설치본으로 수행한다. `live-ios`·`live-android`는 배포 웹을 불러오는 개발용 모드다. 앱스토어 출시 완료를 의미하지 않는다.
+
+## 협업과 AI 활용
+
+하은·다희의 팀 프로젝트다. 이슈 → 브랜치 → PR → 검증 → 배포 → 제보자 재확인 순서로 진행한다. 다희님 PR #20~24와 통합 수정 PR #25를 포함한다.
+
+AI는 기능 코드·검사 스크립트·문서 초안과 통합 오류 수정에 사용했다. 사람의 요구사항 결정·검토·QA와 AI 작업을 구분해 기록한다. 개인 포트폴리오에는 팀 전체 결과와 본인이 직접 담당한 범위를 구분한다.
 
 ## 문서
 
-- [CLAUDE.md](CLAUDE.md) — 개발 규칙 (웹 전환 결정 포함)
-- [docs/MVP_상태.md](docs/MVP_상태.md) — 되는 것, 확인한 것, 한계
+- [현재 상태와 한계](docs/MVP_상태.md) · [개발·QA 점검](docs/개발_QA_점검_20260929.md)
+- [포트폴리오 완료 계획](docs/포트폴리오_완료계획_1002.md) · [작성 초안](docs/포트폴리오_초안.md)
+- [자동 검사·빌드](docs/자동빌드.md) · [Supabase](supabase/README.md) · [개발 규칙](CLAUDE.md)

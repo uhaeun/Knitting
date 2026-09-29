@@ -21,7 +21,7 @@ tests/native/.venv/bin/pip install Appium-Python-Client pytest
 
 ## 돌리기
 
-1. 로컬 Supabase를 켠다 (`supabase start`, 0001~0005 적용)
+1. 로컬 Supabase를 켠다 (현재 0001~0014 적용. 새 환경 준비는 [서버 안내](../../supabase/README.md) 참고)
 2. 안드로이드 에뮬레이터를 켠다 (`emulator -avd Pixel_6`)
 3. 시험용 APK를 만든다 — **실서버가 아니라 로컬 Supabase에 붙는다** (에뮬레이터에서 맥은 `10.0.2.2`)
    ```bash
