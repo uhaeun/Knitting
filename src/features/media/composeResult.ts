@@ -126,7 +126,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, scene: Scene, images: readonly
   scene.panels.forEach((panel, i) => {
     const image = images[i];
     if (image) {
-      const src = centerCropFor(panel.dst, image.width, image.height);
+      const src = centerCropFor(panel.dst, image.width, image.height, panel.focusY);
       ctx.drawImage(image, src.x, src.y, src.width, src.height, panel.dst.x, panel.dst.y, panel.dst.width, panel.dst.height);
     }
     if (panel.label) drawLabel(ctx, panel.label, panel.dst.x + M.margin, panel.dst.y + panel.dst.height - M.margin);
