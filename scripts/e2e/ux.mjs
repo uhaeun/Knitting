@@ -35,7 +35,7 @@ try {
   await page.goto(`${BASE}/`);
   await page.getByText('내 편물', { exact: true }).waitFor();
   check('첫 진입은 편물 목록', new URL(page.url()).pathname === '/projects');
-  await page.getByText('피드', { exact: true }).first().click();
+  await page.getByRole('tab', { name: '피드', exact: true }).click();
   await page.getByText('아직 볼 게 없어요', { exact: true }).waitFor();
   check('피드 탭에서 목록으로 다시 튕기지 않는다', new URL(page.url()).pathname === '/');
   await page.goto(`${BASE}/projects`);
@@ -101,7 +101,7 @@ try {
 
   check('브라우저 기본 대화상자가 한 번도 안 떴다', browserDialogs === 0, String(browserDialogs));
 } catch (e) {
-  failed += 1; console.log('ERROR', e.message.slice(0, 200)); console.log('URL', page.url()); await page.screenshot({ path: process.env.SHOT ?? '/tmp/ux-fail.png' });
+  failed += 1; console.log('ERROR', e.message); console.log('URL', page.url()); await page.screenshot({ path: process.env.SHOT ?? '/tmp/ux-fail.png' });
 } finally {
   await browser.close();
   console.log(failed === 0 ? '\nRESULT: PASS' : `\nRESULT: FAIL (${failed})`);

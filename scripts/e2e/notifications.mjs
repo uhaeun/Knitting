@@ -58,7 +58,7 @@ try {
 
   console.log('\n== 주인 화면의 배지와 소식');
   await a.goto(`${BASE}/`);
-  await a.getByText('피드', { exact: true }).first().click({ timeout: 60000 }); // 탭으로 이동
+  await a.getByRole('tab', { name: '피드', exact: true }).click({ timeout: 60000 }); // 탭으로 이동
   const bell = a.getByRole('button', { name: '소식' }).first();
   await bell.waitFor({ timeout: 60000 });
   const badge = await bell.textContent();
