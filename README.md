@@ -77,7 +77,9 @@ psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 
 
 ## 배포와 앱
 
-웹은 `npx vercel deploy --prod`로 배포한다. Vercel이 `npm ci` 후 `npx expo export -p web`을 실행한다. Supabase 환경변수는 Vercel 프로젝트 `knitting`에 등록하며 스키마 변경 시 호환성과 적용 순서를 확인한다.
+웹은 `npx vercel deploy --prod`로 배포한다. Vercel이 `npm ci` 후 `npm run build`로 캐시를 비우고 화면을 빌드한다. Supabase 환경변수는 Vercel 프로젝트 `knitting`에 등록하며 스키마 변경 시 호환성과 적용 순서를 확인한다.
+
+설정 → **앱 정보**에서 현재 화면의 버전, 빌드 번호(커밋 앞 7자리), 빌드 시각(한국 시간)을 확인한다. `app.config.js`가 빌드할 때 정보를 넣으므로 이후 배포된 버전을 기존 앱의 버전으로 오인하지 않는다. 버전은 `app.json`의 `expo.version`을 사용한다. 빌드 번호는 `KNITTING_BUILD_SHA`, `VERCEL_GIT_COMMIT_SHA`, `GITHUB_SHA`, 로컬 Git 순으로 읽는다. Git 폴더 없이 CLI로 배포할 때는 실제 소스 커밋을 `--build-env KNITTING_BUILD_SHA=<커밋 SHA>`로 전달한다. 이 정보는 현재 로드된 화면 기준이며 설치된 iOS·Android 실행 파일의 버전은 아니다.
 
 Android APK는 [Actions](https://github.com/uhaeun/Knitting/actions)의 `Android APK 빌드`에서 받는다. 최종 앱 QA는 `CAP_DEV_URL` 없이 웹 파일을 포함한 설치본으로 수행한다. `live-ios`·`live-android`는 배포 웹을 불러오는 개발용 모드다. 앱스토어 출시 완료를 의미하지 않는다.
 

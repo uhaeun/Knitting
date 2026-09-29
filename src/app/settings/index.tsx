@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,14 @@ export default function SettingsScreen() {
   const { session, profile } = useAuth();
   const update = useUpdateProfile();
   const requests = usePendingRequests();
+  const buildInfo = Constants.expoConfig?.extra?.buildInfo;
+  const builtAt = typeof buildInfo?.builtAt === 'string' ? new Date(buildInfo.builtAt) : null;
+  const buildTime = builtAt && !Number.isNaN(builtAt.getTime())
+    ? new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).format(builtAt)
+    : '확인할 수 없어요';
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -90,6 +99,13 @@ export default function SettingsScreen() {
           <Link label="이용약관" onPress={() => router.push('/legal/terms')} />
           <Link label="개인정보처리방침" onPress={() => router.push('/legal/privacy')} />
           <Link label={`문의: ${SUPPORT_EMAIL}`} onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} />
+        </Section>
+
+        <Section title="앱 정보">
+          <Row label="화면 버전" value={Constants.expoConfig?.version ?? '확인할 수 없어요'} />
+          <Row label="빌드 번호" value={typeof buildInfo?.revision === 'string' ? buildInfo.revision : '확인할 수 없어요'} />
+          <Row label="빌드 시각" value={buildTime} />
+          <Text style={styles.policy}>현재 화면 기준 · 한국 시간</Text>
         </Section>
 
         {session ? (
