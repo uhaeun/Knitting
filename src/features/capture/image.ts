@@ -21,6 +21,22 @@ export function centerSquare(width: number, height: number): {
   };
 }
 
+/**
+ * 촬영 캔버스 크기 상한. 안드로이드는 getUserMedia의 ideal 힌트보다 훨씬 큰(카메라 원본) 해상도를
+ * 그대로 줄 때가 많다. 최종 저장은 어차피 1440px로 다시 줄어들므로, 화질 손해 없이
+ * 찍는 순간의 캔버스 그리기·JPEG 인코딩 비용만 줄인다. 순수 계산. 테스트 가능.
+ */
+export function captureCanvasSize(
+  sourceWidth: number,
+  sourceHeight: number,
+  maxSide: number,
+): { width: number; height: number } {
+  const longest = Math.max(sourceWidth, sourceHeight);
+  if (longest <= maxSide) return { width: sourceWidth, height: sourceHeight };
+  const scale = maxSide / longest;
+  return { width: Math.round(sourceWidth * scale), height: Math.round(sourceHeight * scale) };
+}
+
 export type ProcessedImage = { photo: ImageResult; thumb: ImageResult };
 
 /**
