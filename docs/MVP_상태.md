@@ -1,6 +1,8 @@
 # 닛팅 현재 상태 — 2026-09-29
 
-최종 확인된 운영 버전: `27b9680` · https://knitting-pied.vercel.app
+9/29 후속 출시 후보: [PR #26](https://github.com/uhaeun/Knitting/pull/26), 검증 앱 코드 `af6f1fa` · 운영 주소 https://knitting-pied.vercel.app
+
+PR #26은 초기 화면 이동, 생성 팝업·프로필 편집 초기화, 삭제 후 재촬영의 최신 기록 선택을 정리하고 lint를 필수 CI에 추가했다. 이후 커밋은 QA 기록과 상태 문서만 갱신했다. 배포·병합 완료 여부는 PR 기록을 함께 확인한다.
 
 ## 플랫폼과 구현
 
@@ -22,6 +24,8 @@ Supabase(Auth·PostgreSQL RLS·Storage)가 기록의 원본이다. 카메라·�
 
 | 대상 | 결과·범위 | 증거 |
 |---|---|---|
+| PR #26 `fb3ae51` lint·타입·단위 | lint 오류·경고 0, 타입·단위 135개 통과 | [Actions](https://github.com/uhaeun/Knitting/actions/runs/36572744948) |
+| PR #26 `af6f1fa` 전체 E2E·DB 권한 | 30개·45개 통과. 이후 커밋과 앱·검사 코드 동일 | [Actions](https://github.com/uhaeun/Knitting/actions/runs/36572516771) |
 | `27b9680` 타입·단위 | 통과, 단위 135개 / 16 suites | [Actions](https://github.com/uhaeun/Knitting/actions/runs/36505267963) |
 | `27b9680` 전체 E2E·DB 권한 | E2E 30개·권한 45개 통과, 로컬 서버·Chromium 가짜 카메라 | [Actions](https://github.com/uhaeun/Knitting/actions/runs/36505267955) |
 | `27b9680` Android APK | 빌드 성공, 폰 설치 확인과 구분 | [Actions](https://github.com/uhaeun/Knitting/actions/runs/36505267937) |
