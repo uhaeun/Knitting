@@ -20,6 +20,7 @@ PACKAGE = "app.knitting.web"
 # 4723은 다른 작업의 Appium이 쓰고 있을 수 있어 비켜 간다
 APPIUM_PORT = int(os.environ.get("APPIUM_PORT", "4725"))
 ADB = shutil.which("adb") or str(Path.home() / "Library/Android/sdk/platform-tools/adb")
+SERIAL = os.environ.get("ANDROID_SERIAL", "")
 
 
 def _port_open(port: int) -> bool:
@@ -49,7 +50,8 @@ def appium_server():
 
 
 def adb(*args: str) -> str:
-    return subprocess.run([ADB, *args], capture_output=True, text=True, check=False).stdout
+    assert SERIAL.startswith("emulator-"), "ANDROID_SERIAL=emulator-번호로 시험용 에뮬레이터를 지정하세요"
+    return subprocess.run([ADB, "-s", SERIAL, *args], capture_output=True, text=True, check=False).stdout
 
 
 @pytest.fixture
@@ -60,6 +62,7 @@ def driver(appium_server):
     opts = UiAutomator2Options()
     opts.platform_name = "Android"
     opts.automation_name = "UiAutomator2"
+    opts.udid = SERIAL
     opts.app = str(APK)
     opts.app_package = PACKAGE
     opts.app_activity = ".MainActivity"

@@ -1,6 +1,12 @@
 """앱 조작 도우미. 웹뷰 안은 CSS·텍스트로, 권한 창·알림은 안드로이드 요소로 찾는다."""
 import time
 import uuid
+import html
+import json
+import re
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.common.exceptions import NoSuchElementException, WebDriverException
@@ -65,6 +71,41 @@ def fill(d, placeholder, value):
     el.send_keys(value)
 
 
+def confirm_local_email(d, email):
+    """외부 메일을 보내지 않고 로컬 Mailpit에 도착한 확인 링크를 따른다."""
+    def read(path):
+        with urllib.request.urlopen(f"http://127.0.0.1:54324{path}", timeout=10) as response:
+            return json.load(response)
+
+    def link():
+        for message in read("/api/v1/messages?limit=50").get("messages", []):
+            if any(to.get("Address") == email for to in message.get("To", [])):
+                body = read(f"/api/v1/message/{message['ID']}")
+                match = re.search(r'https?://[^\s"<>]*token[^\s"<>]*', body.get("Text") or body.get("HTML", ""))
+                if match:
+                    return html.unescape(match.group())
+        return None
+
+    url = wait(link, 30, what="로컬 확인 메일")
+    parsed = urllib.parse.urlsplit(url)
+    assert parsed.hostname in ("127.0.0.1", "localhost") and parsed.path == "/auth/v1/verify"
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    # 메일 서버 링크는 맥에서 확인하고, 인증 결과는 앱의 기존 origin으로 돌린다.
+    try:
+        urllib.request.build_opener(NoRedirect).open(url, timeout=10)
+        raise AssertionError("메일 확인 뒤 리다이렉트가 없어요")
+    except urllib.error.HTTPError as response:
+        assert response.code in (302, 303)
+        fragment = urllib.parse.urlsplit(response.headers["Location"]).fragment
+    assert "access_token=" in fragment, "로컬 이메일 확인이 실패했어요"
+    origin = d.execute_script("return location.origin")
+    d.get(f"{origin}/#{fragment}")
+
+
 def sign_up_with_project(d, project="시험 목도리"):
     """새 계정 + 편물 하나. 사용법 안내는 건너뛴다"""
     to_web(d)
@@ -72,9 +113,14 @@ def sign_up_with_project(d, project="시험 목도리"):
     d.execute_script("try { localStorage.setItem('knitting.tourSeen', '1') } catch (e) {}")
     stamp = uuid.uuid4().hex[:8]
     click_text(d, "계정이 없어요, 가입할게요")
-    fill(d, "you@example.com", f"native_{stamp}@example.com")
-    fill(d, "6자 이상", "password123")
+    email = f"native_{stamp}@example.com"
+    fill(d, "you@example.com", email)
+    fill(d, "8자 이상", "password123")
+    click_label(d, "약관과 개인정보처리방침에 동의합니다")
     click_text(d, "가입하기")
+    wait(lambda: "확인 메일을 보냈어요" in page_text(d) or "knitter_haeun" in d.page_source, 60, what="가입 완료")
+    if "확인 메일을 보냈어요" in page_text(d):
+        confirm_local_email(d, email)
     fill(d, "knitter_haeun", f"native_{stamp}")
     fill(d, "하은", "네이티브")
     click_text(d, "시작하기")

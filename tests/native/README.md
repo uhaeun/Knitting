@@ -22,17 +22,19 @@ tests/native/.venv/bin/pip install Appium-Python-Client pytest
 ## 돌리기
 
 1. 로컬 Supabase를 켠다 (현재 0001~0014 적용. 새 환경 준비는 [서버 안내](../../supabase/README.md) 참고)
-2. 안드로이드 에뮬레이터를 켠다 (`emulator -avd Pixel_6`)
+2. 안드로이드 에뮬레이터를 켠다 (`emulator -avd Pixel_6`). `adb devices`에서 `emulator-5554` 같은 번호를 확인한다. 테스트는 매번 시험 앱을 삭제하므로 실기기는 허용하지 않는다.
 3. 시험용 APK를 만든다 — **실서버가 아니라 로컬 Supabase에 붙는다** (에뮬레이터에서 맥은 `10.0.2.2`)
    ```bash
    SUPABASE_ANON_KEY=<supabase status 의 ANON_KEY> tests/native/build-test-apk.sh
    ```
 4. 검사
    ```bash
-   cd tests/native && .venv/bin/python -m pytest test_android.py -q
+   cd tests/native && ANDROID_SERIAL=emulator-5554 .venv/bin/python -m pytest test_android.py -q
    ```
 
 Appium 서버는 없으면 알아서 띄운다(포트 4725, 다른 작업의 4723을 비켜 간다). `APPIUM_PORT`로 바꿀 수 있다.
+
+시험 빌드는 `CAP_LOCAL_TEST=1`을 Capacitor 동기화에만 적용한다. 현재 `capacitor.config.ts`를 사용하며 소스 설정 파일을 덮어쓰지 않는다. 이메일 확인이 켜진 로컬 서버에서는 Mailpit(54324)의 확인 링크로 가입을 마친다. 외부 수신함이나 운영 계정은 사용하지 않는다.
 
 ## 알아 둘 것
 
@@ -64,4 +66,4 @@ Appium 서버는 없으면 알아서 띄운다(포트 4725, 다른 작업의 472
 - 아이폰은 `http://맥IP`라 보안 연결이 아니어서 앱 안 카메라가 안 열린다. 맥과 같은 와이파이여야 하고, 맥 서버가 꺼져 있으면 앱이 빈 화면이다
 - 개발 서버는 `.env`의 실제 Supabase를 쓴다
 - 8100번은 다른 세션의 Appium(WebDriverAgent)이 쓰고 있어 피했다
-- 동기화된 `capacitor.config.json`은 git이 무시하므로 개발 주소가 커밋될 일은 없다
+- 원본 설정은 `capacitor.config.ts`이며 개발 URL은 `CAP_DEV_URL` 환경 변수로만 지정한다. 동기화된 네이티브 설정 파일은 빌드 산출물이다.

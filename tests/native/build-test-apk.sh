@@ -6,22 +6,14 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 : "${SUPABASE_ANON_KEY:?로컬 Supabase anon 키가 필요해요 (supabase status -o env 의 ANON_KEY)}"
 
-cp capacitor.config.json /tmp/capacitor.config.backup.json
-restore() { cp /tmp/capacitor.config.backup.json capacitor.config.json; npx cap sync android >/dev/null 2>&1 || true; }
+# 개발 서버 환경이 상속되어도 시험 APK는 반드시 자체 화면을 사용한다.
+unset CAP_DEV_URL CAP_LOCAL_TEST
+restore() { npx cap sync android >/dev/null 2>&1 || true; }
 trap restore EXIT
-
-# 로컬 서버가 http라서 앱이 평문 요청을 허용해야 한다 (시험용에서만)
-python3 - <<'PY'
-import json, pathlib
-p = pathlib.Path('capacitor.config.json'); c = json.loads(p.read_text())
-c['server'] = {**c.get('server', {}), 'cleartext': True, 'androidScheme': 'http'}
-c['android'] = {**c.get('android', {}), 'allowMixedContent': True}
-p.write_text(json.dumps(c, ensure_ascii=False, indent=2))
-PY
 
 rm -rf dist
 EXPO_PUBLIC_SUPABASE_URL=http://10.0.2.2:54321 EXPO_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" npx expo export -p web --clear >/dev/null
-npx cap sync android >/dev/null
+CAP_LOCAL_TEST=1 npx cap sync android >/dev/null
 (cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug -q)
 mkdir -p tests/native/out
 cp android/app/build/outputs/apk/debug/app-debug.apk tests/native/out/knitting-test.apk
