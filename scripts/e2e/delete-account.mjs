@@ -34,6 +34,12 @@ try {
   await page.getByRole('button', { name: '촬영' }).click();
   await page.getByText('1번째 / 1').waitFor({ timeout: 60000 });
 
+  await page.getByRole('button', { name: '결과 사진', exact: true }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('[role="button"]')].some(b => b.textContent === '피드에 올리기' && b.getAttribute('aria-disabled') !== 'true'), null, { timeout: 60000 });
+  await page.getByRole('button', { name: '피드에 올리기', exact: true }).click();
+  await page.getByText('피드에 올렸어요', { exact: true }).waitFor({ timeout: 60000 });
+  await page.getByRole('alert').getByRole('button', { name: '확인', exact: true }).click();
+
   const uid = one(`select id from profiles where username = '${username}'`);
   const before = {
     profile: count(`select count(*) from profiles where username = '${username}'`),
@@ -64,7 +70,8 @@ try {
   check('auth 계정이 없다', after.users === 0, JSON.stringify(after));
   check('프로필이 없다', after.profile === 0);
   check('기록이 없다', after.posts === 0);
-  check('올린 파일이 저장소에서 사라졌다', after.files === 0);
+  check('결과물 하위 폴더까지 저장소에서 사라졌다', after.files === 0);
+  check('발행한 결과물도 사라졌다', count(`select count(*) from results where owner_id = '${uid}'`) === 0);
 
   console.log('\n== 지운 계정으로 로그인 시도');
   await page.getByPlaceholder('you@example.com').fill(email);

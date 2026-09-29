@@ -79,16 +79,25 @@ export async function deleteAccount(userId: string): Promise<void> {
   await sb.auth.signOut();
 }
 
-/** photos 버킷의 {uid}/{project}/{post} 파일을 모두 지운다. 실패해도 계정 삭제는 계속한다 */
+/** 결과물 하위 폴더까지 순회한다. 목록 수집을 끝낸 뒤 지워서 페이지가 밀리지 않게 한다. */
 async function removeMyFiles(userId: string): Promise<void> {
   const sb = getSupabase();
   try {
-    const { data: folders } = await sb.storage.from(PHOTOS_BUCKET).list(userId);
+    const bucket = sb.storage.from(PHOTOS_BUCKET);
     const paths: string[] = [];
-    for (const folder of folders ?? []) {
-      const { data: files } = await sb.storage.from(PHOTOS_BUCKET).list(`${userId}/${folder.name}`);
-      for (const f of files ?? []) paths.push(`${userId}/${folder.name}/${f.name}`);
-    }
+    const visit = async (prefix: string): Promise<void> => {
+      for (let offset = 0; ; offset += 100) {
+        const { data, error } = await bucket.list(prefix, { limit: 100, offset, sortBy: { column: 'name', order: 'asc' } });
+        if (error) throw error;
+        for (const file of data ?? []) {
+          const path = `${prefix}/${file.name}`;
+          if (file.id) paths.push(path);
+          else await visit(path);
+        }
+        if (!data || data.length < 100) break;
+      }
+    };
+    await visit(userId);
     // 한 번에 너무 많이 보내지 않는다
     for (let i = 0; i < paths.length; i += 100) {
       await sb.storage.from(PHOTOS_BUCKET).remove(paths.slice(i, i + 100));

@@ -47,6 +47,8 @@ try {
   console.log('\n== 영상 → 사진첩에 저장');
   await page.getByRole('button', { name: '뒤로' }).click();
   await page.getByRole('button', { name: '영상 만들기' }).click();
+  await page.getByRole('alert').getByRole('button', { name: '자동 (기록 수에 맞게)', exact: true }).click();
+  await page.getByRole('alert').getByRole('button', { name: '컷 (바로 전환)', exact: true }).click();
   await page.getByText('영상이 준비됐어요').waitFor({ timeout: 120000 });
   check('영상 안내 문구', await page.getByText('"비디오 저장"을 누르세요', { exact: false }).isVisible());
   await page.getByRole('button', { name: '사진첩에 저장' }).click();

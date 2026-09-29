@@ -16,7 +16,7 @@ import { ProjectDatesSheet } from '@/features/project/ProjectDatesSheet';
 import { RenameProjectSheet } from '@/features/project/RenameProjectSheet';
 import { Scrubber } from '@/features/project/Scrubber';
 import { StitchRow } from '@/shared/ui/StitchRow';
-import { useDeleteProject, useProject, useSetVisibility } from '@/features/project/queries';
+import { useDeleteProject, useProject, useSetPhotosHiddenFromOthers, useSetVisibility } from '@/features/project/queries';
 import { formatDateTime, formatMonthDay } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
 import { Button } from '@/shared/ui/Button';
@@ -35,6 +35,7 @@ export default function ProjectScreen() {
   const posts = usePosts(id);
   const del = useDeleteProject();
   const setVis = useSetVisibility();
+  const setPhotosHidden = useSetPhotosHiddenFromOthers();
   const video = useMakeVideo(id);
   const delPost = useDeletePost();
   const [renaming, setRenaming] = useState(false);
@@ -63,6 +64,23 @@ export default function ProjectScreen() {
       { text: '삭제', style: 'destructive', onPress: () => del.mutate(id, { onSuccess: () => router.back() }) },
     ]);
   };
+  /** 사진당 유지 시간 → 전환 효과 순으로 고른 뒤 시작한다. 그대로 두면 기존과 같은 동작(자동 속도 · 컷) */
+  const chooseVideoOptions = () => {
+    const holdLabels = ['자동 (기록 수에 맞게)', '0.25초씩', '0.5초씩', '1초씩', '2초씩'] as const;
+    const holdValues: (number | undefined)[] = [undefined, 250, 500, 1000, 2000];
+    const chooseTransition = (holdMs: number | undefined) => {
+      showAlert('전환 효과', undefined, [
+        { text: '컷 (바로 전환)', onPress: () => video.start({ holdMs, transition: 'cut' }) },
+        { text: '부드럽게 (페이드)', onPress: () => video.start({ holdMs, transition: 'fade' }) },
+        { text: '취소', style: 'cancel' as const },
+      ]);
+    };
+    showAlert('사진 한 장당 얼마나 보여줄까요?', undefined, [
+      ...holdLabels.map((l, i) => ({ text: l, onPress: () => chooseTransition(holdValues[i]) })),
+      { text: '취소', style: 'cancel' as const },
+    ]);
+  };
+
   const chooseVisibility = () => {
     const labels = ['나만 보기', '팔로워에게', '전체 공개'] as const;
     const values = ['private', 'followers', 'public'] as const;
@@ -115,6 +133,12 @@ export default function ProjectScreen() {
       { text: '이름 바꾸기', onPress: () => setRenaming(true) },
       { text: p?.finished_at ? '날짜·완성 표시 바꾸기' : '날짜 바꾸기 · 완성 표시', onPress: () => setEditingDates(true) },
       { text: '공개 범위 바꾸기', onPress: chooseVisibility },
+      {
+        text: p?.photos_hidden_from_others ? '일상 사진 다시 보이기' : '일상 사진 남에게 숨기기 (결과물만 보이게)',
+        onPress: () => setPhotosHidden.mutate({ id, hidden: !p?.photos_hidden_from_others }, {
+          onError: (e) => showAlert('설정을 바꾸지 못했어요', e instanceof Error ? e.message : String(e)),
+        }),
+      },
       { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
       { text: '취소', style: 'cancel' },
     ]);
@@ -142,6 +166,7 @@ export default function ProjectScreen() {
               {formatMonthDay(p.started_at)} 시작 · 기록 {total}개 ·{' '}
               {p.finished_at ? `${formatMonthDay(p.finished_at)} 완성 · ` : ''}
               {p.default_visibility === 'public' ? '전체 공개' : p.default_visibility === 'followers' ? '팔로워' : '나만'}
+              {p.photos_hidden_from_others ? ' · 일상 사진 숨김' : ''}
             </Text>
           ) : null}
         </View>
@@ -216,7 +241,7 @@ export default function ProjectScreen() {
                 variant="secondary"
                 large
                 disabled={total < MIN_RECORDS}
-                onPress={video.start}
+                onPress={chooseVideoOptions}
                 style={styles.half}
               />
             </View>
@@ -229,7 +254,7 @@ export default function ProjectScreen() {
         recordCount={total}
         estimateSec={estimateDurationMs(items.map(mediaOf)) / 1000}
         onClose={video.reset}
-        onRetry={video.start}
+        onRetry={() => void video.start()}
         onSave={video.save}
       />
       {editingCaption && current ? (

@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const ALL = ['tour', 'install-guide', 'ux', 'ready', 'crud', 'caption', 'avatar', 'album-multi', 'album-videos', 'taken-at', 'reorder', 'trash', 'project-dates', 'explore-popular', 'notifications', 'search', 'likers', 'comments', 'password-reset', 'change-password', 'social-and-password', 'error-report', 'legal', 'delete-account', 'email-confirm', 'share', 'result-ratios', 'video-results', 'video-capture'];
+const ALL = ['release-features', 'tour', 'install-guide', 'ux', 'ready', 'crud', 'caption', 'avatar', 'album-multi', 'album-videos', 'taken-at', 'reorder', 'trash', 'project-dates', 'explore-popular', 'notifications', 'search', 'likers', 'comments', 'password-reset', 'change-password', 'social-and-password', 'error-report', 'legal', 'delete-account', 'email-confirm', 'share', 'result-ratios', 'video-results', 'video-capture'];
 const pick = process.argv.slice(2);
 const scripts = pick.length ? ALL.filter((s) => pick.includes(s)) : ALL;
 
@@ -43,11 +43,12 @@ for (const name of scripts) {
   process.stdout.write(`▶ ${name} … `);
   const r = spawnSync(process.execPath, [join(here, `${name}.mjs`)], { encoding: 'utf8', env: process.env, timeout: 15 * 60_000 });
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  const pass = /RESULT: PASS/.test(out);
+  const pass = r.status === 0 && !r.error && /RESULT: PASS/.test(out);
   const fails = out.split('\n').filter((l) => l.startsWith('FAIL') || l.startsWith('ERROR')).slice(0, 3);
   const seconds = Math.round((Date.now() - started) / 1000);
   rows.push({ name, result: pass ? 'PASS' : 'FAIL', seconds, fails });
   console.log(`${pass ? 'PASS' : 'FAIL'} (${seconds}초)`);
+  if (!pass) console.log(out);
 }
 
 console.log('\n결과');

@@ -56,6 +56,14 @@ export default function PostScreen() {
   const [showLikers, setShowLikers] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ kind: 'post' | 'comment'; id: string; author: string } | null>(null);
 
+  // 원 댓글 아래에 그 답글을 붙여 한 줄로 늘어놓는다 (답글은 한 단계까지)
+  const threaded = useMemo(() => {
+    const all = comments.data ?? [];
+    const roots = all.filter((c) => !c.parent_id);
+    return roots.flatMap((root) => [root, ...all.filter((c) => c.parent_id === root.id)]);
+  }, [comments.data]);
+
+
   if (post.isError) {
     return (
       <SafeAreaView style={styles.root}>
@@ -88,12 +96,6 @@ export default function PostScreen() {
     ]);
   };
 
-  // 원 댓글 아래에 그 답글을 붙여 한 줄로 늘어놓는다 (답글은 한 단계까지)
-  const threaded = useMemo(() => {
-    const all = comments.data ?? [];
-    const roots = all.filter((c) => !c.parent_id);
-    return roots.flatMap((root) => [root, ...all.filter((c) => c.parent_id === root.id)]);
-  }, [comments.data]);
 
   const submit = () => {
     const text = body.trim();

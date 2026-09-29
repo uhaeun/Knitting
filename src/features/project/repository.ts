@@ -17,6 +17,7 @@ const toLocal = (r: RemoteProject): Project => ({
   finished_at: r.finished_at,
   cover_post_id: r.cover_post_id,
   default_visibility: r.default_visibility,
+  photos_hidden_from_others: r.photos_hidden_from_others,
   created_at: r.created_at,
   updated_at: r.updated_at,
   deleted_at: r.deleted_at,
@@ -39,6 +40,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
     finished_at: r.finished_at,
     cover_post_id: r.cover_post_id,
     default_visibility: r.default_visibility,
+    photos_hidden_from_others: r.photos_hidden_from_others,
     created_at: r.created_at,
     updated_at: r.updated_at,
     deleted_at: null,
@@ -70,6 +72,7 @@ export async function createProject(input: {
     started_at: input.started_at,
     finished_at: null,
     default_visibility: input.default_visibility ?? 'private',
+    photos_hidden_from_others: false,
     created_at: now,
     updated_at: now,
     deleted_at: null,
@@ -83,6 +86,12 @@ export async function createProject(input: {
 export async function setProjectVisibility(id: string, v: Visibility): Promise<void> {
   const { error } = await getSupabase().rpc('set_project_visibility', { pid: id, v });
   if (error) throw new Error(`공개 범위를 바꾸지 못했어요: ${error.message}`);
+}
+
+/** 일상 사진 숨기기 켜고 끄기. 켜면 이 편물의 posts는 본인 말고는 못 본다 (results는 영향 없음) */
+export async function setPhotosHiddenFromOthers(id: string, hidden: boolean): Promise<void> {
+  const { error } = await getSupabase().rpc('set_photos_hidden_from_others', { pid: id, hidden });
+  if (error) throw new Error(`설정을 바꾸지 못했어요: ${error.message}`);
 }
 
 export type TrashItem = {

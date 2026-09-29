@@ -122,6 +122,8 @@ try {
   console.log('\n== 성장 영상 (사진 500ms × 2 + 영상 + 마지막 1초)');
   await page.getByRole('button', { name: '뒤로' }).click();
   await page.getByRole('button', { name: '영상 만들기' }).click();
+  await page.getByRole('alert').getByRole('button', { name: '자동 (기록 수에 맞게)', exact: true }).click();
+  await page.getByRole('alert').getByRole('button', { name: '컷 (바로 전환)', exact: true }).click();
   await page.getByText('영상이 준비됐어요').waitFor({ timeout: 180000 });
   const growth = probe(await download('파일로 저장', 'growth.mp4'));
   const expected = 500 + 500 + Number(clipMs) + 1000;
