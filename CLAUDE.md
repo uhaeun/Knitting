@@ -1,7 +1,7 @@
 # Knitting (닛팅)
 
-뜨개 편물을 같은 각도로 찍어 쌓고, 그 사진으로 성장 영상과 결과 사진을 만드는 **웹앱**.
-Expo(react-native-web) + TypeScript + Supabase. 폰 브라우저가 주 사용처다.
+뜨개 편물을 같은 각도로 찍어 쌓고, 성장 영상과 결과 사진을 만드는 서비스.
+Expo(react-native-web) + TypeScript + Supabase. 웹을 배포하고 Capacitor iOS·Android 앱에서 같은 화면을 사용한다.
 
 **이 파일은 매 세션의 상시 규칙이다. 작업 시작 전에 반드시 읽는다.**
 
@@ -9,24 +9,23 @@ Expo(react-native-web) + TypeScript + Supabase. 폰 브라우저가 주 사용�
 
 ## 지금 어느 단계인가
 
-> 이 절은 단계가 바뀔 때마다 갱신한다. **현재: 웹앱 전환·배포 완료(2026-09-17, https://knitting-pied.vercel.app). 다음은 iPhone Safari 실사용.**
+> 현재: **웹 배포와 하이브리드 앱 구현, 10월 초 포트폴리오 마무리 단계(2026-09-29)**. 운영 주소: https://knitting-pied.vercel.app. 최신 실행 증거와 미완료 항목은 `docs/MVP_상태.md`, 마감 기준은 `docs/포트폴리오_완료계획_1002.md`에 기록한다.
 
-**2026-09-17 결정: iOS·Android 네이티브 앱을 접고 웹앱 하나로 간다.** 혼자 개발하므로 네이티브 빌드·스토어·플랫폼별 인코더 유지 비용을 없앤다.
-네이티브 코드는 커밋 `a26640a`(PR #1 병합)까지 git 기록에 있다. 되살리지 말자는 결정이 아니라 **지금은 안 한다**는 결정이다.
+2026-09-17에는 웹앱으로 전환했고, 이후 Capacitor 앱이 추가됐다. 화면·카메라·영상 처리는 웹 기술을 공유하고 앱 사진첩·로컬 알림은 플러그인을 사용한다. 이전의 “네이티브 전면 보류” 문구는 현재 구조를 설명하지 않는다. 스토어 배포는 아직 미완료다.
 
 | | 상태 |
 |---|---|
 | 저장 위치 | **Supabase가 원본.** 로컬 DB·파일·동기화 없음 |
 | 로그인 | 필수. 이메일+비밀번호 |
-| 서버 | Supabase. `supabase/migrations/` 0001 → 0004 순서로 적용 (실서버 적용 완료) |
-| 목표 | iPhone Safari에서 매일 촬영 → 결과 사진·영상을 사진첩에 저장까지 막힘없이 |
+| 서버 | Supabase. 현재 마이그레이션 0001~0014. 기존 적용 파일은 재실행하지 않고 신규 변경만 순서대로 적용 |
+| 목표 | iPhone·Android 핵심 촬영→결과물→저장 QA와 증거·개인 기여 정리 |
 
 `docs/닛팅_설계도_v1.1.html`·`진행가이드`·`함께시작하기_다희`는 **네이티브 2인 개발 시절 문서**다. 데이터 모델·RLS·화면 흐름은 여전히 참고하되, 스택·빌드·역할 분담 부분은 이 파일이 우선한다.
 
 ### 하지 말 것
 
-- **iOS·Android 네이티브 코드를 다시 들이지 않는다** (Skia, expo-sqlite, expo-file-system, 네이티브 모듈, EAS Build). 하은이 네이티브 복귀를 정하기 전까지
-- `.web.ts` 같은 플랫폼 분기 파일을 만들지 않는다. `Platform.OS` 분기도 쓰지 않는다. 플랫폼은 웹 하나다
+- 공통 웹 화면을 유지한다. 별도 네이티브 UI·인코더 전환이나 EAS Build 도입은 현재 마감 범위에 없다
+- 웹/Capacitor 구분은 기존 `shared/lib/platform.ts`를 사용한다. 화면을 플랫폼별로 복제하지 않는다
 - **RLS 조건을 클라이언트에서 중복 작성하지 않는다.** 가시성 판정은 서버 정책이 한다
 - **서명 URL을 개별 발급하지 않는다.** `createSignedUrls` 배치만
 - 대댓글·DM·알고리즘 추천·오프라인 업로드 큐는 v2
@@ -38,10 +37,11 @@ Expo(react-native-web) + TypeScript + Supabase. 폰 브라우저가 주 사용�
 ### 데이터
 
 - ID는 UUID v4 (`crypto.randomUUID`). auto-increment 금지
-- soft delete만. `deleted_at`. 물리 삭제 금지
+- 일반 기록 삭제는 `deleted_at`을 통한 soft delete. 명시적인 계정 삭제와 실패 업로드 정리는 기존 전용 경로를 따른다
 - 모든 레코드에 `created_at`, `updated_at`, `deleted_at`
 - 사진은 **장변 1440px / JPEG q80** + **400px 썸네일**. **중앙 정사각 크롭**, **EXIF 회전 정규화**
 - Storage 경로는 `{owner}/{project}/{post}.jpg`, 썸네일 `_t.jpg`
+- 발행 결과물은 `remoteResultPath`·`remoteResultThumbPath`의 중첩 경로를 사용한다. 계정 삭제 때 하위 폴더도 정리한다
 
 ### 저장 파이프라인 순서 — 고정
 
@@ -64,6 +64,7 @@ INSERT가 실패하면 올린 파일을 지운다. 저장 실패 시 **재시도
 ### 저장·공유 (사진첩)
 
 - 웹은 사진첩에 직접 쓸 수 없다. **저장 버튼 = 공유 창을 연다 → 사용자가 "이미지 저장"/"비디오 저장"을 누른다.** 공유 창이 없는 브라우저(데스크톱)는 파일 내려받기
+- Capacitor 앱에서는 같은 `saveOrShare`가 사진첩 플러그인으로 저장한다. 웹 공유 성공과 실제 앱 사진첩 저장 성공은 별도로 검증한다
 - `@/shared/lib/saveFile`의 `saveOrShare`만 쓴다. **공유할 `File`은 버튼을 누르기 전에 만들어 둔다** (iPhone Safari는 누른 직후가 아니면 공유 창을 막는다. 누른 뒤 await로 파일을 만들면 막힌다)
 - 저장 버튼 근처에 "공유 창에서 '이미지 저장'을 누르세요" 안내를 둔다
 
@@ -107,7 +108,7 @@ INSERT가 실패하면 올린 파일을 지운다. 저장 실패 시 **재시도
 | 단수 카운터, 실 재고 관리, 도안 뷰어 | 종합형 앱과 정면 경쟁하지 않는다 |
 | 대댓글, DM, 알고리즘 추천 | v2 |
 | 오프라인 업로드 큐 · 로그인 없이 쓰기 | 제외. 서버가 원본이다. 단 저장 실패 시 재시도 버튼은 필수 |
-| 네이티브 앱 (iOS·Android) | 2026-09-17 보류. 위 "지금 어느 단계인가" |
+| 별도 네이티브 화면·인코더 재작성 | 현재는 공통 웹 화면 + Capacitor 구조 유지 |
 | 다크 모드 | 나중. 단 토큰 구조는 대비해 둔다 |
 
 ---
@@ -126,6 +127,7 @@ INSERT가 실패하면 올린 파일을 지운다. 저장 실패 시 **재시도
 | 결과 사진 | Canvas 2D |
 | 백엔드 | Supabase (Auth · Postgres + RLS · Storage) |
 | 배포 | Vercel (`npx vercel deploy --prod`, 설정은 `vercel.json`) |
+| 앱 | Capacitor iOS·Android, 사진첩·로컬 알림 플러그인 |
 
 **쓰지 않기로 한 것**: Redux/MobX, ffmpeg 계열, NativeWind, 자체 API 서버, Skia, expo-sqlite, EAS Build.
 

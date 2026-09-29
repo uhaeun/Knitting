@@ -42,6 +42,9 @@ try {
   await page.getByRole('button', { name: '지우기', exact: true }).click();
   await page.getByText('1번째 / 1').waitFor({ timeout: 30000 });
   check('기록을 지우면 목록에서 빠진다', (await body()).includes('기록 1개'));
+  await page.getByRole('button', { name: '사진 찍기' }).click();
+  await shoot(2);
+  check('삭제 후 다시 추가해도 최신 기록을 선택한다', (await body()).includes('2번째 / 2'));
 
   // 2) 새로고침 후에도 촬영 설정이 남아 있다
   await page.reload();
@@ -52,10 +55,20 @@ try {
   // 4) 프로필 편집
   await page.goto(`${BASE}/me`);
   await page.getByRole('button', { name: '프로필 편집' }).click({ timeout: 30000 });
+  await page.getByPlaceholder('하은').fill('취소할 이름');
+  await page.getByPlaceholder('예: 겨울 내내 스웨터 하나 뜨는 중').fill('취소할 소개');
+  await page.getByLabel('닫기', { exact: true }).click({ position: { x: 5, y: 5 } });
+  await page.getByPlaceholder('하은').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: '프로필 편집' }).click();
+  check('취소한 프로필 초안은 다음 편집에 남지 않는다',
+    await page.getByPlaceholder('하은').inputValue() === '점검'
+    && await page.getByPlaceholder('예: 겨울 내내 스웨터 하나 뜨는 중').inputValue() === '');
   await page.getByPlaceholder('하은').fill('점검하는 사람');
   await page.getByRole('button', { name: '저장' }).last().click();
   await page.waitForTimeout(1500);
   check('표시 이름을 바꿀 수 있다', (await body()).includes('점검하는 사람'));
+  await page.getByRole('button', { name: '프로필 편집' }).click();
+  check('저장 후 다시 열면 최신 프로필로 시작한다', await page.getByPlaceholder('하은').inputValue() === '점검하는 사람');
 } catch (e) {
   failed += 1; console.log('ERROR', e.message.slice(0, 200));
   await page.screenshot({ path: process.env.SHOT ?? '/tmp/ready-fail.png' });

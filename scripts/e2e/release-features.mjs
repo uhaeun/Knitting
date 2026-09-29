@@ -75,7 +75,7 @@ try {
   await b.getByRole('button', { name: '팔로우', exact: true }).click({ timeout: 60000 });
   await b.getByRole('button', { name: '팔로잉', exact: true }).waitFor({ timeout: 30000 });
   await b.goto(`${BASE}/projects`);
-  await b.getByText('피드', { exact: true }).first().click();
+  await b.getByRole('tab', { name: '피드', exact: true }).click();
   await b.getByRole('button', { name: '병합 QA의 결과물', exact: true }).waitFor({ timeout: 30000 });
   await b.getByRole('button', { name: '병합 QA의 결과물', exact: true }).click();
   await b.getByRole('img', { name: '결과물', exact: true }).waitFor();

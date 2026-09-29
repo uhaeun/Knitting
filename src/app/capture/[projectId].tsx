@@ -2,7 +2,7 @@ import { useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -162,12 +162,13 @@ export default function CaptureScreen() {
   };
 
   // 녹화 시간 표시와 5초 자동 정지
+  const stopOnTimeout = useEffectEvent(() => { void stopAndSave(); });
   useEffect(() => {
     if (recordingSince === null) return;
     const t = setInterval(() => {
       const ms = Date.now() - recordingSince;
       setElapsed(ms);
-      if (shouldAutoStop(ms)) void stopAndSave();
+      if (shouldAutoStop(ms)) stopOnTimeout();
     }, 100);
     return () => clearInterval(t);
   }, [recordingSince]);
@@ -306,7 +307,7 @@ export default function CaptureScreen() {
               : '브라우저 주소창의 카메라 권한을 허용한 뒤 다시 시도해 주세요. 카메라 없이 앨범에서 가져올 수도 있어요.'}
           </Text>
           <Text style={styles.permissionHint}>
-            열 때마다 다시 묻는다면 주소창 왼쪽 아A → 웹사이트 설정 → 카메라를 "허용"으로 바꿔 주세요.
+            열 때마다 다시 묻는다면 주소창 왼쪽 아A → 웹사이트 설정 → 카메라를 ‘허용’으로 바꿔 주세요.
             홈 화면에 추가해서 열면 덜 묻습니다.
           </Text>
           <Button label={permission.canAskAgain ? '권한 허용' : '다시 시도'} onPress={() => void requestPermission()} />

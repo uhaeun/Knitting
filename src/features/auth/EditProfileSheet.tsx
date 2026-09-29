@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { validateDisplayName } from '@/features/auth/api';
@@ -19,18 +19,17 @@ type Props = { visible: boolean; onClose: () => void };
 
 /** 표시 이름·소개 바꾸기. 아이디는 바꾸지 않는다 (다른 사람이 링크로 찾아오는 주소라서) */
 export function EditProfileSheet({ visible, onClose }: Props) {
+  // 닫을 때 편집 폼을 해제한다. 다시 열면 최신 프로필로 시작하며 취소한
+  // 입력값을 effect로 뒤늦게 덮어쓰는 렌더가 생기지 않는다.
+  return visible ? <EditProfileForm onClose={onClose} /> : null;
+}
+
+function EditProfileForm({ onClose }: Pick<Props, 'onClose'>) {
   const profile = useAuth((s) => s.profile);
   const update = useUpdateProfile();
   const [name, setName] = useState(profile?.display_name ?? '');
   const [bio, setBio] = useState(profile?.bio ?? '');
   const [busyPhoto, setBusyPhoto] = useState(false);
-
-  // 열 때마다 지금 값으로
-  useEffect(() => {
-    if (!visible) return;
-    setName(profile?.display_name ?? '');
-    setBio(profile?.bio ?? '');
-  }, [visible, profile?.display_name, profile?.bio]);
 
   if (!profile) return null;
   const nameError = name.trim() ? validateDisplayName(name) : null;
@@ -80,7 +79,7 @@ export function EditProfileSheet({ visible, onClose }: Props) {
     );
 
   return (
-    <BottomSheet visible={visible} title="프로필 편집" onClose={onClose}>
+    <BottomSheet visible title="프로필 편집" onClose={onClose}>
       <View style={styles.block}>
         <View style={styles.photoRow}>
           <Avatar path={profile.avatar_path} name={profile.display_name} size={64} />
