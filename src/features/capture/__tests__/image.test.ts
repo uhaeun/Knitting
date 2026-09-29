@@ -1,4 +1,4 @@
-import { captureCanvasSize, centerSquare } from '@/features/capture/image';
+import { captureCanvasSize, centerSquare, zoomCropRect } from '@/features/capture/image';
 
 describe('centerSquare', () => {
   it('세로 사진: 가로 기준 정사각, 위아래 잘라냄', () => {
@@ -21,5 +21,17 @@ describe('captureCanvasSize', () => {
   });
   it('세로 사진도 같은 비율로 줄인다', () => {
     expect(captureCanvasSize(3024, 4032, 2560)).toEqual({ width: 1920, height: 2560 });
+  });
+});
+
+describe('zoomCropRect', () => {
+  it('1배는 원본 그대로', () => {
+    expect(zoomCropRect(1000, 1000, 1)).toEqual({ x: 0, y: 0, width: 1000, height: 1000 });
+  });
+  it('2배는 가운데 절반만 (가로세로 각각 1/2배 크기)', () => {
+    expect(zoomCropRect(1000, 1000, 2)).toEqual({ x: 250, y: 250, width: 500, height: 500 });
+  });
+  it('1보다 작은 값은 1로 취급 (원본보다 넓게 찍을 수는 없다)', () => {
+    expect(zoomCropRect(1000, 800, 0.5)).toEqual({ x: 0, y: 0, width: 1000, height: 800 });
   });
 });

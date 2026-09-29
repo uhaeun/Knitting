@@ -55,6 +55,11 @@ export default function CaptureScreen() {
   const saveVideo = useSaveVideoPost(projectId);
   const { ghost, grid, mode, setGhost, toggleGrid, setMode } = useCaptureSettings();
   const videoSupported = canRecordVideo();
+  // 디지털 줌. 사진에만 적용된다 (Camera.tsx 참고). 모드를 영상으로 바꾸면 되돌린다
+  const [zoom, setZoom] = useState(1);
+  const ZOOM_MIN = 1;
+  const ZOOM_MAX = 3;
+  const ZOOM_STEP = 0.5;
   const [recordingSince, setRecordingSince] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [progress, setProgress] = useState<string | null>(null);
@@ -334,6 +339,7 @@ export default function CaptureScreen() {
           onCameraReady={() => setReady(true)}
           onInterrupted={handleInterrupted}
           style={{ width: screenW, height: previewH, marginTop: (screenW - previewH) / 2 }}
+          zoom={zoom}
         />
         {ghostUri && ghost !== 'off' ? (
           <Image
@@ -372,10 +378,35 @@ export default function CaptureScreen() {
             // CameraView가 새 스트림 재생 후 onCameraReady를 다시 불러 true로 돌아온다.
             setReady(false);
             setMode(m);
+            setZoom(1);
           }}
           videoDisabled={!videoSupported}
           disabled={saving}
         />
+        {mode === 'photo' ? (
+          <View style={styles.controls}>
+            <Text style={styles.controlLabel}>확대</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="축소"
+              disabled={zoom <= ZOOM_MIN}
+              onPress={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 10) / 10))}
+              style={[styles.zoomButton, zoom <= ZOOM_MIN && styles.zoomButtonDisabled]}
+            >
+              <Text style={styles.zoomButtonText}>−</Text>
+            </Pressable>
+            <Text style={styles.zoomValue}>{zoom.toFixed(1)}x</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="확대"
+              disabled={zoom >= ZOOM_MAX}
+              onPress={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10))}
+              style={[styles.zoomButton, zoom >= ZOOM_MAX && styles.zoomButtonDisabled]}
+            >
+              <Text style={styles.zoomButtonText}>+</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {isFirst ? (
           <View style={styles.hint}>
             <View style={styles.hintBar} />
@@ -467,6 +498,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   gridButtonOn: { backgroundColor: color.onDark },
+  zoomButton: {
+    width: size.tap, height: size.tap,
+    borderWidth: size.hairline, borderColor: color.onDarkBorder, borderRadius: radius.pill,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  zoomButtonDisabled: { opacity: 0.4 },
+  zoomButtonText: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.onDark },
+  zoomValue: { fontSize: fontSize.caption, color: color.onDark, minWidth: 36, textAlign: 'center' },
   gridIcon: { width: 18, height: 18, gap: 1 },
   gridIconRow: { flex: 1, flexDirection: 'row', gap: 1 },
   gridIconCell: { flex: 1, borderWidth: 1, borderColor: color.onDarkSecondary },
