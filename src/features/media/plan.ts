@@ -33,9 +33,20 @@ export function clipCapMs(clipMs: readonly number[], budgetMs: number): number {
   return Infinity;
 }
 
+/** 성장 영상 전환 효과. cut(바로 전환) 또는 fade(배경색으로 페이드 인·아웃) */
+export type Transition = 'cut' | 'fade';
+/** 페이드에 쓰는 기본 시간. 구간이 이보다 짧으면 구간 길이의 절반으로 줄인다 */
+export const FADE_MS = 250;
+
+export type VideoOptions = {
+  /** 사진 한 장이 머무는 시간(ms). 안 주면 기록 수에 맞춰 자동(photoHoldMs) */
+  holdMs?: number;
+  transition?: Transition;
+};
+
 /** 사진은 머무는 시간, 영상은 클립 길이 (전체가 MAX_GROWTH_MS를 넘으면 잘라서). 마지막 기록은 1초 더 (영상이면 마지막 장면 정지) */
-export function buildSegments(items: readonly MediaItem[]): Segment[] {
-  const hold = photoHoldMs(items.length);
+export function buildSegments(items: readonly MediaItem[], options: VideoOptions = {}): Segment[] {
+  const hold = options.holdMs ?? photoHoldMs(items.length);
   const clips = items.flatMap((item) => (item.kind === 'video' ? [item.durationMs] : []));
   const photoMs = (items.length - clips.length) * hold;
   const cap = clipCapMs(clips, MAX_GROWTH_MS - LAST_HOLD_MS - photoMs);
@@ -67,4 +78,27 @@ export function segmentAt(segments: readonly Segment[], tMs: number): Segment {
 
 export function estimateDurationMs(items: readonly MediaItem[]): number {
   return totalDurationMs(buildSegments(items));
+}
+
+/**
+ * fade일 때 이 구간의 이미지를 그릴 투명도 (0~1). 한 번에 이미지 하나만 메모리에 두는 제약(설계 절대 규칙) 때문에
+ * 앞뒤 구간과 실제로 섞지 않고, 배경색으로 각자 페이드 인·아웃해서 전환처럼 보이게 한다.
+ * 첫 구간은 시작에서, 마지막 구간은 끝에서 어두워지지 않는다 (화면이 비어 보이지 않게).
+ */
+export function segmentAlpha(
+  withinMs: number,
+  durationMs: number,
+  isFirst: boolean,
+  isLast: boolean,
+  transition: Transition,
+  fadeMs: number = FADE_MS,
+): number {
+  if (transition !== 'fade') return 1;
+  const fade = Math.min(fadeMs, durationMs / 2);
+  if (fade <= 0) return 1;
+  const remainMs = durationMs - withinMs;
+  let alpha = 1;
+  if (!isFirst && withinMs < fade) alpha = Math.min(alpha, withinMs / fade);
+  if (!isLast && remainMs < fade) alpha = Math.min(alpha, remainMs / fade);
+  return alpha;
 }
