@@ -48,6 +48,7 @@ for (const name of scripts) {
   const seconds = Math.round((Date.now() - started) / 1000);
   rows.push({ name, result: pass ? 'PASS' : 'FAIL', seconds, fails });
   console.log(`${pass ? 'PASS' : 'FAIL'} (${seconds}초)`);
+  if (!pass) console.log(out);
 }
 
 console.log('\n결과');

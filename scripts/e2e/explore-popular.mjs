@@ -11,7 +11,7 @@ const stamp = Date.now().toString(36);
 const username = `pop_${stamp}`;
 let failed = 0;
 const check = (n, ok, d = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${n} ${d}`); if (!ok) failed += 1; };
-const sql = (q) => execFileSync('psql', [DB, '-tAc', q]).toString().trim();
+const sql = (q) => execFileSync('psql', [DB, '-X', '-v', 'ON_ERROR_STOP=1', '-qAtc', q]).toString().trim();
 
 const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
 // 12개가 한 화면에 다 들어가면 스크롤이 없어서 '더 보기'가 일어나지 않는다. 일부러 짧은 화면
@@ -41,7 +41,11 @@ try {
   const mine = Number(sql(`select count(*) from posts where owner_id = '${owner}' and visibility = 'public'`));
   check('공개 기록 20개 준비', mine === 20, String(mine));
   // 탐색은 다른 계정의 공개 글도 함께 보여 준다. 서버에 실제로 보이는 전체 개수를 기준으로 삼는다
-  const visible = Number(sql(`select count(*) from posts where visibility = 'public' and deleted_at is null and hidden_at is null`));
+  const visible = Number(sql(`begin;
+    set local role authenticated;
+    set local request.jwt.claim.sub = '${owner}';
+    select count(*) from posts where visibility = 'public' and deleted_at is null and hidden_at is null;
+    rollback;`));
 
   console.log('\n== 인기 탭');
   await page.goto(`${BASE}/explore`);

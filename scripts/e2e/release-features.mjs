@@ -74,6 +74,7 @@ try {
   await b.goto(`${BASE}/user/${username}`);
   await b.getByRole('button', { name: '팔로우', exact: true }).click({ timeout: 60000 });
   await b.getByRole('button', { name: '팔로잉', exact: true }).waitFor({ timeout: 30000 });
+  await b.goto(`${BASE}/projects`);
   await b.getByText('피드', { exact: true }).first().click();
   await b.getByRole('button', { name: '병합 QA의 결과물', exact: true }).waitFor({ timeout: 30000 });
   await b.getByRole('button', { name: '병합 QA의 결과물', exact: true }).click();
@@ -94,4 +95,6 @@ try {
   process.exitCode = 1;
 } finally {
   await browser.close();
+  // 숨김 설정을 한 시험 기록이 다음 탐색 검사에 남지 않도록 계정과 종속 데이터를 정리한다.
+  sql(`delete from auth.users where email in ('${username}@example.com', 'guest_${stamp}@example.com')`);
 }
