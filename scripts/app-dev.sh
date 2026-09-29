@@ -60,7 +60,8 @@ case "${1:-}" in
     echo "이 파일을 다희에게 한 번만 전달. 이후 웹 배포마다 앱도 같이 바뀐다"
     ;;
   off)
-    npx expo export -p web >/dev/null
+    # 로컬 Appium 빌드 뒤에는 Metro에 시험 서버 주소가 남을 수 있어 캐시를 비운다.
+    npm run build >/dev/null
     npx cap sync
     echo "테스터용 설정으로 되돌림 (앱이 dist를 쓴다). 폰에 넣으려면 평소처럼 다시 빌드·설치"
     ;;
