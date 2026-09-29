@@ -135,7 +135,9 @@ export default function ProjectScreen() {
       { text: '공개 범위 바꾸기', onPress: chooseVisibility },
       {
         text: p?.photos_hidden_from_others ? '일상 사진 다시 보이기' : '일상 사진 남에게 숨기기 (결과물만 보이게)',
-        onPress: () => setPhotosHidden.mutate({ id, hidden: !p?.photos_hidden_from_others }),
+        onPress: () => setPhotosHidden.mutate({ id, hidden: !p?.photos_hidden_from_others }, {
+          onError: (e) => showAlert('설정을 바꾸지 못했어요', e instanceof Error ? e.message : String(e)),
+        }),
       },
       { text: '편물 삭제', style: 'destructive', onPress: confirmDelete },
       { text: '취소', style: 'cancel' },
@@ -252,7 +254,7 @@ export default function ProjectScreen() {
         recordCount={total}
         estimateSec={estimateDurationMs(items.map(mediaOf)) / 1000}
         onClose={video.reset}
-        onRetry={video.start}
+        onRetry={() => void video.start()}
         onSave={video.save}
       />
       {editingCaption && current ? (

@@ -81,7 +81,7 @@ export default function ResultScreen() {
             <Button label="다시 시도" variant="secondary" onPress={r.retry} />
           </View>
         ) : null}
-        {r.kind === 'triple' && !r.composing && !r.loadingPhotos && !r.error ? (
+        {r.kind === 'triple' && r.output === 'jpeg' && !r.composing && !r.loadingPhotos && !r.error ? (
           <TriplePositionEditor
             uris={r.panelUris}
             focusY={r.focusY}

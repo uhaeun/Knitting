@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { layoutPanels, RESULT_METRICS, RESULT_SIDE } from '@/features/media/resultPlan';
 import { color } from '@/shared/ui/tokens';
@@ -30,7 +30,7 @@ export function TriplePositionEditor({ uris, focusY, width, height, onCommit }: 
     <div style={{ position: 'absolute', left: 0, top: 0, width, height }}>
       {rects.map((rect, i) => (
         <PanelBand
-          key={i}
+          key={`${i}-${focusY[i] ?? 0.5}`}
           uri={uris[i]}
           rect={rect}
           focusY={focusY[i] ?? 0.5}
@@ -59,8 +59,8 @@ function PanelBand({
   onCommit: (value: number) => void;
 }) {
   const [live, setLive] = useState(focusY);
+  const [dragging, setDragging] = useState(false);
   const drag = useRef<{ startY: number; startFocus: number } | null>(null);
-  useEffect(() => setLive(focusY), [focusY]);
 
   // 원본은 늘 정사각(저장 규칙)이라 너비 기준으로 채우면 이미지 높이는 칸 너비와 같다.
   // 그 초과분(칸보다 큰 만큼)만큼만 위아래로 끌 수 있다
@@ -74,6 +74,7 @@ function PanelBand({
     }
     if (overflow <= 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
     drag.current = { startY: e.clientY, startFocus: live };
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -84,11 +85,13 @@ function PanelBand({
   const onPointerUp = () => {
     if (!drag.current) return;
     drag.current = null;
+    setDragging(false);
     onCommit(live);
   };
 
   return (
     <div
+      aria-label="3분할 사진 위치 조정"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -105,9 +108,9 @@ function PanelBand({
         boxShadow: selected ? `inset 0 0 0 2px ${color.accent}` : 'none',
       }}
     >
-      {uri ? (
-        // eslint-disable-next-line jsx-a11y/alt-text -- 장식용, 실제 결과는 아래 합성 미리보기가 대신한다
+      {uri && dragging ? (
         <img
+          alt=""
           src={uri}
           draggable={false}
           style={{

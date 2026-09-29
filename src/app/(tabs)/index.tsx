@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/store';
 import { confirmDeletePost } from '@/features/capture/confirmDeletePost';
 import { useDeletePost } from '@/features/capture/queries';
 import { ResultStrip } from '@/features/media/ResultStrip';
+import { useFollowingResults } from '@/features/media/resultsQueries';
 import { PostActionsSheet } from '@/features/social/PostActionsSheet';
 import { PostCard } from '@/features/social/PostCard';
 import { flattenFeed, useFollowingFeed, useMyLikes, useToggleLike, useUnreadCount } from '@/features/social/queries';
@@ -21,6 +22,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const session = useAuth((s) => s.session);
   const feed = useFollowingFeed();
+  const results = useFollowingResults();
   const { posts, urls } = useMemo(() => flattenFeed(feed.data), [feed.data]);
   const likes = useMyLikes('following', posts.map((p) => p.id));
   const toggleLike = useToggleLike();
@@ -42,7 +44,7 @@ export default function FeedScreen() {
 
       {feed.isError ? (
         <EmptyState title="피드를 불러오지 못했어요" description={String(feed.error)} />
-      ) : posts.length === 0 && !feed.isPending ? (
+      ) : posts.length === 0 && !feed.isPending && !results.isPending && !results.data?.results.length ? (
         <EmptyState
           title="아직 볼 게 없어요"
           description="탐색 탭에서 다른 사람을 팔로우하면 여기에 그 사람의 편물이 쌓입니다."
@@ -53,7 +55,7 @@ export default function FeedScreen() {
         <FlatList
           data={posts}
           keyExtractor={(p) => p.id}
-          refreshControl={<RefreshControl refreshing={feed.isRefetching} onRefresh={feed.refetch} tintColor={color.accent} />}
+          refreshControl={<RefreshControl refreshing={feed.isRefetching || results.isRefetching} onRefresh={() => { void feed.refetch(); void results.refetch(); }} tintColor={color.accent} />}
           ListHeaderComponent={<ResultStrip />}
           onEndReachedThreshold={0.5}
           onEndReached={() => feed.hasNextPage && !feed.isFetchingNextPage && feed.fetchNextPage()}

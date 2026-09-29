@@ -1,7 +1,7 @@
 -- RLS 가시성 검증 매트릭스. 설계도 v1.1 4장의 조합표를 실행 가능한 형태로 고정한다.
 -- 정책은 눈으로 검증할 수 없다. 이 파일이 그 역할을 한다.
 --
--- 전제: migrations 0001~0013 적용.
+-- 전제: migrations 0001~0014 적용.
 -- 실행: Supabase SQL Editor에 통째로 붙여넣는다. 마지막 줄이 ALL PASS여야 한다.
 -- 전체가 rollback으로 끝나므로 데이터는 남지 않는다.
 -- ⚠️ auth.users에 임시 행을 넣으므로 개발 프로젝트에서만 실행할 것.
@@ -280,6 +280,37 @@ insert into t_result values
   (34,'photos_hidden_from_others인 편물이어도 결과물은 그대로 보인다', true,
       pg_temp.result_visible_as((select id from t_ids where label='C'), 'f0000000-0000-4000-8000-000000000032'));
 
+-- 결과물 권한 회귀: 차단, soft delete, 편물 공개 범위·삭제와의 일관성
+insert into t_result values
+  (35,'차단한 D는 A의 공개 결과물을 못 본다', false,
+      pg_temp.result_visible_as((select id from t_ids where label='D'), 'f0000000-0000-4000-8000-000000000031')),
+  (36,'소유자는 결과물을 soft delete 할 수 있다', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$update results set deleted_at = now() where id = 'f0000000-0000-4000-8000-000000000031'$$));
+insert into t_result values
+  (37,'지운 결과물은 타인에게 보이지 않는다', false,
+      pg_temp.result_visible_as((select id from t_ids where label='C'), 'f0000000-0000-4000-8000-000000000031')),
+  (38,'소유자는 지운 결과물을 복원할 수 있다', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$update results set deleted_at = null where id = 'f0000000-0000-4000-8000-000000000031'$$)),
+  (39,'편물 공개 범위를 비공개로 바꾼다', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$select set_project_visibility('a0000000-0000-4000-8000-000000000002', 'private')$$));
+insert into t_result values
+  (40,'편물을 비공개로 바꾸면 기존 공개 결과물도 안 보인다', false,
+      pg_temp.result_visible_as((select id from t_ids where label='C'), 'f0000000-0000-4000-8000-000000000031')),
+  (41,'결과물이 있는 편물을 삭제할 수 있다', true,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$select soft_delete_project('a0000000-0000-4000-8000-000000000003')$$));
+insert into t_result values
+  (42,'지운 편물의 결과물은 타인에게 보이지 않는다', false,
+      pg_temp.result_visible_as((select id from t_ids where label='C'), 'f0000000-0000-4000-8000-000000000032')),
+  (43,'지운 편물에는 새 결과물을 발행할 수 없다', false,
+      pg_temp.writes_as((select id from t_ids where label='A'),
+        $$insert into results (project_id, owner_id, kind, ratio, output, file_path, thumb_path)
+          values ('a0000000-0000-4000-8000-000000000003', '11111111-1111-1111-1111-111111111111',
+                  'single', '1:1', 'jpeg', 'a/deleted.jpg', 'a/deleted_t.jpg')$$));
+
 -- 트리거 검증도 함께
 create temporary table t_trigger (항목 text, 기대 text, 실제 text);
 insert into t_trigger
@@ -307,5 +338,13 @@ select
   case when (select count(*) from t_result  where 기대 is distinct from 실제)
           + (select count(*) from t_trigger where 기대 is distinct from 실제) = 0
        then 'ALL PASS' else 'FAIL — 위 표에서 pass=false 행을 볼 것' end as 결과;
+
+do $$
+begin
+  if exists (select 1 from t_result where 기대 is distinct from 실제)
+     or exists (select 1 from t_trigger where 기대 is distinct from 실제) then
+    raise exception 'RLS regression failed';
+  end if;
+end $$;
 
 rollback;

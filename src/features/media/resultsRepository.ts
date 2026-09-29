@@ -74,7 +74,8 @@ export type ResultsPage = { results: FeedResult[]; urls: Map<string, string> };
 /** 팔로잉 피드용 결과물. v1: 최근 것부터 일정 개수만 (posts처럼 커서 페이지네이션은 아직 없음) */
 export async function fetchFollowingResults(limit = 20): Promise<ResultsPage> {
   const sb = getSupabase();
-  const { data: follows, error: fe } = await sb.from('follows').select('followee_id').eq('status', 'accepted');
+  const { data: follows, error: fe } = await sb.from('follows').select('followee_id')
+    .eq('follower_id', requireUserId()).eq('status', 'accepted');
   if (fe) throw new Error(fe.message);
   const ids = (follows ?? []).map((f) => (f as { followee_id: string }).followee_id);
   if (ids.length === 0) return { results: [], urls: new Map() };

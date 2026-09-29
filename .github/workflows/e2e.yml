@@ -1,4 +1,4 @@
-# 웹 화면 검사(Playwright) 27개를 GitHub에서 돌린다.
+# 웹 화면 검사(Playwright)와 DB 권한 회귀를 GitHub에서 돌린다.
 #
 # 리눅스 러너에는 도커가 있어서 로컬 Supabase를 띄울 수 있다 (맥 러너에는 없다).
 # 덕분에 각자 컴퓨터에 도커를 깔지 않아도 올릴 때마다 검사가 돈다.
@@ -42,6 +42,9 @@ jobs:
           done
           mv /tmp/migrations/*.sql supabase/migrations/
 
+      - name: DB 권한 회귀 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/rls_matrix.sql
+
       - name: 서버 주소·열쇠 꺼내기
         run: |
           npx supabase status -o env | sed 's/^/SB_/' >> "$GITHUB_ENV"
@@ -60,7 +63,7 @@ jobs:
           done
           curl -sf http://localhost:8098 > /dev/null || { echo "웹 서버가 안 떴다"; tail -30 /tmp/web.log; exit 1; }
 
-      - name: 검사 27개
+      - name: 웹 E2E 전체 검사
         run: |
           SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
           SUPABASE_SERVICE_KEY="$SERVICE" npm run e2e
