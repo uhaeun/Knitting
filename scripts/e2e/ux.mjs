@@ -31,7 +31,27 @@ try {
   await signUp(page, { base: BASE, email: `ux_${stamp}@example.com`, username: `ux_${stamp}`, displayName: '편의' });
   await page.waitForTimeout(2000);
 
-  await makeProject('모자');
+  // 저장된 세션으로 앱을 새로 열면 목록으로, 이후 피드 탭은 그대로 유지한다.
+  await page.goto(`${BASE}/`);
+  await page.getByText('내 편물', { exact: true }).waitFor();
+  check('첫 진입은 편물 목록', new URL(page.url()).pathname === '/projects');
+  await page.getByText('피드', { exact: true }).first().click();
+  await page.getByText('아직 볼 게 없어요', { exact: true }).waitFor();
+  check('피드 탭에서 목록으로 다시 튕기지 않는다', new URL(page.url()).pathname === '/');
+  await page.goto(`${BASE}/projects`);
+
+  // 빈 계정의 촬영 탭은 생성 창을 연다. 취소 후 다시 열 수 있어야 한다.
+  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  const projectName = page.getByPlaceholder('예: 회색 라글란 스웨터');
+  await projectName.waitFor();
+  await page.getByLabel('닫기', { exact: true }).click({ position: { x: 5, y: 5 } });
+  await projectName.waitFor({ state: 'hidden' });
+  check('취소하면 생성 요청 주소도 지운다', !new URL(page.url()).searchParams.has('create'));
+  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await projectName.fill('모자');
+  await page.getByRole('button', { name: '만들기', exact: true }).click();
+  await page.getByRole('button', { name: '사진 찍기' }).waitFor();
+  check('촬영 탭에서 다시 열어 첫 편물 생성', true);
   await makeProject('장갑');
   await page.goto(`${BASE}/projects`);
   await page.waitForTimeout(1500);
@@ -49,6 +69,10 @@ try {
   await page.getByText('1번째 / 1').waitFor({ timeout: 30000 });
   await page.getByRole('button', { name: '사진 찍기' }).click();
   await shoot(2);
+  const projectUrl = page.url();
+  await page.reload();
+  await page.getByText('2번째 / 2').waitFor({ timeout: 30000 });
+  check('상세 직접 진입은 목록으로 바뀌지 않고 마지막 기록을 표시', page.url() === projectUrl);
   await page.getByRole('button', { name: '1번째 기록' }).click();
   await page.waitForTimeout(500);
   check('겉뜨기 코를 누르면 그 기록으로', (await body()).includes('1번째 / 2'));

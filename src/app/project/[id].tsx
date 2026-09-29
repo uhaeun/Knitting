@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -47,12 +47,15 @@ export default function ProjectScreen() {
 
   const items = posts.data ?? [];
   const total = items.length;
-  const [index, setIndex] = useState(0);
-
-  // 새 사진이 추가되면 마지막 장으로
-  useEffect(() => {
-    if (total > 0) setIndex(total - 1);
-  }, [total]);
+  const [selection, setSelection] = useState({ projectId: id, total: 0, index: 0 });
+  // 기록 수나 편물이 바뀌면 마지막 장을 바로 보여준다. 이전 인덱스를 한 번
+  // 그렸다가 effect로 옮기지 않아 사진·카운터가 서로 어긋나는 렌더를 피한다.
+  const index = selection.projectId === id && selection.total === total
+    ? Math.min(selection.index, Math.max(0, total - 1))
+    : Math.max(0, total - 1);
+  const setIndex = (next: number | ((previous: number) => number)) => {
+    setSelection({ projectId: id, total, index: typeof next === 'function' ? next(index) : next });
+  };
 
   const current = items[Math.min(index, Math.max(0, total - 1))];
   const goCapture = () => router.push({ pathname: '/capture/[projectId]', params: { projectId: id } });

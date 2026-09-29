@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Redirect, Stack, useSegments } from 'expo-router';
+import { Redirect, Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AuthProvider } from '@/features/auth/AuthProvider';
@@ -37,15 +38,23 @@ export default function RootLayout() {
   );
 }
 
-/** 앱을 연 뒤 첫 화면을 한 번만 정한다 (피드 탭을 누를 때마다 튕기면 안 된다) */
-let landed = false;
-
 /** 세션·프로필 상태에 따라 로그인 → 온보딩 → 앱 순으로 보낸다. */
 function AuthGate() {
   const { ready, session, profile, recovering } = useAuth();
+  const router = useRouter();
   // 경로 조각. expo-router가 만들어 주는 타입은 기기마다(생성 여부에 따라) 달라서 문자열로 다룬다
   const segments = useSegments() as string[];
   const inAuthGroup = segments[0] === '(auth)';
+  const atRoot = segments[0] === '(tabs)' && (segments.length === 1 || segments[1] === 'index');
+  const landed = useRef(false);
+
+  // 세션 복원 뒤 첫 진입에만 목록으로 간다. 렌더 중 전역 값을 바꾸지 않고
+  // 라우터와 동기화한다. 이후 피드 탭 이동과 게시물 직접 링크는 유지한다.
+  useEffect(() => {
+    if (!ready || !session || !profile || recovering || landed.current) return;
+    landed.current = true;
+    if (atRoot) router.replace('/projects');
+  }, [ready, session, profile, recovering, atRoot, router]);
 
   if (!ready) {
     return (
@@ -82,13 +91,6 @@ function AuthGate() {
   if (needsSignIn && !inAuthGroup && !onLegal) return <Redirect href="/(auth)/sign-in" />;
   if (needsOnboarding && !onLegal && segments[1] !== 'onboarding') return <Redirect href="/(auth)/onboarding" />;
   if (!needsSignIn && !needsOnboarding && inAuthGroup) return <Redirect href="/projects" />;
-  // 앱을 열었을 때 첫 화면은 편물 목록 (주소가 '/'면 피드가 되는데, 아직 팔로우가 없으면 빈 화면이다).
-  // 게시물 링크처럼 다른 주소로 들어오면 그대로 둔다
-  if (!needsSignIn && !needsOnboarding && !landed) {
-    landed = true;
-    const atRoot = segments[0] === '(tabs)' && (segments.length === 1 || segments[1] === 'index');
-    if (atRoot) return <Redirect href="/projects" />;
-  }
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>

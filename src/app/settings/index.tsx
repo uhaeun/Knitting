@@ -17,7 +17,7 @@ import { InstallGuide, useInstallGuideEntry } from '@/features/pwa/InstallGuide'
 import { SUPPORT_EMAIL } from '@/features/legal/policy';
 import { showAlert } from '@/shared/lib/dialog';
 import { isNativeApp } from '@/shared/lib/platform';
-import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
+import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
 
 
 export default function SettingsScreen() {

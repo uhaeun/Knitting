@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,19 +24,14 @@ export default function HomeScreen() {
   const tour = useTour();
 
   // 처음 들어오면 사용법부터. 그걸 본 뒤에야 홈 화면 추가 안내를 띄운다
-  useEffect(() => {
-    if (!tour.seen || !install.autoOpen) return;
-    setInstallOpen(true);
-    install.markSeen();
-  }, [tour.seen, install]);
+  const showInstall = installOpen || (tour.seen && install.autoOpen);
   const { create } = useLocalSearchParams<{ create?: string }>();
 
   // 편물이 없을 때 탭바 촬영 버튼이 ?create=1로 보낸다
-  useEffect(() => {
-    if (create !== '1') return;
-    setSheetOpen(true);
+  const closeCreate = () => {
+    setSheetOpen(false);
     router.setParams({ create: undefined });
-  }, [create, router]);
+  };
   const projects = useProjects();
   const items = projects.data ?? [];
 
@@ -94,11 +89,11 @@ export default function HomeScreen() {
 
       <TourSheet visible={!tour.seen} onDone={tour.finish} />
 
-      <InstallGuide visible={installOpen} onClose={() => setInstallOpen(false)} />
+      <InstallGuide visible={showInstall} onClose={() => { setInstallOpen(false); install.markSeen(); }} />
 
       <CreateProjectSheet
-        visible={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        visible={sheetOpen || create === '1'}
+        onClose={closeCreate}
         onCreated={(id) => router.push({ pathname: '/project/[id]', params: { id } })}
       />
     </SafeAreaView>
