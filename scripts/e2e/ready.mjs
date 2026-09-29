@@ -42,6 +42,9 @@ try {
   await page.getByRole('button', { name: '지우기', exact: true }).click();
   await page.getByText('1번째 / 1').waitFor({ timeout: 30000 });
   check('기록을 지우면 목록에서 빠진다', (await body()).includes('기록 1개'));
+  await page.getByRole('button', { name: '사진 찍기' }).click();
+  await shoot(2);
+  check('삭제 후 다시 추가해도 최신 기록을 선택한다', (await body()).includes('2번째 / 2'));
 
   // 2) 새로고침 후에도 촬영 설정이 남아 있다
   await page.reload();

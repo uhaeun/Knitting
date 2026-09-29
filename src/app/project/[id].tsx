@@ -53,6 +53,9 @@ export default function ProjectScreen() {
   const index = selection.projectId === id && selection.total === total
     ? Math.min(selection.index, Math.max(0, total - 1))
     : Math.max(0, total - 1);
+  if (selection.projectId !== id || selection.total !== total) {
+    setSelection({ projectId: id, total, index });
+  }
   const setIndex = (next: number | ((previous: number) => number)) => {
     setSelection({ projectId: id, total, index: typeof next === 'function' ? next(index) : next });
   };
