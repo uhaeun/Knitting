@@ -17,7 +17,7 @@ export function useLatestPost(projectId: string) {
 export function useSavePost(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { sourceUri: string; width: number; height: number; takenAt?: Date }) =>
+    mutationFn: (input: { sourceUri: string; takenAt?: Date }) =>
       savePost({ projectId, ...input }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: projectKeys.posts(projectId) });

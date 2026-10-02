@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 
 import { pickRecorderMime } from '@/features/capture/clip';
-import { captureCanvasSize, zoomCropRect } from '@/features/capture/image';
+import { drawSquare, encodeJpeg, PHOTO_SIDE, pinchedZoom, squareCapture } from '@/features/capture/image';
 import { color, fontSize, space } from '@/shared/ui/tokens';
 
 /**
@@ -34,19 +34,28 @@ type Props = {
   style?: { width?: number; height?: number; marginTop?: number };
   animateShutter?: boolean;
   /**
-   * 디지털 줌 배율 (1 이상). 사진에만 적용된다 — 녹화(MediaRecorder)는 카메라 원본 스트림을
-   * 그대로 담아 트랙 자체를 바꿔야 해서, 위험이 더 큰 별도 작업으로 남겨 둔다.
+   * 확대 배율 (1 이상). 기기 카메라가 줌을 지원하면(안드로이드 크롬 등) 카메라 자체 줌이라 화질이 그대로고
+   * 영상 녹화에도 반영된다. 지원하지 않으면(iPhone Safari) 사진에서만 프레임을 오려 늘리는 디지털 줌이라 화질이 떨어진다.
    */
   zoom?: number;
+  /** 지금 줌을 바꿀 수 있는 범위. 스트림이 열릴 때마다 한 번 알린다 (hardware: 기기 카메라 자체 줌) */
+  onZoomCapability?: (cap: { hardware: boolean; max: number }) => void;
+  /** 두 손가락으로 벌리고 모을 때 새 배율. zoomMax는 화면이 정한 최대 배율 */
+  onZoomChange?: (zoom: number) => void;
+  zoomMax?: number;
 };
+
+type ZoomCapabilities = { zoom?: { min: number; max: number } };
+type ZoomConstraintSet = { zoom?: number };
 
 /** 짧은 변이 1440 이상 나오도록 넉넉히. 브라우저가 가능한 가장 가까운 값을 고른다 */
 const IDEAL_SIDE = 2560;
+/** 저장 단계에서 q80으로 한 번 더 인코딩하므로 여기서는 손실을 거의 안 주는 값 */
 const JPEG_QUALITY = 0.95;
 /** 영상 모드: 가로만 요청. 정사각 요청 시 iPhone 녹화본이 눌려 기록되는 문제를 피한다 (설계 0절) */
 const VIDEO_IDEAL_WIDTH = 1920;
 
-export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady, onInterrupted, style, zoom = 1 }: Props) {
+export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady, onInterrupted, style, zoom = 1, zoomMax = 3, onZoomCapability, onZoomChange }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -58,10 +67,88 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
   // 화면이 매 렌더마다 새 콜백을 넘기므로 ref로 받아 스트림을 다시 열지 않는다
   const onReady = useRef(onCameraReady);
   const onInterrupt = useRef(onInterrupted);
+  const onCapability = useRef(onZoomCapability);
+  const onZoom = useRef(onZoomChange);
+  const zoomRef = useRef(zoom);
+  const zoomMaxRef = useRef(zoomMax);
+  /** 기기 카메라 자체 줌을 쓸 수 있는 스트림인가 */
+  const [hardwareZoom, setHardwareZoom] = useState(false);
+  const hardwareRef = useRef(false);
+  const zoomable = mode === 'photo' || hardwareZoom;
+  const zoomableRef = useRef(zoomable);
   useEffect(() => {
     onReady.current = onCameraReady;
     onInterrupt.current = onInterrupted;
+    onCapability.current = onZoomCapability;
+    onZoom.current = onZoomChange;
+    zoomRef.current = zoom;
+    zoomMaxRef.current = zoomMax;
+    zoomableRef.current = zoomable;
   });
+
+  // 카메라 자체 줌 적용. 손가락을 움직이는 동안 연달아 부르므로 가장 최근 값만 이어서 적용한다
+  const zoomJob = useRef<{ running: boolean; pending: number | null }>({ running: false, pending: null });
+  const applyHardwareZoom = (value: number) => {
+    const job = zoomJob.current;
+    job.pending = value;
+    if (job.running) return;
+    job.running = true;
+    void (async () => {
+      while (job.pending !== null) {
+        const next = job.pending;
+        job.pending = null;
+        const track = streamRef.current?.getVideoTracks()[0];
+        try {
+          await track?.applyConstraints({ advanced: [{ zoom: next } as MediaTrackConstraintSet & ZoomConstraintSet] });
+        } catch {
+          // 줌을 거부하는 기기: 이전 배율로 남는다
+        }
+      }
+      job.running = false;
+    })();
+  };
+  useEffect(() => {
+    if (hardwareZoom) applyHardwareZoom(zoom);
+    // applyHardwareZoom은 ref만 쓰므로 배율이 바뀔 때만 다시 적용하면 된다
+  }, [zoom, hardwareZoom]);
+
+  // 두 손가락 벌리기·모으기. 카메라를 담은 정사각 영역 전체에서 받는다 (겹친 안내 요소는 터치를 가로채지 않는다)
+  useEffect(() => {
+    const host = video.current?.parentElement;
+    if (!host) return;
+    const previousTouchAction = host.style.touchAction;
+    host.style.touchAction = 'none'; // 브라우저 자체 확대·스크롤이 손가락을 가져가지 않게
+    const points = new Map<number, { x: number; y: number }>();
+    let start: { distance: number; zoom: number } | null = null;
+    const distance = () => {
+      const [a, b] = [...points.values()];
+      return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
+    const down = (e: PointerEvent) => {
+      points.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      start = points.size === 2 && zoomableRef.current ? { distance: distance(), zoom: zoomRef.current } : null;
+    };
+    const move = (e: PointerEvent) => {
+      if (!points.has(e.pointerId)) return;
+      points.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (start && points.size === 2) onZoom.current?.(pinchedZoom(start.zoom, start.distance, distance(), 1, zoomMaxRef.current));
+    };
+    const up = (e: PointerEvent) => {
+      points.delete(e.pointerId);
+      start = null; // 한 손가락이 떨어지면 끝. 남은 손가락으로 이어서 움직이지 않는다
+    };
+    host.addEventListener('pointerdown', down);
+    host.addEventListener('pointermove', move);
+    host.addEventListener('pointerup', up);
+    host.addEventListener('pointercancel', up);
+    return () => {
+      host.style.touchAction = previousTouchAction;
+      host.removeEventListener('pointerdown', down);
+      host.removeEventListener('pointermove', move);
+      host.removeEventListener('pointerup', up);
+      host.removeEventListener('pointercancel', up);
+    };
+  }, []);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -107,6 +194,13 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
         for (const t of s.getVideoTracks()) t.addEventListener('ended', interrupt);
         const v = video.current;
         if (!v) return;
+        const track = s.getVideoTracks()[0];
+        const zoomCaps = (track?.getCapabilities?.() as ZoomCapabilities | undefined)?.zoom;
+        hardwareRef.current = !!zoomCaps;
+        setHardwareZoom(!!zoomCaps);
+        onCapability.current?.({ hardware: !!zoomCaps, max: zoomCaps?.max ?? 1 });
+        // 새 스트림은 1배로 열리므로 지금 배율을 다시 맞춘다 (끊겼다 다시 열린 경우)
+        if (zoomCaps && zoomRef.current > 1) applyHardwareZoom(zoomRef.current);
         v.srcObject = s;
         await v.play();
         // 재생을 기다리는 사이 모드가 바뀌어 이 스트림이 정리됐으면 준비 완료를 알리지 않는다
@@ -136,20 +230,12 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
     takePictureAsync: async () => {
       const v = video.current;
       if (!v || v.videoWidth === 0) throw new Error('카메라가 아직 준비되지 않았어요');
-      // 안드로이드는 위 ideal 힌트보다 훨씬 큰 원본 해상도를 그대로 줄 때가 많다.
-      // 그 해상도 그대로 그리고 인코딩하면 셔터를 누른 뒤 오래 멈춰(버튼이 busy로 막힘) 있는 것처럼 느껴진다.
-      const { width, height } = captureCanvasSize(v.videoWidth, v.videoHeight, IDEAL_SIDE);
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d', { alpha: false });
-      if (!ctx) throw new Error('사진을 만들지 못했어요');
-      // 줌은 미리보기와 같은 방식(가운데를 오려 전체 크기로 늘림)으로 찍는 순간 반영한다
-      const crop = zoomCropRect(v.videoWidth, v.videoHeight, zoom);
-      ctx.drawImage(v, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY));
-      if (!blob) throw new Error('사진을 만들지 못했어요');
-      return { uri: URL.createObjectURL(blob), width: canvas.width, height: canvas.height };
+      // 저장 규칙대로 가운데 정사각만, 최종 크기(장변 1440 이하)로 곧바로 그린다. 원본(안드로이드는 4000px 넘게도 준다)을
+      // 통째로 그리고 인코딩하면 셔터 뒤에 오래 멈춘다. 카메라 자체 줌이면 프레임이 이미 확대돼 있어 오리지 않는다.
+      const digital = hardwareRef.current || mode !== 'photo' ? 1 : zoom;
+      const { sx, sy, side, outSide } = squareCapture(v.videoWidth, v.videoHeight, digital, PHOTO_SIDE);
+      const blob = await encodeJpeg(drawSquare(v, sx, sy, side, outSide), JPEG_QUALITY);
+      return { uri: URL.createObjectURL(blob), width: outSide, height: outSide };
     },
     startRecording: () => {
       const s = streamRef.current;
@@ -199,8 +285,9 @@ export function CameraView({ ref, facing = 'back', mode = 'photo', onCameraReady
     );
   }
 
-  // 녹화(영상)는 트랙 원본을 그대로 담으므로 미리보기에 줌을 보여주면 실제 녹화와 달라 보인다. 사진 모드에서만 반영
-  const previewZoom = mode === 'photo' && zoom > 1 ? zoom : 1;
+  // 카메라 자체 줌이면 프레임이 이미 확대돼 있다. 디지털 줌은 사진에서만 미리보기를 키운다
+  // (녹화는 트랙 원본을 그대로 담으므로 영상 미리보기에 디지털 줌을 보이면 실제 녹화와 달라 보인다)
+  const previewZoom = !hardwareZoom && mode === 'photo' && zoom > 1 ? zoom : 1;
   return (
     <video
       ref={video}
