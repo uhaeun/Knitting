@@ -28,7 +28,13 @@ import { Button } from '@/shared/ui/Button';
 import { useSquareSide } from '@/shared/ui/layout';
 import { color, fontSize, fontWeight, ghostOpacity, radius, size, space } from '@/shared/ui/tokens';
 
-type Shot = { uri: string; width: number; height: number; takenAt?: Date };
+type Shot = { uri: string; takenAt?: Date };
+
+const ZOOM_MIN = 1;
+const ZOOM_STEP = 0.5;
+/** 프레임을 오려 늘리는 디지털 줌은 3배를 넘기면 화질이 너무 떨어진다. 기기 카메라 자체 줌은 더 올려도 화질이 유지된다 */
+const ZOOM_MAX_DIGITAL = 3;
+const ZOOM_MAX_HARDWARE = 5;
 
 /** 시안 1c (고스트) / 1d (첫 장). 이 앱의 핵심 화면. */
 export default function CaptureScreen() {
@@ -55,11 +61,10 @@ export default function CaptureScreen() {
   const saveVideo = useSaveVideoPost(projectId);
   const { ghost, grid, mode, setGhost, toggleGrid, setMode } = useCaptureSettings();
   const videoSupported = canRecordVideo();
-  // 디지털 줌. 사진에만 적용된다 (Camera.tsx 참고). 모드를 영상으로 바꾸면 되돌린다
+  // 확대. 기기 카메라 자체 줌이 되면 사진·영상 모두, 아니면 사진만 (Camera.tsx 참고). 모드를 바꾸면 1배로 되돌린다
   const [zoom, setZoom] = useState(1);
-  const ZOOM_MIN = 1;
-  const ZOOM_MAX = 3;
-  const ZOOM_STEP = 0.5;
+  const [zoomCap, setZoomCap] = useState({ hardware: false, max: ZOOM_MAX_DIGITAL });
+  const zoomable = mode === 'photo' || zoomCap.hardware;
   const [recordingSince, setRecordingSince] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [progress, setProgress] = useState<string | null>(null);
@@ -75,7 +80,7 @@ export default function CaptureScreen() {
 
   const persist = (shot: Shot) => {
     save.mutate(
-      { sourceUri: shot.uri, width: shot.width, height: shot.height, takenAt: shot.takenAt },
+      { sourceUri: shot.uri, takenAt: shot.takenAt },
       {
         onSuccess: () => router.back(),
         onError: (e) =>
@@ -178,7 +183,7 @@ export default function CaptureScreen() {
     setBusy(true);
     try {
       const pic = await camera.current.takePictureAsync({ quality: 1, exif: false, shutterSound: false });
-      persist({ uri: pic.uri, width: pic.width, height: pic.height });
+      persist({ uri: pic.uri });
     } catch (e) {
       showAlert('촬영하지 못했어요', e instanceof Error ? e.message : String(e));
     } finally {
@@ -193,7 +198,7 @@ export default function CaptureScreen() {
     try {
       for (const shot of shots) {
         setProgress(`${done + 1}장째 저장 중 (전부 ${shots.length}장)`);
-        await save.mutateAsync({ sourceUri: shot.uri, width: shot.width, height: shot.height, takenAt: shot.takenAt });
+        await save.mutateAsync({ sourceUri: shot.uri, takenAt: shot.takenAt });
         done += 1;
       }
       router.back();
@@ -261,8 +266,6 @@ export default function CaptureScreen() {
       void persistMany(
         res.assets.map((asset, i) => ({
           uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
           takenAt: asset.file?.lastModified ? new Date(asset.file.lastModified) : new Date(now + i),
         })),
       );
@@ -289,7 +292,7 @@ export default function CaptureScreen() {
       if (only) persistVideo(only);
       return;
     }
-    persist({ uri: a.uri, width: a.width, height: a.height });
+    persist({ uri: a.uri });
   };
 
   // --- 권한 ---
@@ -341,6 +344,13 @@ export default function CaptureScreen() {
           onInterrupted={handleInterrupted}
           style={{ width: screenW, height: previewH, marginTop: (screenW - previewH) / 2 }}
           zoom={zoom}
+          zoomMax={zoomCap.max}
+          onZoomChange={setZoom}
+          onZoomCapability={({ hardware, max }) => {
+            const limit = hardware ? Math.min(max, ZOOM_MAX_HARDWARE) : ZOOM_MAX_DIGITAL;
+            setZoomCap({ hardware, max: limit });
+            setZoom((z) => Math.min(z, limit));
+          }}
         />
         {ghostUri && ghost !== 'off' ? (
           <Image
@@ -361,7 +371,7 @@ export default function CaptureScreen() {
             <Text style={styles.recBadgeText}>● {formatClipTime(elapsed)} / 0:05</Text>
           </View>
         ) : null}
-        {saving ? (
+        {saving || busy ? (
           <View style={styles.savingOverlay}>
             <ActivityIndicator color={color.onDark} />
             <Text style={styles.savingText}>{progress ?? '저장 중'}</Text>
@@ -384,7 +394,7 @@ export default function CaptureScreen() {
           videoDisabled={!videoSupported}
           disabled={saving}
         />
-        {mode === 'photo' ? (
+        {zoomable ? (
           <View style={styles.controls}>
             <Text style={styles.controlLabel}>확대</Text>
             <Pressable
@@ -400,9 +410,9 @@ export default function CaptureScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="확대"
-              disabled={zoom >= ZOOM_MAX}
-              onPress={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10))}
-              style={[styles.zoomButton, zoom >= ZOOM_MAX && styles.zoomButtonDisabled]}
+              disabled={zoom >= zoomCap.max}
+              onPress={() => setZoom((z) => Math.min(zoomCap.max, Math.round((z + ZOOM_STEP) * 10) / 10))}
+              style={[styles.zoomButton, zoom >= zoomCap.max && styles.zoomButtonDisabled]}
             >
               <Text style={styles.zoomButtonText}>+</Text>
             </Pressable>

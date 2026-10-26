@@ -1,5 +1,3 @@
-import { ImageManipulator, SaveFormat, type ImageResult } from 'expo-image-manipulator';
-
 /** CLAUDE.md 절대 규칙: 장변 1440 / JPEG q80, 썸네일 400, 중앙 정사각 크롭, EXIF 정규화 */
 export const PHOTO_SIDE = 1440;
 export const THUMB_SIDE = 400;
@@ -22,63 +20,85 @@ export function centerSquare(width: number, height: number): {
 }
 
 /**
- * 촬영 캔버스 크기 상한. 안드로이드는 getUserMedia의 ideal 힌트보다 훨씬 큰(카메라 원본) 해상도를
- * 그대로 줄 때가 많다. 최종 저장은 어차피 1440px로 다시 줄어들므로, 화질 손해 없이
- * 찍는 순간의 캔버스 그리기·JPEG 인코딩 비용만 줄인다. 순수 계산. 테스트 가능.
+ * 카메라 프레임에서 찍을 영역: 가운데 정사각을 digitalZoom배 확대해 오려낸 부분(sx, sy, side)과 저장할 한 변(outSide).
+ * 원본 해상도보다 크게 늘리지 않고, maxSide를 넘기지 않는다. 순수 계산. 테스트 가능.
  */
-export function captureCanvasSize(
+export function squareCapture(
   sourceWidth: number,
   sourceHeight: number,
+  digitalZoom: number,
   maxSide: number,
-): { width: number; height: number } {
-  const longest = Math.max(sourceWidth, sourceHeight);
-  if (longest <= maxSide) return { width: sourceWidth, height: sourceHeight };
-  const scale = maxSide / longest;
-  return { width: Math.round(sourceWidth * scale), height: Math.round(sourceHeight * scale) };
+): { sx: number; sy: number; side: number; outSide: number } {
+  const side = Math.min(sourceWidth, sourceHeight) / Math.max(1, digitalZoom);
+  return {
+    sx: (sourceWidth - side) / 2,
+    sy: (sourceHeight - side) / 2,
+    side,
+    outSide: Math.min(Math.round(side), maxSide),
+  };
+}
+
+/** 두 손가락 벌리기·모으기: 시작 때 거리 대비 지금 거리의 비율만큼 배율을 바꾼다. 0.1 단위로 맞춘다. 순수 계산. 테스트 가능. */
+export function pinchedZoom(startZoom: number, startDistance: number, distance: number, min: number, max: number): number {
+  const raw = startDistance > 0 ? (startZoom * distance) / startDistance : startZoom;
+  return Math.min(max, Math.max(min, Math.round(raw * 10) / 10));
+}
+
+export type EncodedImage = { blob: Blob; width: number; height: number };
+export type ProcessedImage = { photo: EncodedImage; thumb: EncodedImage };
+
+function newCanvas(side: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  const canvas = document.createElement('canvas');
+  canvas.width = side;
+  canvas.height = side;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('사진을 만들지 못했어요');
+  ctx.imageSmoothingQuality = 'high';
+  return { canvas, ctx };
+}
+
+/** source의 (sx, sy, side) 정사각 영역을 outSide × outSide 캔버스에 그린다 */
+export function drawSquare(source: CanvasImageSource, sx: number, sy: number, side: number, outSide: number): HTMLCanvasElement {
+  const { canvas, ctx } = newCanvas(outSide);
+  ctx.drawImage(source, sx, sy, side, side, 0, 0, outSide, outSide);
+  return canvas;
+}
+
+export function encodeJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('사진을 만들지 못했어요'))), 'image/jpeg', quality);
+  });
+}
+
+async function loadImage(uri: string): Promise<HTMLImageElement> {
+  const img = new Image();
+  img.src = uri;
+  try {
+    // 브라우저가 EXIF 방향을 적용해 디코딩한다. naturalWidth/Height도 적용 후 값이다 (EXIF 정규화)
+    await img.decode();
+  } catch {
+    throw new Error('사진을 읽지 못했어요');
+  }
+  return img;
 }
 
 /**
- * 디지털 줌: 원본에서 가운데 (1/zoom) 크기만큼만 오려낸 영역. zoom=1은 원본 그대로.
- * 하드웨어 줌(트랙 zoom 제약)은 브라우저마다 지원이 갈려(iOS Safari 없음) 캔버스로 직접 자른다.
- * 순수 계산. 테스트 가능.
+ * 원본 URI → 정사각 사진 + 썸네일 JPEG. 캔버스에 곧바로 그려 JPEG으로 한 번씩만 인코딩한다.
+ * (이전에 쓰던 ImageManipulator는 단계마다 전체 크기 PNG를 한 번 더 만들어 저장이 매우 느렸다)
  */
-export function zoomCropRect(sourceWidth: number, sourceHeight: number, zoom: number): {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-} {
-  const z = Math.max(1, zoom);
-  const width = sourceWidth / z;
-  const height = sourceHeight / z;
-  return { x: (sourceWidth - width) / 2, y: (sourceHeight - height) / 2, width, height };
-}
-
-export type ProcessedImage = { photo: ImageResult; thumb: ImageResult };
-
-/**
- * 원본 URI → 정사각 사진 + 썸네일 (둘 다 브라우저 메모리의 임시 이미지).
- * ImageManipulator는 렌더 시 EXIF 방향을 적용해 픽셀을 다시 쓰므로 정규화가 여기서 끝난다.
- * width/height는 EXIF 적용 후 값을 넘겨야 한다 (Camera.tsx·앨범 선택 결과가 그렇다).
- */
-export async function processCapture(
-  uri: string,
-  width: number,
-  height: number,
-): Promise<ProcessedImage> {
-  const crop = centerSquare(width, height);
+export async function processCapture(uri: string): Promise<ProcessedImage> {
+  const img = await loadImage(uri);
+  const crop = centerSquare(img.naturalWidth, img.naturalHeight);
   const side = Math.min(crop.width, PHOTO_SIDE);
-
-  const photoRef = await ImageManipulator.manipulate(uri)
-    .crop(crop)
-    .resize({ width: side, height: side })
-    .renderAsync();
-  const photo = await photoRef.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
-
-  const thumbRef = await ImageManipulator.manipulate(photo.uri)
-    .resize({ width: THUMB_SIDE, height: THUMB_SIDE })
-    .renderAsync();
-  const thumb = await thumbRef.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
-
-  return { photo, thumb };
+  const photoCanvas = drawSquare(img, crop.originX, crop.originY, crop.width, side);
+  const thumbSide = Math.min(THUMB_SIDE, side);
+  const thumbCanvas = drawSquare(photoCanvas, 0, 0, side, thumbSide);
+  const [photo, thumb] = await Promise.all([
+    encodeJpeg(photoCanvas, JPEG_QUALITY),
+    encodeJpeg(thumbCanvas, JPEG_QUALITY),
+  ]);
+  return {
+    photo: { blob: photo, width: side, height: side },
+    thumb: { blob: thumb, width: thumbSide, height: thumbSide },
+  };
 }

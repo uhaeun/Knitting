@@ -67,16 +67,15 @@ export const postThumbUri = (p: Post): string => p.thumb_path;
 export async function savePost(input: {
   projectId: string;
   sourceUri: string;
-  width: number;
-  height: number;
   takenAt?: Date;
 }): Promise<Post> {
   const sb = getSupabase();
   const owner = requireUserId();
-  const { photo, thumb } = await processCapture(input.sourceUri, input.width, input.height);
-
-  const { data: project, error: pe } = await sb
-    .from('projects').select('default_visibility').eq('id', input.projectId).maybeSingle();
+  // 사진 가공과 공개 범위 조회는 서로 기다릴 필요가 없다
+  const [{ photo, thumb }, { data: project, error: pe }] = await Promise.all([
+    processCapture(input.sourceUri),
+    sb.from('projects').select('default_visibility').eq('id', input.projectId).maybeSingle(),
+  ]);
   if (pe) throw new Error(pe.message);
 
   const id = newId();
@@ -84,9 +83,9 @@ export async function savePost(input: {
   const thumbKey = remoteThumbPath(owner, input.projectId, id);
   const bucket = sb.storage.from(PHOTOS_BUCKET);
 
-  await upload(photoKey, photo.uri);
+  await upload(photoKey, photo.blob);
   try {
-    await upload(thumbKey, thumb.uri);
+    await upload(thumbKey, thumb.blob);
   } catch (e) {
     await bucket.remove([photoKey]);
     throw e;
@@ -138,7 +137,7 @@ export async function saveVideoPost(input: {
     throw new ClipTooShortError();
   }
   try {
-    const { photo, thumb } = await processCapture(clip.posterUri, 1080, 1080);
+    const { photo, thumb } = await processCapture(clip.posterUri);
 
     const { data: project, error: pe } = await sb
       .from('projects').select('default_visibility').eq('id', input.projectId).maybeSingle();
@@ -159,9 +158,9 @@ export async function saveVideoPost(input: {
       await upload(videoKey, clip.mp4, 'video/mp4');
       uploaded.push(videoKey);
       input.onProgress?.('uploading', 0.8);
-      await upload(photoKey, photo.uri);
+      await upload(photoKey, photo.blob);
       uploaded.push(photoKey);
-      await upload(thumbKey, thumb.uri);
+      await upload(thumbKey, thumb.blob);
       uploaded.push(thumbKey);
     } catch (e) {
       await cleanup();
@@ -233,8 +232,7 @@ export async function deletePost(id: string): Promise<void> {
 /** 웹은 로컬 파일이 없다 */
 export const cleanupOrphanFiles = (): number => 0;
 
-async function upload(key: string, body: Blob | string, contentType: 'image/jpeg' | 'video/mp4' = 'image/jpeg'): Promise<void> {
-  const blob = typeof body === 'string' ? await (await fetch(body)).blob() : body;
-  const { error } = await getSupabase().storage.from(PHOTOS_BUCKET).upload(key, blob, { contentType, upsert: false });
+async function upload(key: string, body: Blob, contentType: 'image/jpeg' | 'video/mp4' = 'image/jpeg'): Promise<void> {
+  const { error } = await getSupabase().storage.from(PHOTOS_BUCKET).upload(key, body, { contentType, upsert: false });
   if (error) throw new Error(`파일을 올리지 못했어요 (${key}): ${error.message}`);
 }

@@ -1,4 +1,4 @@
-import { captureCanvasSize, centerSquare, zoomCropRect } from '@/features/capture/image';
+import { centerSquare, pinchedZoom, squareCapture } from '@/features/capture/image';
 
 describe('centerSquare', () => {
   it('세로 사진: 가로 기준 정사각, 위아래 잘라냄', () => {
@@ -12,26 +12,36 @@ describe('centerSquare', () => {
   });
 });
 
-describe('captureCanvasSize', () => {
-  it('카메라 해상도가 상한보다 작으면 그대로 둔다', () => {
-    expect(captureCanvasSize(1920, 1080, 2560)).toEqual({ width: 1920, height: 1080 });
+describe('squareCapture', () => {
+  it('1배: 가운데 정사각 전체, 한 변이 상한(1440)을 넘으면 상한으로', () => {
+    expect(squareCapture(3024, 4032, 1, 1440)).toEqual({ sx: 0, sy: 504, side: 3024, outSide: 1440 });
   });
-  it('상한보다 크면 긴 변 기준으로 줄인다 (안드로이드가 ideal 힌트보다 큰 해상도를 줄 때)', () => {
-    expect(captureCanvasSize(4032, 3024, 2560)).toEqual({ width: 2560, height: 1920 });
+  it('원본이 상한보다 작으면 늘리지 않는다', () => {
+    expect(squareCapture(1080, 1920, 1, 1440)).toEqual({ sx: 0, sy: 420, side: 1080, outSide: 1080 });
   });
-  it('세로 사진도 같은 비율로 줄인다', () => {
-    expect(captureCanvasSize(3024, 4032, 2560)).toEqual({ width: 1920, height: 2560 });
+  it('디지털 줌 2배: 정사각의 가운데 절반만 오린다', () => {
+    expect(squareCapture(2000, 2000, 2, 1440)).toEqual({ sx: 500, sy: 500, side: 1000, outSide: 1000 });
+  });
+  it('1보다 작은 배율은 1배로 취급', () => {
+    expect(squareCapture(1000, 800, 0.5, 1440)).toEqual({ sx: 100, sy: 0, side: 800, outSide: 800 });
   });
 });
 
-describe('zoomCropRect', () => {
-  it('1배는 원본 그대로', () => {
-    expect(zoomCropRect(1000, 1000, 1)).toEqual({ x: 0, y: 0, width: 1000, height: 1000 });
+describe('pinchedZoom', () => {
+  it('손가락 거리가 두 배로 벌어지면 배율도 두 배', () => {
+    expect(pinchedZoom(1, 100, 200, 1, 3)).toBe(2);
   });
-  it('2배는 가운데 절반만 (가로세로 각각 1/2배 크기)', () => {
-    expect(zoomCropRect(1000, 1000, 2)).toEqual({ x: 250, y: 250, width: 500, height: 500 });
+  it('모으면 줄어든다', () => {
+    expect(pinchedZoom(2, 200, 100, 1, 3)).toBe(1);
   });
-  it('1보다 작은 값은 1로 취급 (원본보다 넓게 찍을 수는 없다)', () => {
-    expect(zoomCropRect(1000, 800, 0.5)).toEqual({ x: 0, y: 0, width: 1000, height: 800 });
+  it('범위를 넘지 않는다', () => {
+    expect(pinchedZoom(2, 100, 400, 1, 3)).toBe(3);
+    expect(pinchedZoom(1.5, 400, 100, 1, 3)).toBe(1);
+  });
+  it('0.1 단위로 맞춘다', () => {
+    expect(pinchedZoom(1, 100, 123, 1, 3)).toBe(1.2);
+  });
+  it('시작 거리가 0이면 배율을 바꾸지 않는다', () => {
+    expect(pinchedZoom(1.5, 0, 100, 1, 3)).toBe(1.5);
   });
 });
