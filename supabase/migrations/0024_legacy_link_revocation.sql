@@ -221,8 +221,8 @@ grant execute on function retry_my_link_revocation(uuid) to authenticated;
 -- resolves them to a verified replacement. Original paths can never be reused.
 create or replace function result_media_target(rid uuid,viewer uuid,epoch text,asset text)
 returns table(path text,output text,owner_id uuid,project_id uuid) language sql stable security definer set search_path=public as $$
- select coalesce(o.target_path,case when asset='file' then r.file_path else r.thumb_path end),
-  case when asset='file' then r.output else 'jpeg' end,r.owner_id,r.project_id
+ select coalesce(o.target_path,case when result_media_target.asset='file' then r.file_path else r.thumb_path end),
+  case when result_media_target.asset='file' then r.output else 'jpeg' end,r.owner_id,r.project_id
  from results r left join result_link_jobs j on j.result_id=r.id
  left join result_link_objects o on o.job_id=j.id and o.asset=result_media_target.asset and o.activated_at is not null
  where r.id=rid and result_media_target.asset in('file','thumb') and r.media_epoch::text=epoch and result_visible_to(rid,viewer);

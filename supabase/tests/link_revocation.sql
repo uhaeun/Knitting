@@ -16,6 +16,8 @@ insert into results(id,project_id,owner_id,kind,ratio,output,file_path,thumb_pat
  values('74444444-4444-4444-8444-444444444444','73333333-3333-4333-8333-333333333333','71111111-1111-4111-8111-111111111111','single','1:1','jpeg',
  '71111111-1111-4111-8111-111111111111/73333333-3333-4333-8333-333333333333/results/74444444-4444-4444-8444-444444444444.jpg',
  '71111111-1111-4111-8111-111111111111/73333333-3333-4333-8333-333333333333/results/74444444-4444-4444-8444-444444444444_t.jpg',true);
+select pg_temp.check_that('unrotated file gateway uses exact file path',(select path=(select file_path from results) from result_media_target('74444444-4444-4444-8444-444444444444','71111111-1111-4111-8111-111111111111','1','file')));
+select pg_temp.check_that('unrotated thumbnail gateway uses exact thumbnail path',(select path=(select thumb_path from results) from result_media_target('74444444-4444-4444-8444-444444444444','71111111-1111-4111-8111-111111111111','1','thumb')));
 select pg_temp.check_that('public legacy result not gratuitously rotated',not exists(select 1 from result_link_jobs));
 select pg_temp.as_user('71111111-1111-4111-8111-111111111111',$$select set_project_visibility('73333333-3333-4333-8333-333333333333','private')$$);
 select pg_temp.check_that('privacy and durable job commit together',(select visibility='private' from results) and (select count(*)=1 from result_link_jobs) and (select count(*)=2 from result_link_objects));
