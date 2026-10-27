@@ -24,7 +24,12 @@ jobs:
       - run: npm ci
 
       - name: ffmpeg 설치 (영상 검사가 쓴다)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo timeout 180 apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update -qq
+            sudo timeout 180 apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
 
       - name: 브라우저 설치
         run: npx playwright install --with-deps chromium
