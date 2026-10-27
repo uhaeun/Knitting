@@ -1,7 +1,7 @@
 -- RLS 가시성 검증 매트릭스. 설계도 v1.1 4장의 조합표를 실행 가능한 형태로 고정한다.
 -- 정책은 눈으로 검증할 수 없다. 이 파일이 그 역할을 한다.
 --
--- 전제: migrations 0001~0017 적용.
+-- 전제: migrations 0001~0025 적용.
 -- 실행: Supabase SQL Editor에 통째로 붙여넣는다. 마지막 줄이 ALL PASS여야 한다.
 -- 전체가 rollback으로 끝나므로 데이터는 남지 않는다.
 -- ⚠️ auth.users에 임시 행을 넣으므로 개발 프로젝트에서만 실행할 것.
@@ -316,6 +316,13 @@ insert into t_result values
         $$insert into results (project_id, owner_id, kind, ratio, output, file_path, thumb_path)
           values ('a0000000-0000-4000-8000-000000000003', '11111111-1111-1111-1111-111111111111',
                   'single', '1:1', 'jpeg', 'a/deleted.jpg', 'a/deleted_t.jpg')$$));
+
+-- Cleanup internals stay private even to the owner of the deleted result.
+insert into t_result values
+  (44,'일반 사용자는 정리 파일 경로를 읽을 수 없다',false,pg_temp.writes_as((select id from t_ids where label='A'),$$select * from result_cleanup_objects$$)),
+  (45,'일반 사용자는 정리 작업을 가져올 수 없다',false,pg_temp.writes_as((select id from t_ids where label='A'),$$select claim_result_cleanup()$$)),
+  (46,'일반 사용자는 보존 검토자를 자칭할 수 없다',false,pg_temp.writes_as((select id from t_ids where label='A'),$$insert into result_retention_reviewers(user_id)values('11111111-1111-4111-8111-111111111111')$$)),
+  (47,'익명 사용자는 정리 상태를 읽을 수 없다',false,has_function_privilege('anon','my_result_cleanup_status()','EXECUTE'));
 
 -- 트리거 검증도 함께
 create temporary table t_trigger (항목 text, 기대 text, 실제 text);

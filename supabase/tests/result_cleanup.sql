@@ -85,6 +85,47 @@ select pg_temp.as_user('91111111-1111-4111-8111-111111111111',$$select delete_re
 select pg_temp.as_user('92222222-2222-4222-8222-222222222222',$$select review_result_retention('95555555-5555-4555-8555-555555555555','clear','qa:legacy')$$);
 select pg_temp.check_that('real CDN proof cannot be bypassed for deleted legacy',result_cleanup_gate('95555555-5555-4555-8555-555555555555')='LINKS_UNCONFIRMED' and claim_result_cleanup() is null);
 select pg_temp.check_that('legacy unknown link preserves stored title',(select project_name_snapshot is not null from results where id='95555555-5555-4555-8555-555555555555'));
+
+-- The following is a SQL-only synthetic confirmed manifest, NOT CDN evidence.
+-- It exercises all four inventory entries without adding a runtime bypass.
+insert into storage.objects(bucket_id,name,owner)select 'photos',target_path,'91111111-1111-4111-8111-111111111111'::uuid from result_link_objects;
+update result_link_objects set source_hash=repeat('a',64),activated_at=clock_timestamp(),removed_at=clock_timestamp(),origin_blocked_at=clock_timestamp(),cdn_verified_at=clock_timestamp();
+update result_link_jobs set status='confirmed',next_attempt_at=null;
+-- Inject title failure independently; file cleanup must continue and title may retry.
+create function pg_temp.fail_title_purge() returns trigger language plpgsql as $$begin if NEW.titles_purged_at is not null and OLD.titles_purged_at is null then raise exception 'synthetic title failure';end if;return NEW;end $$;
+create trigger synthetic_title_failure before update on results for each row execute function pg_temp.fail_title_purge();
+do $$declare task jsonb;begin
+ task:=claim_result_cleanup();
+ perform pg_temp.check_that('confirmed legacy adds original and replacement manifests',(select count(*)=4 from result_cleanup_objects where job_id=(task->>'id')::uuid));
+ perform pg_temp.check_that('title failure is independent and durable',(select title_status='failed' and title_attempts=1 from result_cleanup_jobs where id=(task->>'id')::uuid) and exists(select 1 from result_cleanup_attempts a where a.task='titles' and code='TITLE_PURGE_FAILED'));
+ perform finish_result_cleanup((task->>'id')::uuid,(task->>'token')::uuid,'ABSENT');
+end $$;
+drop trigger synthetic_title_failure on results;
+update result_cleanup_jobs set title_next_at=clock_timestamp()-interval '1 second' where title_status='failed';
+do $$declare task jsonb;begin
+ task:=claim_result_cleanup();
+ perform pg_temp.check_that('title retry succeeds independently',(select title_status='confirmed' from result_cleanup_jobs where id=(task->>'id')::uuid));
+ perform finish_result_cleanup((task->>'id')::uuid,(task->>'token')::uuid,'ABSENT');
+ -- Both original keys already absent; next invocation must target a rotated key.
+ task:=claim_result_cleanup();
+ perform pg_temp.check_that('rotated target uses exact confirmed manifest',task->'object'->>'location'='rotated');
+ execute format('delete from storage.objects where name=%L',task->'object'->>'path');
+ perform finish_result_cleanup((task->>'id')::uuid,(task->>'token')::uuid,'ABSENT');
+ task:=claim_result_cleanup();
+ -- Expired lease under a new hold is recovered as a wait, without retry cost.
+ perform set_config('request.jwt.claims','{"sub":"92222222-2222-4222-8222-222222222222"}',true);
+ perform review_result_retention('95555555-5555-4555-8555-555555555555','hold','qa:expired-hold');
+ update result_cleanup_jobs set lease_until=clock_timestamp()-interval '1 second' where id=(task->>'id')::uuid;
+ perform pg_temp.check_that('expired held lease is not reclaimed',claim_result_cleanup() is null);
+ perform pg_temp.check_that('expired held lease refunds attempt',(select status='pending' and auto_attempts=0 from result_cleanup_objects where id=(task->'object'->>'id')::uuid));
+ perform review_result_retention('95555555-5555-4555-8555-555555555555','clear','qa:resume-expired');
+ task:=claim_result_cleanup();
+ execute format('delete from storage.objects where name=%L',task->'object'->>'path');
+ perform finish_result_cleanup((task->>'id')::uuid,(task->>'token')::uuid,'ABSENT');
+ perform pg_temp.check_that('all four verified and titles required for legacy completion',(select status='confirmed' from result_cleanup_jobs where id=(task->>'id')::uuid));
+ perform pg_temp.check_that('cleaned paths cannot be reuploaded',not pg_temp.allowed(format('insert into storage.objects(bucket_id,name)values(''photos'',%L)',task->'object'->>'path')));
+end $$;
+select pg_temp.check_that('scheduled lateness recorded separately from retries',not exists(select 1 from result_cleanup_attempts where task='object' and (scheduled_at is null or schedule_delay_ms is null or schedule_delay_ms<0)));
 select label,ok from checks order by label;
 select count(*) total,count(*)filter(where ok) passed from checks;
 do $$begin if exists(select 1 from checks where ok is distinct from true)then raise exception 'Result cleanup regression failed';end if;end $$;

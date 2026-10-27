@@ -11,7 +11,7 @@ export function useLinkRisks() {
   const key = ['results', 'link-risks', user] as const;
   const due = () => !user || performance.now() - (lastRequest.get(user) ?? -Infinity) >= INTERVAL;
   const q = useQuery({
-    queryKey: key, enabled: !!user, retry: false, staleTime: INTERVAL,
+    queryKey: key, enabled: !!user, retry: false, staleTime: INTERVAL, gcTime: 0,
     refetchOnWindowFocus: due, refetchOnReconnect: due, refetchOnMount: due,
     queryFn: async () => {
       const force = manual.current;

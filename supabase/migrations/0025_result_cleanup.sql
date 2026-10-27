@@ -41,7 +41,8 @@ create table result_cleanup_objects (
 create table result_cleanup_attempts (
  id uuid primary key default gen_random_uuid(),job_id uuid not null references result_cleanup_jobs(id) on delete cascade,
  object_id uuid references result_cleanup_objects(id) on delete cascade,token uuid not null unique,
- attempt_no int,code text,finished_at timestamptz,
+ task text not null default 'object' check(task in('object','titles')),
+ attempt_no int,scheduled_at timestamptz,started_at timestamptz not null default clock_timestamp(),schedule_delay_ms bigint check(schedule_delay_ms>=0),code text,finished_at timestamptz,
  created_at timestamptz not null default clock_timestamp(),updated_at timestamptz not null default clock_timestamp(),deleted_at timestamptz
 );
 do $$declare t text;begin
@@ -221,8 +222,10 @@ begin
    update results set project_name_snapshot=null,display_title_override=null,titles_purged_at=clock_timestamp() where id=r.id and titles_purged_at is null;
    if not exists(select 1 from results where id=r.id and project_name_snapshot is null and display_title_override is null and titles_purged_at is not null) then raise exception 'Title absence not verified';end if;
    update result_cleanup_jobs set title_status='confirmed',title_verified_at=clock_timestamp(),title_next_at=null,title_code='TITLES_PURGED' where id=j.id;
+   insert into result_cleanup_attempts(job_id,token,task,attempt_no,code,finished_at)values(j.id,gen_random_uuid(),'titles',j.title_attempts+1,'TITLES_PURGED',clock_timestamp());
   exception when others then
    n:=j.title_attempts+1;
+   insert into result_cleanup_attempts(job_id,token,task,attempt_no,code,finished_at)values(j.id,gen_random_uuid(),'titles',n,'TITLE_PURGE_FAILED',clock_timestamp());
    update result_cleanup_jobs set title_attempts=n,title_status=case when n>=6 then 'failed_exhausted' else 'failed' end,title_code='TITLE_PURGE_FAILED',
     title_next_at=case when n>=6 then null else clock_timestamp()+make_interval(secs=>case n when 1 then 60 when 2 then 300 when 3 then 900 when 4 then 3600 else 10800 end) end where id=j.id;
   end;
@@ -233,7 +236,7 @@ begin
   return jsonb_build_object('processed_titles',true);
  end if;
  update result_cleanup_objects set status='processing',auto_attempts=auto_attempts+1,active_token=token,updated_at=clock_timestamp() where id=o.id;
- insert into result_cleanup_attempts(job_id,object_id,token,attempt_no)values(j.id,o.id,token,o.auto_attempts+1);
+ insert into result_cleanup_attempts(job_id,object_id,token,attempt_no,scheduled_at,schedule_delay_ms)values(j.id,o.id,token,o.auto_attempts+1,o.next_attempt_at,greatest(0,floor(extract(epoch from clock_timestamp()-o.next_attempt_at)*1000)::bigint));
  return cleanup_snapshot(j.id,token);
 end $$;
 
@@ -310,3 +313,12 @@ $$;
 revoke all on function my_result_cleanup_status() from public,anon;
 grant execute on function my_result_cleanup_status() to authenticated;
 notify pgrst,'reload schema';
+
+-- Signed probe URLs serve only the unfinished link verification, never the
+-- retained minimal audit. Keep proof times/statuses, discard credential copies.
+create function purge_confirmed_link_probe() returns trigger language plpgsql security definer set search_path=public as $$
+begin
+ if NEW.status='confirmed' then update result_link_objects set probe_url=null where job_id=NEW.id;end if;return NEW;
+end $$;
+create trigger confirmed_link_probe_cleanup after update of status on result_link_jobs for each row execute function purge_confirmed_link_probe();
+update result_link_objects x set probe_url=null from result_link_jobs j where x.job_id=j.id and j.status='confirmed';

@@ -18,6 +18,12 @@ const sb = createClient(API, service, { auth: { persistSession: false, autoRefre
 const browser = await chromium.launch();const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 await page.addInitScript(() => localStorage.setItem('knitting.tourSeen', '1'));
 const cases: string[] = [];
+// Direct backend inventory is available only in this disposable Docker runner.
+// API 404 alone could hide a metadata/byte mismatch, so inspect physical files too.
+const storageContainer = execFileSync('docker', ['ps', '--format', '{{.Names}}'], { encoding: 'utf8' }).split('\n').find((n) => n.startsWith('supabase_storage_'));
+assert.ok(storageContainer);
+const backendFiles = () => execFileSync('docker', ['exec', storageContainer, 'find', '/var/lib/storage', '-type', 'f'], { encoding: 'utf8' }).split('\n');
+
 try {
   const username = `clean_${Date.now().toString(36)}`;
   await signUp(page, { base: BASE, email: `${username}@example.com`, username, displayName: '정리 QA', password: 'password123' });
@@ -34,11 +40,11 @@ try {
   assert.equal((await sb.storage.from('photos').upload(raw, jpeg, { contentType: 'image/jpeg' })).error, null);
   assert.equal((await sb.from('posts').insert({ id: post, project_id: pid, owner_id: owner, photo_path: raw, thumb_path: raw, width: 32, height: 32, taken_at: new Date().toISOString() })).error, null);
   const add = async (kind: 'single' | 'growth', output: 'jpeg' | 'mp4', legacy = false) => {
-    const rid = randomUUID();const paths = [`${owner}/${pid}/results/${rid}.${output === 'mp4' ? 'mp4' : 'jpg'}`, `${owner}/${pid}/results/${rid}_t.jpg`];
-    for (const [i, path] of paths.entries()) assert.equal((await sb.storage.from('photos').upload(path, i === 0 && output === 'mp4' ? mp4 : jpeg, { contentType: i === 0 && output === 'mp4' ? 'video/mp4' : 'image/jpeg' })).error, null);
-    const recipe = rid.replaceAll('-', '').repeat(2);
+    const recipe = randomUUID().replaceAll('-', '').repeat(2);
     const edition = await client.rpc('prepare_result_edition', { pid, recipe });assert.equal(edition.error, null);
     const editionId = (edition.data as { id: string }[])[0]!.id;
+    const rid = editionId;const paths = [`${owner}/${pid}/results/${rid}.${output === 'mp4' ? 'mp4' : 'jpg'}`, `${owner}/${pid}/results/${rid}_t.jpg`];
+    for (const [i, path] of paths.entries()) assert.equal((await sb.storage.from('photos').upload(path, i === 0 && output === 'mp4' ? mp4 : jpeg, { contentType: i === 0 && output === 'mp4' ? 'video/mp4' : 'image/jpeg' })).error, null);
     assert.equal((await client.from('results').insert({ id: rid, project_id: pid, owner_id: owner, kind, ratio: '1:1', output, file_path: paths[0], thumb_path: paths[1], edition_id: editionId, display_title_override: '지울 결과 제목' })).error, null);
     if (legacy) sql(`update results set legacy_links_unverified=true where id='${rid}'`);
     return { rid, paths, editionId };
@@ -51,6 +57,7 @@ try {
   const active = await add('single', 'jpeg');
   const fixtures = [await add('single', 'jpeg'), await add('single', 'mp4'), await add('growth', 'mp4')];
   const legacy = await add('growth', 'mp4', true);
+  for (const f of fixtures) assert.ok(backendFiles().some((path) => path.includes(f.rid)), 'actual backend files exist before cleanup');
   for (const f of [...fixtures, legacy]) assert.equal((await client.rpc('delete_result', { result_id: f.rid })).error, null);
   await work();
   for (const f of fixtures) {
@@ -84,6 +91,7 @@ try {
     for (const path of f.paths) assert.ok((await sb.storage.from('photos').download(path)).error);
     assert.equal(sql(`select count(*) from storage.objects where bucket_id='photos' and name like '${owner}/${pid}/results/${f.rid}%'`), '0');
     assert.equal(sql(`select state from result_editions where id='${f.editionId}'`), 'deleted');
+    assert.ok(!backendFiles().some((path) => path.includes(f.rid)), 'all physical backend bytes and sidecars removed');
   }
   cases.push('JPEG, composite MP4, growth MP4 and three thumbnails physically absent via Storage API; tombstones retained');
   const attempts = sql(`select sum(auto_attempts) from result_cleanup_objects o join result_cleanup_jobs j on j.id=o.job_id where j.owner_id='${owner}'`);
@@ -93,6 +101,8 @@ try {
   assert.equal(sql(`select name from projects where id='${pid}'`), '보존할 원본 편물');
   assert.equal(sql(`select count(*) from posts where id='${post}' and deleted_at is null`), '1');
   assert.equal((await client.functions.invoke('revocable-media', { body: { keys: fixtures.flatMap((f) => f.paths) } })).data.urls.length, 0);
+  assert.ok(backendFiles().some((path) => path.includes(post)));
+  assert.ok(backendFiles().some((path) => path.includes(active.rid)));
   cases.push('repeat calls do not repeat deletion; active publication, source post/media/project unchanged; no fresh deleted media tickets');
   await page.goto(`${BASE}/results/cleanup`);
   await page.getByTestId(`cleanup-${fixtures[0]!.rid}`).getByText('정리 확인', { exact: true }).first().waitFor();
