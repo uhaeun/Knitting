@@ -1,3 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
+import { useProject } from '@/features/project/queries';
+import { usePublishResult } from '@/features/media/resultsQueries';
+import { prepareEdition } from '@/features/media/resultsRepository';
+import { newId } from '@/shared/lib/id';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { makeVideo, type EncodeResult } from '@/features/media/makeVideo';
@@ -13,6 +18,8 @@ export type MakeVideoState =
 
 /** 타임라인 "영상 만들기"의 상태 머신. 화면은 이 훅만 쓴다. 화면을 떠나면 만들던 영상을 취소하고 결과 URL을 해제한다. */
 export function useMakeVideo(projectId: string) {
+  const project = useProject(projectId);
+  const [remakeRequest, setRemakeRequest] = useState<string | null>(null);
   const [state, setState] = useState<MakeVideoState>({ status: 'idle' });
   const job = useRef<AbortController | null>(null);
   const doneUri = useRef<string | null>(null);
@@ -33,7 +40,10 @@ export function useMakeVideo(projectId: string) {
   );
 
   const start = useCallback(async (options?: VideoOptions) => {
-    if (options) lastOptions.current = options;
+    if (options) {
+      if (JSON.stringify(options) !== JSON.stringify(lastOptions.current)) setRemakeRequest(null);
+      lastOptions.current = options;
+    }
     job.current?.abort();
     releaseDone();
     const controller = new AbortController();
@@ -76,5 +86,29 @@ export function useMakeVideo(projectId: string) {
     setState({ status: 'idle' });
   }, []);
 
-  return { state, start, save, reset };
+  const result = state.status === 'done' ? state.result : null;
+  const edition = useQuery({
+    queryKey: ['results', 'growth-edition', projectId, result?.recipeHash, remakeRequest],
+    enabled: !!result,
+    queryFn: () => prepareEdition(projectId, result!.recipeHash, remakeRequest),
+    retry: false,
+  });
+  const publish = usePublishResult();
+  const publishToFeed = () => {
+    if (!result || !project.data || edition.data?.state !== 'unpublished') return;
+    publish.mutate({ projectId, kind: 'growth', ratio: '1:1', visibility: project.data.default_visibility,
+      composed: { ...result, output: 'mp4' }, recipeHash: result.recipeHash, remakeRequest }, {
+      onSuccess: () => showAlert('피드에 올렸어요'),
+      onError: (e) => showAlert('발행하지 못했어요', e.message),
+    });
+  };
+  return { state, start, save, reset, publishToFeed,
+    publishing: publish.isPending,
+    published: edition.data?.state === 'published',
+    canPublish: !!result && !edition.isFetching && edition.data?.state === 'unpublished',
+    editionError: edition.isError ? edition.error.message : edition.data?.state === 'deleted' ? '삭제한 제작 버전이에요. 다시 제작한 뒤 발행해 주세요.' : null,
+    recheckEdition: () => void edition.refetch(),
+    visibilityLabel: project.data?.default_visibility === 'public' ? '전체' : project.data?.default_visibility === 'followers' ? '승인된 팔로워' : '나만',
+    remake: () => { setRemakeRequest(newId()); void start(); },
+  };
 }

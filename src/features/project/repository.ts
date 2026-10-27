@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/shared/lib/dates';
+import { formatDateTime, currentTimeZone, validProjectDate } from '@/shared/lib/dates';
 import { newId } from '@/shared/lib/id';
 import { requireUserId, signPaths } from '@/shared/lib/remote';
 import { getSupabase } from '@/shared/lib/supabase';
@@ -61,6 +61,7 @@ export async function createProject(input: {
   started_at: string;
   default_visibility?: Visibility;
 }): Promise<Project> {
+  if (!validProjectDate(input.started_at)) throw new Error('과거 또는 오늘의 시작일을 선택해 주세요');
   const name = input.name.trim();
   if (name.length < 1 || name.length > 50) throw new Error('편물 이름은 1~50자');
   const now = new Date().toISOString();
@@ -70,6 +71,7 @@ export async function createProject(input: {
     name,
     cover_post_id: null,
     started_at: input.started_at,
+    time_zone: currentTimeZone(),
     finished_at: null,
     default_visibility: input.default_visibility ?? 'private',
     photos_hidden_from_others: false,
@@ -164,7 +166,7 @@ export async function renameProject(id: string, name: string): Promise<void> {
 
 /** 시작일·완성일 바꾸기. 완성일 null이면 "진행 중" */
 export async function updateProjectDates(id: string, patch: { started_at?: string; finished_at?: string | null }): Promise<void> {
-  const { error } = await getSupabase().from('projects').update(patch).eq('id', id);
+  const { error } = await getSupabase().from('projects').update({ ...patch, time_zone: currentTimeZone() }).eq('id', id);
   if (error) throw new Error(`날짜를 바꾸지 못했어요: ${error.message}`);
 }
 

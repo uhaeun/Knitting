@@ -12,12 +12,19 @@
     },
     "types": [
       "jest"
-    ]
+    ],
+    "allowImportingTsExtensions": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "supabase/functions/_shared/**/*.ts",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "supabase/functions/**/index.ts"
   ]
 }

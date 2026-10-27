@@ -2,6 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { usePosts } from '@/features/capture/queries';
+import { resultRecipe, hashRecipe } from '@/features/media/edition';
+import { prepareEdition } from '@/features/media/resultsRepository';
+import { newId } from '@/shared/lib/id';
 import { composeResult } from '@/features/media/composeResult';
 import { buildScene, minPhotosFor, outputKindOf, pickPanels, resolveRatio, type ResultKind, type ResultRatio } from '@/features/media/resultPlan';
 import { usePublishResult } from '@/features/media/resultsQueries';
@@ -16,6 +19,7 @@ export function useResultPhoto(projectId: string) {
   const photoCount = posts.data?.length ?? 0;
   // 고르기 전에는 사진 수에 맞는 가장 풍부한 종류 (사진을 다 불러온 뒤에 정해져야 해서 state 초기값으로 두지 않는다)
   const [chosen, setChosen] = useState<ResultKind | null>(null);
+  const [remakeRequest, setRemakeRequest] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [chosenRatio, setRatio] = useState<ResultRatio | null>(null);
   // 3분할 칸마다 위아래 자르는 위치 (0=위쪽 그대로 ~ 1=아래쪽 그대로). 종류를 바꾸면 가운데로 되돌린다
@@ -26,7 +30,7 @@ export function useResultPhoto(projectId: string) {
 
   const lastPostId = posts.data?.[photoCount - 1]?.id ?? null;
   const result = useQuery({
-    queryKey: ['projects', projectId, 'result', kind, ratio, photoCount, lastPostId, project.data?.name, focusY] as const,
+    queryKey: ['projects', projectId, 'result', kind, ratio, photoCount, lastPostId, project.data?.name, focusY, remakeRequest] as const,
     enabled: !!project.data && !!posts.data && photoCount >= minPhotosFor(kind),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0, // blob을 오래 들고 있지 않는다
@@ -70,19 +74,25 @@ export function useResultPhoto(projectId: string) {
     ? pickPanels(kind, posts.data).map((p) => p.photo_path)
     : [];
 
+  const recipe = project.data && posts.data ? resultRecipe(project.data, posts.data, { kind, ratio, focusY }) : '';
+  const edition = useQuery({
+    queryKey: ['results', 'edition', projectId, recipe, remakeRequest],
+    enabled: !!recipe && !!result.data && !result.isFetching,
+    queryFn: async () => prepareEdition(projectId, await hashRecipe(recipe), remakeRequest),
+    retry: false,
+  });
   const publish = usePublishResult();
-  /** 지금 만든 결과물을 피드에 올린다. 공개 범위는 편물의 공개 범위를 따른다 */
   const publishToFeed = () => {
-    if (!result.data || !project.data) return;
+    if (!result.data || !project.data || !edition.data || edition.data.state !== 'unpublished') return;
     publish.mutate(
-      { projectId, kind, ratio, visibility: project.data.default_visibility, composed: result.data },
+      { projectId, kind, ratio, visibility: project.data.default_visibility, composed: result.data,
+        recipeHash: edition.data.recipeHash, remakeRequest },
       {
-        onSuccess: () => showAlert('피드에 올렸어요'),
+        onSuccess: () => { void edition.refetch(); showAlert('피드에 올렸어요'); },
         onError: (e) => showAlert('피드에 올리지 못했어요', e instanceof Error ? e.message : String(e)),
       },
     );
   };
-
 
   return {
     projectName: project.data?.name ?? '',
@@ -107,5 +117,10 @@ export function useResultPhoto(projectId: string) {
     save,
     publishToFeed,
     publishing: publish.isPending,
+    editionState: edition.data?.state,
+    checkingEdition: edition.isPending || edition.isFetching,
+    editionError: edition.error instanceof Error ? edition.error.message : null,
+    visibilityLabel: project.data?.default_visibility === 'public' ? '전체' : project.data?.default_visibility === 'followers' ? '승인된 팔로워' : '나만',
+    remake: () => setRemakeRequest(newId()),
   };
 }

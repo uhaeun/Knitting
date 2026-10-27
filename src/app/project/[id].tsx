@@ -65,7 +65,7 @@ export default function ProjectScreen() {
   const goResult = () => router.push({ pathname: '/result/[projectId]', params: { projectId: id } });
 
   const confirmDelete = () => {
-    showAlert('편물을 삭제할까요?', '목록에서 사라집니다. 사진 파일은 남습니다.', [
+    showAlert('편물을 삭제할까요?', '목록에서 사라지고 원본 기록은 휴지통에 남아요. 이미 발행한 결과 사진·영상은 기존 공개 범위로 계속 보일 수 있어요.', [
       { text: '취소', style: 'cancel' },
       { text: '삭제', style: 'destructive', onPress: () => del.mutate(id, { onSuccess: () => router.back() }) },
     ]);
@@ -92,7 +92,17 @@ export default function ProjectScreen() {
     const values = ['private', 'followers', 'public'] as const;
     const apply = (i: number) => {
       const v = values[i];
-      if (v) setVis.mutate({ id, visibility: v });
+      if (!v) return;
+      const save = () => setVis.mutate({ id, visibility: v }, {
+        onError: (e) => showAlert('변경하지 못했어요', e.message),
+      });
+      if (v === 'public') {
+        showAlert('전체 공개로 바꿀까요?', p?.photos_hidden_from_others
+          ? '발행한 결과물도 전체 공개돼요. 숨긴 일상 사진·영상은 계속 숨겨집니다.'
+          : '이 편물의 기존 사진·영상과 발행한 결과물도 전체 공개됩니다. 계속할까요?', [
+          { text: '취소', style: 'cancel' }, { text: '전체 공개', onPress: save },
+        ]);
+      } else save();
     };
     showAlert('이 편물의 사진을 누가 볼까요?', undefined, [
       ...labels.map((l, i) => ({ text: l, onPress: () => apply(i) })),
@@ -262,6 +272,14 @@ export default function ProjectScreen() {
         onClose={video.reset}
         onRetry={() => void video.start()}
         onSave={video.save}
+        onPublish={video.publishToFeed}
+        onRemake={video.remake}
+        publishing={video.publishing}
+        published={video.published}
+        canPublish={video.canPublish}
+        visibilityLabel={video.visibilityLabel}
+        editionError={video.editionError}
+        onRecheckEdition={video.recheckEdition}
       />
       {editingCaption && current ? (
         <CaptionSheet postId={current.id} current={current.caption} onClose={() => setEditingCaption(false)} />

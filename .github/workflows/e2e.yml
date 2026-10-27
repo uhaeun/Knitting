@@ -45,6 +45,24 @@ jobs:
       - name: DB 권한 회귀 검사
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/rls_matrix.sql
 
+      - name: 출시 P0 서버 무결성 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/p0_integrity.sql
+
+      - name: 로컬 인증 변경 함수 켜기
+        run: |
+          python3 - <<'PYENV'
+          import secrets
+          from pathlib import Path
+          Path('/tmp/p0-functions.env').write_text('MEDIA_SIGNING_SECRET=' + secrets.token_hex(32) + '\nMEDIA_PUBLIC_URL=http://127.0.0.1:54321/functions/v1/revocable-media\n')
+          PYENV
+          npx supabase functions serve --env-file /tmp/p0-functions.env > /tmp/edge-functions.log 2>&1 &
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54321/functions/v1/change-username)
+            if [ "$CODE" = 204 ] || [ "$CODE" = 200 ]; then break; fi
+            sleep 1
+          done
+          test "$CODE" = 204 -o "$CODE" = 200
+
       - name: 서버 주소·열쇠 꺼내기
         run: |
           npx supabase status -o env | sed 's/^/SB_/' >> "$GITHUB_ENV"
@@ -68,6 +86,9 @@ jobs:
           SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
           SUPABASE_SERVICE_KEY="$SERVICE" npm run e2e
 
+      - name: 수정된 P0 인증·발행·삭제 UI 검사
+        run: node --experimental-strip-types scripts/e2e/p0-security.ts
+
       - name: 실패하면 화면 사진 올리기
         if: failure()
         uses: actions/upload-artifact@v4
@@ -76,4 +97,6 @@ jobs:
           path: |
             /tmp/*.png
             /tmp/web.log
+            /tmp/edge-functions.log
+            /tmp/p0-security-results.json
           if-no-files-found: ignore

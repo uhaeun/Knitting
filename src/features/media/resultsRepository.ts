@@ -1,7 +1,6 @@
 import type { ComposedResult } from '@/features/media/composeResult';
 import type { ResultKind, ResultRatio } from '@/features/media/resultPlan';
-import { newId } from '@/shared/lib/id';
-import { requireUserId, signPaths } from '@/shared/lib/remote';
+import { requireUserId, signPaths, readAllPages } from '@/shared/lib/remote';
 import { getSupabase, PHOTOS_BUCKET, remoteResultPath, remoteResultThumbPath } from '@/shared/lib/supabase';
 import type { FeedResult, RemoteResult } from '@/shared/types/remote';
 import type { Visibility } from '@/shared/types/models';
@@ -14,20 +13,30 @@ import type { Visibility } from '@/shared/types/models';
 const RESULT_SELECT = `
   *,
   profiles!results_owner_id_fkey ( id, username, display_name, is_private, avatar_path ),
-  projects!results_project_id_fkey ( id, name, started_at )
+  projects!results_project_id_fkey ( id, name, started_at, deleted_at )
 `;
 
 /** 업로드 → INSERT 순서 고정 (CLAUDE.md 절대 규칙과 같다). 실패하면 올린 파일을 지운다. */
 export async function publishResult(input: {
   projectId: string;
-  kind: ResultKind;
+  kind: ResultKind | 'growth';
   ratio: ResultRatio;
   visibility: Visibility;
   composed: ComposedResult;
+  recipeHash: string;
+  remakeRequest?: string | null;
 }): Promise<void> {
   const sb = getSupabase();
   const owner = requireUserId();
-  const id = newId();
+  const { data: editions, error: editionError } = await sb.rpc('prepare_result_edition', {
+    pid: input.projectId, recipe: input.recipeHash, remake: input.remakeRequest ?? null,
+  });
+  if (editionError) throw new Error('제작 버전을 확인하지 못했어요');
+  const edition = (editions as { id: string; state: string }[] | null)?.[0];
+  if (!edition) throw new Error('제작 버전을 확인하지 못했어요');
+  if (edition.state === 'deleted') throw new Error('삭제한 제작 버전은 다시 발행할 수 없어요. 다시 제작해 주세요.');
+  if (edition.state === 'published') return;
+  const id = edition.id;
   const ext = input.composed.output === 'mp4' ? 'mp4' : 'jpg';
   const fileKey = remoteResultPath(owner, input.projectId, id, ext);
   const thumbKey = remoteResultThumbPath(owner, input.projectId, id);
@@ -37,12 +46,12 @@ export async function publishResult(input: {
     contentType: input.composed.file.type,
     upsert: false,
   });
-  if (fileErr) throw new Error(`파일을 올리지 못했어요: ${fileErr.message}`);
+  if (fileErr && fileErr.message !== 'The resource already exists' && !/already exists/i.test(fileErr.message)) throw new Error(`파일을 올리지 못했어요: ${fileErr.message}`);
   const { error: thumbErr } = await bucket.upload(thumbKey, input.composed.posterBlob, {
     contentType: 'image/jpeg',
     upsert: false,
   });
-  if (thumbErr) {
+  if (thumbErr && !/already exists/i.test(thumbErr.message)) {
     await bucket.remove([fileKey]);
     throw new Error(`대표 이미지를 올리지 못했어요: ${thumbErr.message}`);
   }
@@ -50,6 +59,7 @@ export async function publishResult(input: {
   const now = new Date().toISOString();
   const row: RemoteResult = {
     id,
+    edition_id: id,
     project_id: input.projectId,
     owner_id: owner,
     kind: input.kind,
@@ -64,9 +74,25 @@ export async function publishResult(input: {
   };
   const { error } = await sb.from('results').insert(row);
   if (error) {
-    await bucket.remove([fileKey, thumbKey]);
-    throw new Error(`피드에 올리지 못했어요: ${error.message}`);
+    // An INSERT error may be a lost response after commit. Never delete a published file.
+    const confirmed = await sb.rpc('prepare_result_edition', {
+      pid: input.projectId, recipe: input.recipeHash, remake: input.remakeRequest ?? null,
+    });
+    const state = (confirmed.data as { state: string }[] | null)?.[0]?.state;
+    if (!confirmed.error && state === 'published') return;
+    if (!confirmed.error && state === 'unpublished') await bucket.remove([fileKey, thumbKey]);
+    throw new Error('발행 상태를 다시 확인해 주세요. 제작 버전과 원본은 유지했어요.');
   }
+}
+
+export async function prepareEdition(projectId: string, recipeHash: string, remakeRequest: string | null) {
+  const { data, error } = await getSupabase().rpc('prepare_result_edition', {
+    pid: projectId, recipe: recipeHash, remake: remakeRequest,
+  });
+  if (error) throw new Error(error.details === 'LEGACY_EDITION_UNVERIFIED' ? '과거 제작 버전을 확인할 수 없어요. 다시 제작해 주세요.' : '제작 버전을 확인하지 못했어요');
+  const edition = (data as { id: string; state: 'unpublished' | 'published' | 'deleted' }[] | null)?.[0];
+  if (!edition) throw new Error('제작 버전을 확인하지 못했어요');
+  return { ...edition, recipeHash };
 }
 
 export type ResultsPage = { results: FeedResult[]; urls: Map<string, string> };
@@ -94,16 +120,43 @@ export async function fetchFollowingResults(limit = 20): Promise<ResultsPage> {
 }
 
 export async function fetchResult(resultId: string): Promise<{ result: FeedResult; url: string | null }> {
+  const viewer = requireUserId();
   const { data, error } = await getSupabase()
     .from('results').select(RESULT_SELECT).eq('id', resultId).is('deleted_at', null).single();
   if (error) throw new Error(error.message);
+  if (requireUserId() !== viewer) throw new Error('계정이 바뀌었어요');
   const result = data as unknown as FeedResult;
   const urls = await signPaths([result.file_path]);
   return { result, url: urls.get(result.file_path) ?? null };
 }
 
 export async function deleteResult(id: string): Promise<void> {
-  const now = new Date().toISOString();
-  const { error } = await getSupabase().from('results').update({ deleted_at: now, updated_at: now }).eq('id', id);
-  if (error) throw new Error(error.message);
+  const { error } = await getSupabase().rpc('delete_result', { result_id: id });
+  if (error) throw new Error('결과물을 삭제하지 못했어요');
+}
+
+export async function fetchMyResults(): Promise<ResultsPage> {
+  const owner = requireUserId();
+  const rows = await readAllPages<FeedResult>((from, to) => getSupabase().from('results')
+    .select(RESULT_SELECT).eq('owner_id', owner).is('deleted_at', null)
+    .order('created_at', { ascending: false }).order('id').range(from, to));
+  const urls = await signPaths(rows.map((r) => r.thumb_path));
+  if (requireUserId() !== owner) throw new Error('계정이 바뀌었어요');
+  return { results: rows, urls };
+}
+export async function renameResult(id: string, title: string): Promise<void> {
+  const value = title.trim();
+  if (!value || value.length > 50) throw new Error('제목은 1~50자예요');
+  const { error } = await getSupabase().from('results').update({ display_title_override: value }).eq('id', id);
+  if (error) throw new Error('제목을 바꾸지 못했어요');
+}
+export async function setResultVisibility(id: string, visibility: Visibility): Promise<void> {
+  const { error } = await getSupabase().rpc('set_result_visibility', { result_id: id, v: visibility });
+  if (error) throw new Error('공개 범위를 바꾸지 못했어요');
+}
+
+export type LegacyLinkRisk = { id: string; title: string; deleted_at: string | null; kind: string; status: string };
+export async function fetchLegacyLinkRisks(): Promise<LegacyLinkRisk[]> {
+  const rows = await readAllPages<LegacyLinkRisk>((from, to) => getSupabase().rpc('my_legacy_link_risks').range(from, to));
+  return rows;
 }

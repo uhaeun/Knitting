@@ -25,15 +25,22 @@ export function requireUserId(): string {
  * 페이지를 새로 열면 비워진다 (메모리에만 둔다).
  */
 const signed = new Map<string, { url: string; expiresAt: number }>();
+let generation = 0;
+export function forgetSignedUrls(): void {
+  generation += 1;
+  signed.clear();
+  signedFor = null;
+}
 let signedFor: string | null = null; // 캐시를 채운 계정. 계정이 바뀌면 비운다
 
-/** Storage 키 → 서명 URL. 캐시에 없거나 곧 만료되는 것만 배치 한 번으로 발급한다. 실패한 키는 빠진다. */
+/** Storage 키 → 미디어 주소. 결과물은 권한을 재검사하는 게이트웨이, 원본 기록은 Storage 배치 서명을 사용한다. 실패한 키는 빠진다. */
 export async function signPaths(keys: readonly string[]): Promise<Map<string, string>> {
   const userId = useAuth.getState().session?.user.id ?? null;
   if (userId !== signedFor) {
-    signed.clear();
+    forgetSignedUrls();
     signedFor = userId;
   }
+  const requestGeneration = generation;
   const now = Date.now();
   const out = new Map<string, string>();
   const missing: string[] = [];
@@ -48,8 +55,19 @@ export async function signPaths(keys: readonly string[]): Promise<Map<string, st
   // 사진이 수천 장인 편물에서 요청 하나가 너무 커지지 않게 나눈다
   for (let i = 0; i < missing.length; i += SIGN_BATCH) {
     const batch = missing.slice(i, i + SIGN_BATCH);
-    const { data, error } = await getSupabase().storage.from(PHOTOS_BUCKET).createSignedUrls(batch, SIGNED_URL_TTL);
-    if (error) throw new Error(`사진 주소를 받지 못했어요: ${error.message}`);
+    const sb = getSupabase();
+    const protectedReply = await sb.functions.invoke('revocable-media', { body: { keys: batch } });
+    if (protectedReply.error) throw new Error('미디어 접근 권한을 확인하지 못했어요');
+    const protectedUrls = (protectedReply.data as { urls: { path: string; url: string }[] }).urls;
+    const protectedPaths = new Set(protectedUrls.map((u) => u.path));
+    const daily = batch.filter((path) => !protectedPaths.has(path));
+    const dailyReply = daily.length ? await sb.storage.from(PHOTOS_BUCKET).createSignedUrls(daily, SIGNED_URL_TTL) : { data: [], error: null };
+    const data = [...(dailyReply.data ?? []), ...protectedUrls.map((u) => ({ path: u.path, signedUrl: u.url }))];
+    const error = dailyReply.error;
+    if (requestGeneration !== generation || useAuth.getState().session?.user.id !== userId) {
+      throw new Error('계정이나 공개 범위가 바뀌었어요. 다시 확인해 주세요.');
+    }
+    if (error) throw new Error('사진 주소를 받지 못했어요');
     for (const d of data ?? []) {
       if (!d.path || !d.signedUrl) continue;
       signed.set(d.path, { url: d.signedUrl, expiresAt });

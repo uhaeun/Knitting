@@ -45,6 +45,7 @@ try {
 
   await page.goto(`${BASE}/settings/trash`);
   await page.getByRole('button', { name: /되돌리기$/ }).first().click({ timeout: 45000 });
+  await choose('되돌리기');
   await page.waitForTimeout(2000);
   check('되돌리면 2장', alive() === '2', alive());
   check('휴지통이 비었다', (await page.getByText('휴지통이 비어 있어요').count()) === 1);
@@ -61,6 +62,7 @@ try {
   await page.goto(`${BASE}/settings/trash`);
   await page.getByText('편물 전체').waitFor({ timeout: 45000 });
   await page.getByRole('button', { name: /되돌리기$/ }).first().click();
+  await choose('되돌리기');
   await page.waitForTimeout(2500);
   check('편물과 기록이 함께 살아남', projects() === '1' && alive() === '2', `${projects()}/${alive()}`);
 

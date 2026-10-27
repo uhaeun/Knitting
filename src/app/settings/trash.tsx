@@ -58,9 +58,14 @@ export default function TrashScreen() {
               accessibilityLabel={`${item.title} 되돌리기`}
               disabled={restore.isPending}
               onPress={() =>
-                restore.mutate(item, {
-                  onError: (e) => showAlert('되돌리지 못했어요', e instanceof Error ? e.message : String(e)),
-                })
+                showAlert('되돌릴까요?', item.kind === 'project'
+                  ? '편물과 함께 복원되는 촬영 기록, 기존 발행 결과물을 모두 나만 보기로 바꿔요. 과거 삭제 이력이 불명확한 촬영 기록은 자동 복원하지 않아요.'
+                  : '기록을 편물의 현재 공개 범위로 되돌려요.', [
+                  { text: '취소', style: 'cancel' },
+                  { text: '되돌리기', onPress: () => restore.mutate(item, {
+                    onError: (e) => showAlert('되돌리지 못했어요', e instanceof Error ? e.message : String(e)),
+                  }) },
+                ])
               }
               style={({ pressed }) => [styles.restore, pressed && styles.restorePressed]}
             >

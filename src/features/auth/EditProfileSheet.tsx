@@ -1,10 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { validateDisplayName } from '@/features/auth/api';
+import { validateDisplayName, validateUsername } from '@/features/auth/api';
 import { removeAvatar, uploadAvatar } from '@/features/auth/avatar';
-import { useUpdateProfile } from '@/features/auth/queries';
+import { useUpdateProfile, useChangeUsername } from '@/features/auth/queries';
 import { useAuth } from '@/features/auth/store';
 import { showAlert } from '@/shared/lib/dialog';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
@@ -17,7 +17,7 @@ const BIO_MAX = 150;
 
 type Props = { visible: boolean; onClose: () => void };
 
-/** 표시 이름·소개 바꾸기. 아이디는 바꾸지 않는다 (다른 사람이 링크로 찾아오는 주소라서) */
+/** 프로필과 서버 재인증을 거치는 아이디 변경. */
 export function EditProfileSheet({ visible, onClose }: Props) {
   // 닫을 때 편집 폼을 해제한다. 다시 열면 최신 프로필로 시작하며 취소한
   // 입력값을 effect로 뒤늦게 덮어쓰는 렌더가 생기지 않는다.
@@ -27,11 +27,26 @@ export function EditProfileSheet({ visible, onClose }: Props) {
 function EditProfileForm({ onClose }: Pick<Props, 'onClose'>) {
   const profile = useAuth((s) => s.profile);
   const update = useUpdateProfile();
+  const rename = useChangeUsername();
+  const [username, setUsername] = useState(profile?.username ?? '');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState(profile?.display_name ?? '');
   const [bio, setBio] = useState(profile?.bio ?? '');
   const [busyPhoto, setBusyPhoto] = useState(false);
 
+  const [now, setNow] = useState(() => Date.now());
+  const nextChangeTime = profile?.last_username_changed_at
+    ? new Date(profile.last_username_changed_at).getTime() + 720 * 60 * 60 * 1000 : null;
+  useEffect(() => {
+    if (!nextChangeTime || nextChangeTime <= now) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.min(Math.max(0, nextChangeTime - Date.now()), 2_147_000_000));
+    return () => clearTimeout(timer);
+  }, [nextChangeTime, now]);
   if (!profile) return null;
+  const nextAllowed = profile.last_username_changed_at
+    ? new Date(new Date(profile.last_username_changed_at).getTime() + 720 * 60 * 60 * 1000) : null;
+  const usernameError = validateUsername(username);
+  const renameAllowed = !nextAllowed || now >= nextAllowed.getTime();
   const nameError = name.trim() ? validateDisplayName(name) : null;
   const changed = name.trim() !== profile.display_name || (bio.trim() || null) !== (profile.bio ?? null);
   const canSave = !!name.trim() && !nameError && changed && !update.isPending;
@@ -105,7 +120,17 @@ function EditProfileForm({ onClose }: Pick<Props, 'onClose'>) {
           placeholder="예: 겨울 내내 스웨터 하나 뜨는 중"
           style={styles.bio}
         />
-        <Text style={styles.hint}>아이디 @{profile.username}는 바꿀 수 없어요. 다른 사람이 나를 찾는 주소예요.</Text>
+        <Field label="아이디" value={username} onChangeText={(v) => setUsername(v.toLowerCase())} maxLength={20} autoCapitalize="none" />
+        {usernameError ? <Text style={styles.error}>{usernameError}</Text> : null}
+        <Text style={styles.hint}>첫 변경은 바로 가능해요. 이후 30일마다 바꿀 수 있고, 이전 아이디는 다시 사용할 수 없어요.</Text>
+        {nextAllowed ? <Text style={styles.hint}>다음 변경 가능: {nextAllowed.toLocaleString()}</Text> : null}
+        <Field label="현재 비밀번호" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
+        <Button label={rename.isPending ? '변경 중…' : '아이디 변경'}
+          disabled={!renameAllowed || !!usernameError || username === profile.username || !password || rename.isPending}
+          onPress={() => rename.mutate({ username, password }, {
+            onSuccess: () => { setPassword(''); showAlert('아이디를 바꿨어요'); },
+            onError: (e) => { setPassword(''); showAlert('변경하지 못했어요', e.message); },
+          })} />
         <Button label={update.isPending ? '저장하는 중…' : '저장'} large disabled={!canSave} onPress={save} />
       </View>
     </BottomSheet>

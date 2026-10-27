@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useUpdateProjectDates } from '@/features/project/queries';
-import { todayIso } from '@/shared/lib/dates';
+import { todayIso, validateProjectDates } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
@@ -24,7 +24,7 @@ export function ProjectDatesSheet({ projectId, startedAt, finishedAt, onClose }:
   const update = useUpdateProjectDates();
 
   const changed = started !== startedAt || finished !== finishedAt;
-  const wrongOrder = !!finished && finished < started;
+  const dateError = validateProjectDates(started, finished, today);
 
   const save = () =>
     update.mutate(
@@ -47,11 +47,11 @@ export function ProjectDatesSheet({ projectId, startedAt, finishedAt, onClose }:
         ) : (
           <Button label="완성했어요" variant="secondary" large onPress={() => setFinished(today)} />
         )}
-        {wrongOrder ? <Text style={styles.error}>완성일이 시작일보다 앞이에요</Text> : null}
+        {dateError ? <Text style={styles.error}>{dateError}</Text> : null}
         <Button
           label={update.isPending ? '저장 중…' : '저장'}
           large
-          disabled={!changed || wrongOrder || update.isPending}
+          disabled={!changed || !!dateError || update.isPending}
           onPress={save}
         />
       </View>

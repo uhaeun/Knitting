@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { forgetSignedUrls } from '@/shared/lib/remote';
 import { createProject, deleteProject, getProject, listProjects, listTrash, renameProject, restoreTrashItem, setPhotosHiddenFromOthers, setProjectVisibility, updateProjectDates, type TrashItem } from '@/features/project/repository';
 import type { Visibility } from '@/shared/types/models';
 
@@ -29,8 +30,11 @@ export function useSetVisibility() {
     mutationFn: (v: { id: string; visibility: Visibility }) =>
       setProjectVisibility(v.id, v.visibility),
     onSuccess: (_d, v) => {
+      forgetSignedUrls();
       qc.invalidateQueries({ queryKey: projectKeys.all });
       qc.invalidateQueries({ queryKey: projectKeys.posts(v.id) });
+      qc.invalidateQueries({ queryKey: ['feed'] });
+      qc.invalidateQueries({ queryKey: ['results'] });
     },
   });
 }
@@ -40,6 +44,7 @@ export function useSetPhotosHiddenFromOthers() {
   return useMutation({
     mutationFn: (v: { id: string; hidden: boolean }) => setPhotosHiddenFromOthers(v.id, v.hidden),
     onSuccess: (_d, v) => {
+      forgetSignedUrls();
       qc.invalidateQueries({ queryKey: projectKeys.all });
       qc.invalidateQueries({ queryKey: projectKeys.posts(v.id) });
       qc.invalidateQueries({ queryKey: ['feed'] });
@@ -72,7 +77,11 @@ export function useDeleteProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteProject(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: projectKeys.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: projectKeys.all });
+      qc.invalidateQueries({ queryKey: ['feed'] });
+      qc.invalidateQueries({ queryKey: ['results'] });
+    },
   });
 }
 
@@ -85,6 +94,7 @@ export function useRestoreTrash() {
   return useMutation({
     mutationFn: (item: Pick<TrashItem, 'kind' | 'id'>) => restoreTrashItem(item),
     onSuccess: () => {
+      forgetSignedUrls();
       qc.invalidateQueries({ queryKey: ['trash'] });
       qc.invalidateQueries({ queryKey: projectKeys.all });
       qc.invalidateQueries({ queryKey: ['feed'] });

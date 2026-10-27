@@ -5,6 +5,7 @@ import { fetchMyProfile } from '@/features/auth/api';
 import { forgetPending } from '@/features/auth/pendingConfirm';
 import { parseRecovery } from '@/features/auth/recovery';
 import { useAuth } from '@/features/auth/store';
+import { forgetSignedUrls } from '@/shared/lib/remote';
 import { getSupabase, supabaseConfigured } from '@/shared/lib/supabase';
 
 /** 앱 시작 시 세션 복원, 이후 auth 변화를 스토어에 반영. 프로필도 같이 읽는다. */
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         const p = await fetchMyProfile(userId);
-        if (!cancelled) setProfile(p);
+        if (!cancelled && useAuth.getState().session?.user.id === userId) setProfile(p);
       } catch (e) {
         console.warn('[auth] 프로필 읽기 실패', e);
       }
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session) forgetPending();
       // 로그아웃·계정 전환 시 이전 계정의 편물·서명 URL이 캐시로 보이지 않게
       const userId = session?.user.id ?? null;
-      if (lastUserId.current !== undefined && lastUserId.current !== userId) queryClient.clear();
+      if (lastUserId.current !== undefined && lastUserId.current !== userId) { queryClient.clear(); forgetSignedUrls(); setProfile(null); }
       lastUserId.current = userId;
       setSession(session);
       void load(session?.user.id);

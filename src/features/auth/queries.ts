@@ -1,6 +1,6 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { changePassword, createProfile, deleteAccount, fetchEnabledSocials, requestPasswordReset, resendConfirmation, signIn, signInWithSocial, signUp, updatePassword, updateProfile, type SocialProvider } from '@/features/auth/api';
+import { changePassword, changeUsername, createProfile, deleteAccount, fetchEnabledSocials, fetchMyProfile, requestPasswordReset, resendConfirmation, signIn, signInWithSocial, signUp, updatePassword, updateProfile, type SocialProvider } from '@/features/auth/api';
 import { useAuth } from '@/features/auth/store';
 
 export function useSignIn() {
@@ -34,7 +34,13 @@ export function useUpdatePassword() {
 }
 
 export function useDeleteAccount() {
-  return useMutation({ mutationFn: (userId: string) => deleteAccount(userId) });
+  return useMutation({
+    mutationFn: (userId: string) => deleteAccount(userId),
+    onError: async (_error, userId) => {
+      const profile = await fetchMyProfile(userId).catch(() => null);
+      if (profile) useAuth.getState().setProfile(profile);
+    },
+  });
 }
 
 export function useEnabledSocials() {
@@ -58,5 +64,18 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (v: { id: string; patch: Parameters<typeof updateProfile>[1] }) => updateProfile(v.id, v.patch),
     onSuccess: (p) => setProfile(p),
+  });
+}
+
+export function useChangeUsername() {
+  const qc = useQueryClient();
+  const setProfile = useAuth((s) => s.setProfile);
+  return useMutation({
+    mutationFn: (input: { username: string; password: string }) => changeUsername(input.username, input.password),
+    onSuccess: (profile) => {
+      setProfile(profile);
+      void qc.resetQueries({ queryKey: ['profile'] });
+      void qc.invalidateQueries({ queryKey: ['feed'] });
+    },
   });
 }

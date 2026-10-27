@@ -423,3 +423,7 @@ secret = "local-test-secret"
 enabled = true
 client_id = "local-test-client-id"
 secret = "local-test-secret"
+
+# GET validates the HMAC ticket itself; POST separately validates the user's Auth JWT.
+[functions.revocable-media]
+verify_jwt = false

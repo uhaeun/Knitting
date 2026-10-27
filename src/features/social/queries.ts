@@ -131,6 +131,8 @@ export function useToggleLike() {
 
 export function useProfile(username: string) {
   return useQuery({
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryKey: socialKeys.profile(username),
     queryFn: () => api.fetchProfileByUsername(username),
     enabled: !!username,

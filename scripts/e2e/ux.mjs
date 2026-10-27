@@ -85,6 +85,7 @@ try {
   await page.getByRole('button', { name: '공개 범위 바꾸기' }).click();
   await page.waitForTimeout(600);
   await page.getByRole('button', { name: '전체 공개' }).click();
+  await page.getByRole('alert').getByRole('button', { name: '전체 공개', exact: true }).click();
   await page.waitForTimeout(1500);
   check('공개 범위를 버튼으로 바꾼다', (await body()).includes('전체 공개'));
 

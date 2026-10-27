@@ -8,6 +8,7 @@ import { useTour } from '@/features/onboarding/useTour';
 import { InstallBanner, InstallGuide } from '@/features/pwa/InstallGuide';
 import { GearButton } from '@/shared/ui/GearButton';
 import { useInstall } from '@/features/pwa/useInstall';
+import { useLinkRisks } from '@/features/media/linkRiskQueries';
 import { CreateProjectSheet } from '@/features/project/CreateProjectSheet';
 import { useProjects } from '@/features/project/queries';
 import { formatMonthDay } from '@/shared/lib/dates';
@@ -33,12 +34,16 @@ export default function HomeScreen() {
     router.setParams({ create: undefined });
   };
   const projects = useProjects();
+  const risks = useLinkRisks();
   const items = projects.data ?? [];
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>내 편물</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/results')}>
+          <Text style={styles.menuLabel}>내 결과물 · {risks.isError ? '확인 불가' : risks.data?.length ?? '…'}</Text>
+        </Pressable>
         <View style={styles.headerActions}>
           <GearButton />
           <Pressable
@@ -101,6 +106,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  menuLabel: { color: color.accent, fontSize: fontSize.label, padding: space.sm },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   root: { flex: 1, backgroundColor: color.bg },
   header: {

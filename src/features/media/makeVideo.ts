@@ -1,3 +1,5 @@
+import { resultRecipe, hashRecipe } from '@/features/media/edition';
+import { getProject } from '@/features/project/repository';
 import { listPosts } from '@/features/capture/repository';
 import { mediaOf } from '@/features/media/mediaItem';
 import { createMp4Writer, loadBitmap, openClip, type OpenClip } from '@/features/media/mediaWriter';
@@ -10,7 +12,7 @@ import { color } from '@/shared/ui/tokens';
  */
 
 export type EncodeProgress = { progress: number; frame: number; total: number }; // progress 0..1
-export type EncodeResult = { uri: string; file: File; frameCount: number; durationMs: number; bytes: number };
+export type EncodeResult = { uri: string; file: File; frameCount: number; durationMs: number; bytes: number; posterBlob: Blob; recipeHash: string };
 
 type Current = { segment: Segment; bitmap: ImageBitmap | null; clip: OpenClip | null };
 
@@ -24,6 +26,10 @@ export async function makeVideo(
   signal?.throwIfAborted();
   if (posts.length < MIN_RECORDS) throw new Error(`기록이 ${MIN_RECORDS}개 이상 있어야 영상을 만들 수 있어요`);
 
+  const project = await getProject(projectId);
+  if (!project) throw new Error('편물을 찾을 수 없어요');
+  const recipeHash = await hashRecipe(resultRecipe(project, posts, { kind: 'growth', options }));
+  let posterBlob: Blob | null = null;
   const segments = buildSegments(posts.map(mediaOf), options);
   const transition = options.transition ?? 'cut';
   const durationMs = totalDurationMs(segments);
@@ -62,12 +68,23 @@ export async function makeVideo(
         writer.ctx.drawImage(image, 0, 0, VIDEO_SIDE, VIDEO_SIDE);
         writer.ctx.globalAlpha = 1;
       }
+      if (f === 0 && image) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('대표 이미지를 만들지 못했어요');
+        ctx.drawImage(image, 0, 0, 400, 400);
+        posterBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+      }
       await writer.add(f * dt, dt);
       onProgress?.({ progress: (f + 1) / frameCount, frame: f + 1, total: frameCount });
     }
     const blob = await writer.finish();
     signal?.throwIfAborted();
+    if (!posterBlob) throw new Error('대표 이미지를 만들지 못했어요');
     return {
+      posterBlob, recipeHash,
       uri: URL.createObjectURL(blob),
       file: new File([blob], `knitting-${projectId.slice(0, 8)}.mp4`, { type: 'video/mp4' }),
       frameCount,
