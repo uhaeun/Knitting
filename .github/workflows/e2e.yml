@@ -69,6 +69,9 @@ jobs:
       - name: 삭제 결과물 정리 DB 검사
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/result_cleanup.sql
 
+      - name: 운영자 권한·수동 정리·감사 DB 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/operator_cleanup.sql
+
       - name: 로컬 인증 변경 함수 켜기
         run: |
           python3 - <<'PYENV'
@@ -111,6 +114,9 @@ jobs:
       - name: 실제 Storage 결과물 정리·보존 변경·서버 예약 검사
         run: node --experimental-strip-types scripts/e2e/result-cleanup.ts
 
+      - name: 운영자 확인창·권한 회수·실제 Storage 부분 재처리 검사
+        run: node --experimental-strip-types scripts/e2e/operator-cleanup.ts
+
       - name: 웹 E2E 전체 검사
         if: github.event_name != 'workflow_dispatch' || inputs.regression
         run: |
@@ -125,6 +131,8 @@ jobs:
           path: |
             /tmp/p0-security-results.json
             /tmp/legacy-links-results.json
+            /tmp/operator-cleanup-results.json
+            /tmp/operator-cleanup-partial.png
             /tmp/result-cleanup-results.json
             /tmp/result-cleanup-status.png
           if-no-files-found: ignore
@@ -140,5 +148,7 @@ jobs:
             /tmp/edge-functions.log
             /tmp/p0-security-results.json
             /tmp/legacy-links-results.json
+            /tmp/operator-cleanup-results.json
+            /tmp/operator-cleanup-partial.png
             /tmp/result-cleanup-results.json
           if-no-files-found: ignore

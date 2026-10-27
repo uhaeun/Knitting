@@ -324,6 +324,13 @@ insert into t_result values
   (46,'일반 사용자는 보존 검토자를 자칭할 수 없다',false,pg_temp.writes_as((select id from t_ids where label='A'),$$insert into result_retention_reviewers(user_id)values('11111111-1111-4111-8111-111111111111')$$)),
   (47,'익명 사용자는 정리 상태를 읽을 수 없다',false,has_function_privilege('anon','my_result_cleanup_status()','EXECUTE'));
 
+-- Operator tables/RPCs remain private to ordinary authenticated users.
+insert into t_result values
+  (48,'일반 사용자는 운영자 권한을 자칭할 수 없다',false,pg_temp.writes_as((select id from t_ids where label='A'),$$insert into cleanup_operators(user_id,role)values('11111111-1111-4111-8111-111111111111','executor')$$)),
+  (49,'일반 사용자는 수동 감사 원본을 읽을 수 없다',false,pg_temp.writes_as((select id from t_ids where label='A'),$$select * from cleanup_operator_audit$$)),
+  (50,'일반 사용자는 운영자 실패 목록을 읽을 수 없다',false,pg_temp.writes_as((select id from t_ids where label='A'),$$select * from operator_cleanup_cases()$$)),
+  (51,'익명 사용자는 수동 재처리 RPC를 호출할 수 없다',false,has_function_privilege('anon','request_manual_result_cleanup(uuid,uuid,uuid)','EXECUTE'));
+
 -- 트리거 검증도 함께
 create temporary table t_trigger (항목 text, 기대 text, 실제 text);
 insert into t_trigger
