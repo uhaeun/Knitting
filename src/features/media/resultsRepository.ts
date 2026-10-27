@@ -154,9 +154,17 @@ export async function setResultVisibility(id: string, visibility: Visibility): P
 }
 
 export type LegacyLinkRisk = { id: string; title: string; deleted_at: string | null; kind: string; output: string; status: string; auto_attempts: number; manual_attempts: number; next_attempt_at: string | null; last_code: string | null; origin_blocked: number; cdn_verified: number; objects: { asset: string; origin_blocked: boolean; cdn_verified: boolean; code: string | null }[] };
-export async function fetchLegacyLinkRisks(): Promise<LegacyLinkRisk[]> {
-  const rows = await readAllPages<LegacyLinkRisk>((from, to) => getSupabase().rpc('my_legacy_link_risks').range(from, to));
-  return rows;
+export type LinkRiskSnapshot = { risks: LegacyLinkRisk[]; summary: { total: number; processing: number; action_needed: number; checked_at: string } };
+export async function fetchLegacyLinkRisks(): Promise<LinkRiskSnapshot> {
+  const owner = requireUserId();
+  const { data, error } = await getSupabase().rpc('my_link_risks_snapshot');
+  if (error || !data || requireUserId() !== owner) throw new Error('링크 위험 상태를 확인하지 못했어요');
+  const snapshot = data as LinkRiskSnapshot;
+  if (!Array.isArray(snapshot.risks) || snapshot.summary?.total !== snapshot.risks.length ||
+    snapshot.summary.processing + snapshot.summary.action_needed !== snapshot.summary.total || !snapshot.summary.checked_at) {
+    throw new Error('링크 위험 집계가 일치하지 않아요');
+  }
+  return snapshot;
 }
 
 export async function retryLegacyLink(id: string): Promise<void> {

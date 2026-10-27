@@ -74,7 +74,7 @@ create function retired_result_path(path text) returns boolean language sql stab
  select exists(select 1 from result_link_objects where source_path=path);
 $$;
 revoke all on function retired_result_path(text) from public,anon;
-grant execute on function retired_result_path(text) to authenticated;
+grant execute on function retired_result_path(text) to authenticated,service_role;
 grant execute on function lock_active_account(uuid) to service_role;
 create function guard_retired_result_upload() returns trigger language plpgsql set search_path=public as $$
 begin
@@ -241,4 +241,16 @@ language sql stable security definer set search_path=public as $$
 $$;
 revoke all on function my_legacy_link_risks() from public,anon;
 grant execute on function my_legacy_link_risks() to authenticated;
+notify pgrst,'reload schema';
+
+-- One statement/snapshot, one JSON envelope: PostgREST's row limit must never
+-- truncate the risk count or let pagination races manufacture a safe zero.
+create function my_link_risks_snapshot() returns jsonb language sql stable security definer set search_path=public as $$
+ with risks as materialized(select * from my_legacy_link_risks())
+ select jsonb_build_object('risks',coalesce(jsonb_agg(to_jsonb(r)),'[]'::jsonb),
+  'summary',jsonb_build_object('total',count(*),'processing',count(*) filter(where r.status not in('failed','failed_exhausted')),
+   'action_needed',count(*) filter(where r.status in('failed','failed_exhausted')),'checked_at',statement_timestamp())) from risks r;
+$$;
+revoke all on function my_link_risks_snapshot() from public,anon;
+grant execute on function my_link_risks_snapshot() to authenticated;
 notify pgrst,'reload schema';

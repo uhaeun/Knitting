@@ -25,7 +25,7 @@ export function useLinkRisks() {
     if (client.getQueryState(key)?.fetchStatus !== 'fetching') manual.current = true;
     try { await q.refetch({ cancelRefetch: false }); } finally { manual.current = false; }
   };
-  return { ...q, recheck };
+  return { ...q, data: q.data?.risks, summary: q.data?.summary, recheck };
 }
 
 export function useRetryLegacyLink() {

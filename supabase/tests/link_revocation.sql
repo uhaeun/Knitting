@@ -54,6 +54,11 @@ select pg_temp.check_that('owner can request manual retry',pg_temp.as_user('7111
 select claim_link_revocation() as claimed \gset
 select (:'claimed'::jsonb->>'token') as token \gset
 select pg_temp.check_that('manual retry never resets automatic counter',(select auto_attempts=6 and manual_attempts=1 from result_link_jobs));
+select set_config('request.jwt.claims','{"sub":"71111111-1111-4111-8111-111111111111"}',true);
+select pg_temp.check_that('server summary counts two objects as one result',(my_link_risks_snapshot()->'summary'->>'total')::int=1 and jsonb_array_length(my_link_risks_snapshot()->'risks')=1);
+select set_config('request.jwt.claims','{"sub":"72222222-2222-4222-8222-222222222222"}',true);
+select pg_temp.check_that('foreign account summary reveals no risk rows',(my_link_risks_snapshot()->'summary'->>'total')::int=0 and my_link_risks_snapshot()->'risks'='[]'::jsonb);
+select set_config('request.jwt.claims','{}',true);
 -- Only server-derived paths are activated, and only after stored object existence.
 insert into storage.objects(bucket_id,name,owner)select 'photos',target_path,'71111111-1111-4111-8111-111111111111'::uuid from result_link_objects;
 do $$declare o result_link_objects; j result_link_jobs;begin
