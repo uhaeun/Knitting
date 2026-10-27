@@ -431,3 +431,7 @@ verify_jwt = false
 # Scheduled worker uses its own server-only secret and accepts no client body.
 [functions.revoke-legacy-links]
 verify_jwt = false
+
+# Private scheduler secret; no user-selected cleanup targets.
+[functions.cleanup-results]
+verify_jwt = false

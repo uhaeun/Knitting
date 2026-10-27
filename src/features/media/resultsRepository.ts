@@ -171,3 +171,15 @@ export async function retryLegacyLink(id: string): Promise<void> {
   const { error } = await getSupabase().rpc('retry_my_link_revocation', { rid: id });
   if (error) throw new Error('재시도를 요청하지 못했어요. 잠시 후 다시 시도해 주세요.');
 }
+
+export type ResultCleanup = {
+  result_id: string; deleted_at: string; kind: string; output: string;
+  status: string; reason: string; title_status: string; updated_at: string;
+  objects: { asset: string; location: string; status: string; auto_attempts: number; additional_attempts: number; next_attempt_at: string | null; verified_at: string | null; code: string | null }[];
+};
+export async function fetchResultCleanup(): Promise<ResultCleanup[]> {
+  const owner = requireUserId();
+  const rows = await readAllPages<ResultCleanup>((from, to) => getSupabase().rpc('my_result_cleanup_status').range(from, to));
+  if (requireUserId() !== owner) throw new Error('계정이 바뀌었어요');
+  return rows;
+}

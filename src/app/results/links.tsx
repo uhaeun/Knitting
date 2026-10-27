@@ -14,6 +14,7 @@ export default function LinkRisksScreen() {
   return <SafeAreaView style={styles.root}>
     <Button label="뒤로" variant="secondary" onPress={() => router.back()} />
     <Text style={styles.title}>링크 차단 문제 관리</Text>
+    <Button label="삭제 결과물 정리 상태" variant="secondary" onPress={() => router.push('/results/cleanup')} />
     <Text style={styles.text}>나만 설정과 과거 링크 차단은 별도예요. CDN 전파 중에는 과거 링크가 열릴 수 있어요. 이미 내려받은 파일·스크린샷·기기 캐시는 회수할 수 없습니다.</Text>
     <Button label="다시 확인" variant="secondary" disabled={q.isFetching} onPress={() => void q.recheck()} />
     {q.isError ? <EmptyState title="확인 불가" description="현재 위험 건수를 확인하지 못했어요. 0건으로 판정하지 않습니다." /> :

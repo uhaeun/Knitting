@@ -14,7 +14,7 @@ export default function ResultsScreen() {
   return <SafeAreaView style={styles.root}>
     <View style={styles.header}><Button label="뒤로" variant="secondary" onPress={() => router.back()} /><Text style={styles.title}>내 결과물</Text></View>
     {q.isError ? <EmptyState title="결과물을 불러오지 못했어요" description="연결을 확인하고 다시 시도해 주세요." actionLabel="다시 확인" onAction={() => void q.refetch()} /> :
-      <FlatList ListHeaderComponent={<LinkRiskBanner />} data={q.data?.results ?? []} keyExtractor={(r) => r.id}
+      <FlatList ListHeaderComponent={<><LinkRiskBanner /><Button label="삭제 결과물 정리 상태" variant="secondary" onPress={() => router.push('/results/cleanup')} /></>} data={q.data?.results ?? []} keyExtractor={(r) => r.id}
         ListEmptyComponent={q.isPending ? null : <EmptyState title="아직 발행한 결과물이 없어요" description="편물에서 결과 사진이나 성장 영상을 만든 뒤 피드에 올릴 수 있어요." />}
         renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/published/[id]', params: { id: item.id } })} style={styles.row}>
           <Image source={{ uri: q.data?.urls.get(item.thumb_path) }} style={styles.thumb} contentFit="cover" />
