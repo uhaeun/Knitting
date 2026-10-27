@@ -8,7 +8,7 @@ import { useAuth } from '@/features/auth/store';
 import { fetchAutomaticAudit, fetchManualAudit, fetchOperatorAccess, fetchOperatorCases, fetchOperatorRun, operatorSessionKey, previewManualCleanup, reportSnapshotIssue, requestManualCleanup } from './api';
 import { OperatorPoller, type PollState } from './poller';
 import { useOperatorSecurity } from './security';
-import type { RunSnapshot } from './snapshot';
+import { isProcessing, type RunSnapshot } from './snapshot';
 const suspended = new Map<string, Pick<PollState, 'paused' | 'failures'>>();
 useAuth.subscribe((state, previous) => {
   if (operatorSessionKey(state.session) !== operatorSessionKey(previous.session)) { suspended.clear();useOperatorSecurity.setState({ blocked: null }); }
@@ -46,7 +46,7 @@ export function useOperatorRun(jobId: string | null, allowed: boolean) {
     const identity = `${session}:${jobId}`;
     return new OperatorPoller(jobId, {
       fetch: (nonce, signal) => fetchOperatorRun(jobId, nonce, signal, session),
-      accept: (s) => client.setQueryData(key, s),
+      accept: (s) => { const previous=client.getQueryData<RunSnapshot>(key);client.setQueryData(key,s);if(!isProcessing(s) && previous?.status_version!==s.status_version)void client.invalidateQueries({queryKey:['operator-cases']}); },
       clear: (reason) => {
         if (reason === 'auth') { const predicate = (q: { queryKey: readonly unknown[] }) => String(q.queryKey[0]).startsWith('operator-');void client.cancelQueries({ predicate });client.removeQueries({ predicate }); }
         else client.removeQueries({ queryKey: key, exact: true });

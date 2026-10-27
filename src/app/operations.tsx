@@ -63,6 +63,8 @@ function Operations() {
           <Text>재요청은 최신 단건 확인창을 거쳐야 합니다. 실행 조건은 다시 검증합니다.</Text>
           {access.data?.can_execute && !['queued','processing','succeeded'].includes(run.data.status) ? <Button label="남은 파일 재처리 확인" variant="secondary" onPress={() => begin(run.data!.result_id)} /> : null}
         </> : null}
+      </View> : null}
+      {selection.rid ? <View style={styles.row}>
         <Text style={styles.heading}>수동 감사 이력</Text>{audit.isError ? <Text>감사 이력 조회 불가</Text> : audit.data?.map((a) => <Text key={a.id}>{a.created_at} · 실행자 {a.actor_id} · {a.object_id ?? '작업'} · {a.code} · v{a.status_version ?? '미배정'}</Text>)}
       </View> : null}
       {selection.rid ? <View style={styles.row}><Text style={styles.heading}>자동 실패 이력</Text>{auto.isError ? <Text>이력 조회 불가</Text> : auto.data?.map((a) => <Text key={a.id}>{a.started_at} · {a.object_id ?? a.task} · {a.attempt_no}회 · {a.code ?? '처리 중'}</Text>)}</View> : null}
