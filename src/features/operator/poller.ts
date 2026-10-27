@@ -7,7 +7,7 @@ export type PollDependencies = {
   report: (errorId: string, snapshot: RunSnapshot | null) => void;
   now?: () => number; uuid?: () => string;
 };
-type Flight = { epoch: number; manual: boolean; followup: boolean; abort: AbortController; requestId: string; timeout: ReturnType<typeof setTimeout>; queuedManual: boolean; recovery: boolean; integrityCheck: boolean };
+type Flight = { started: number; epoch: number; manual: boolean; followup: boolean; abort: AbortController; requestId: string; timeout: ReturnType<typeof setTimeout>; queuedManual: boolean; recovery: boolean; integrityCheck: boolean };
 /** Read-only coordinator: single logical flight, causal manual request IDs,
  * bounded freshness follow-up; no cleanup/mutation function is referenced. */
 export class OperatorPoller {
@@ -57,7 +57,7 @@ export class OperatorPoller {
     if (this.disposed || !this.active || this.flight || !manual && this.state.paused) return;
     this.clearTimer();
     const abort = new AbortController();const requestId = this.uuid();
-    const f: Flight = { epoch: this.epoch, manual, followup, abort, requestId, queuedManual: false, recovery: !!this.state.paused, integrityCheck, timeout: setTimeout(() => undefined, 0) };
+    const f: Flight = { started: this.now(), epoch: this.epoch, manual, followup, abort, requestId, queuedManual: false, recovery: !!this.state.paused, integrityCheck, timeout: setTimeout(() => undefined, 0) };
     this.flight = f;this.emit({ fetching: true, unknown: true });
     const timeout = new Promise<never>((_, reject) => {
       clearTimeout(f.timeout);f.timeout = setTimeout(() => { abort.abort();reject(new Error('STATUS_TIMEOUT')); }, 8000);
@@ -75,6 +75,7 @@ export class OperatorPoller {
         });
         if (s.result_id !== this.last.result_id || manifestChanged || v < old || v === old && (stateFingerprint(s) !== stateFingerprint(this.last) || s.checked_at < this.last.checked_at)) throw new SnapshotError();
       }
+      if(this.now()-f.started>=8000)throw new Error('STATUS_TIMEOUT');
       this.last = s;this.d.accept(s);
       // A nonce echoed by the server in a GET sent after a manual click is the
       // freshness barrier. Client wall-clock and arrival order are never used.
@@ -84,6 +85,7 @@ export class OperatorPoller {
     } catch (error) {
       if (!this.live(f)) return;
       const status = error && typeof error === 'object' && 'status' in error ? error.status : null;
+      if(this.now()-f.started>=8000 && status!==401 && status!==403)error=new Error('STATUS_TIMEOUT');
       if (status === 401 || status === 403) {
         this.last = null;this.due = null;this.d.clear('auth');this.emit({ paused: 'auth', unknown: true, lastCheckedAt: null });
       } else if (error instanceof SnapshotError) {

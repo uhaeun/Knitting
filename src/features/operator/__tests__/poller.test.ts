@@ -124,3 +124,9 @@ it.each(['manifest','counter'])('higher versions cannot replace/reset the fixed 
 it('remount preserves an integrity pause until an explicit valid manual read',async()=>{
   const t=setup(undefined,{paused:'integrity',failures:1});t.poller.setActive(true);await tick(30000);expect(t.fetch).not.toHaveBeenCalled();t.poller.manual();await tick();expect(t.state().paused).toBeNull();await tick(10000);expect(t.fetch).toHaveBeenCalledTimes(2);t.poller.dispose();
 });
+
+it('checks the monotonic deadline after body and snapshot validation, even before the timer callback runs',async()=>{
+  let clock=0;let state:PollState|null=null;const accept=jest.fn();
+  const p=new OperatorPoller(job,{now:()=>clock,uuid,fetch:async(id)=>{clock=9000;return snapshot(id);},accept,clear:()=>undefined,change:s=>{state=s;},report:()=>undefined});
+  p.setActive(true);await tick();expect(accept).not.toHaveBeenCalled();expect(state).toMatchObject({unknown:true,failures:1});p.dispose();
+});

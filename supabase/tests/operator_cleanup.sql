@@ -104,6 +104,10 @@ select pg_temp.check_that('audit is available only to operators',(pg_temp.user_j
 select pg_temp.check_that('read-only status remains readable for viewer',pg_temp.user_json('a2222222-2222-4222-8222-222222222222',format('select operator_cleanup_status(%L,%L)',:'last_run',:'requestid')) ? 'status_version');
 select pg_temp.check_that('all rejections have minimal error identifiers',not exists(select 1 from cleanup_operator_audit where code in('EXECUTOR_REQUIRED','SELECTION_CHANGED','BUSY') and error_id is null));
 select set_config('request.jwt.claims','{"sub":"a3333333-3333-4333-8333-333333333333"}',true);
+select gen_random_uuid() faultid \gset
+select report_cleanup_snapshot_issue(:'last_run',:'faultid','9007199254740993',clock_timestamp());
+select report_cleanup_snapshot_issue(:'last_run',:'faultid','9007199254740993',clock_timestamp());
+select pg_temp.check_that('minimum snapshot fault audit deduplicates without ambiguity',(select count(*)=1 and min(status_version)=9007199254740993 from cleanup_operator_audit where error_id=:'faultid'));
 -- Fixture-only saturation, representing a previous committed transaction.
 alter table result_cleanup_runs disable trigger manual_cleanup_version;
 update result_cleanup_runs set status_version=9223372036854775807,version_xid=0 where id=:'last_run';

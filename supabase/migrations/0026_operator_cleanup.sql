@@ -185,7 +185,7 @@ end $$;
 create function report_cleanup_snapshot_issue(run_id uuid,error_id uuid,version text,checked_at timestamptz) returns void language plpgsql security definer set search_path=public as $$begin
  if cleanup_operator_role(auth.uid()) is null then raise exception '운영자 권한이 필요해요' using errcode='42501';end if;
  if not exists(select 1 from result_cleanup_runs where id=run_id) then return;end if;
- insert into cleanup_operator_audit(actor_id,run_id,code,error_id,status_version)values(auth.uid(),run_id,'SNAPSHOT_INTEGRITY',error_id,case when version ~ '^[1-9][0-9]{0,18}$' and version::numeric<=9223372036854775807 then version::bigint else null end)on conflict(error_id)do nothing;
+ insert into cleanup_operator_audit(actor_id,run_id,code,error_id,status_version)values(auth.uid(),run_id,'SNAPSHOT_INTEGRITY',error_id,case when version ~ '^[1-9][0-9]{0,18}$' and version::numeric<=9223372036854775807 then version::bigint else null end)on conflict on constraint cleanup_operator_audit_error_id_key do nothing;
 end $$;
 
 create function manual_object_state(state jsonb,oid uuid,new_status text,code text) returns jsonb language sql stable security definer set search_path=public as $$
@@ -198,7 +198,7 @@ begin
  select * into j from result_cleanup_jobs where id=jid for update;select * into run from result_cleanup_runs where id=j.active_manual_run for update;
  if run.id is null then return;end if;
  if run.status_version=9223372036854775807 then
-  insert into cleanup_operator_audit(actor_id,result_id,run_id,code,status_version,error_id)values(run.actor_id,run.result_id,run.id,'VERSION_LIMIT',run.status_version,run.id)on conflict(error_id)do nothing;return;
+  insert into cleanup_operator_audit(actor_id,result_id,run_id,code,status_version,error_id)values(run.actor_id,run.result_id,run.id,'VERSION_LIMIT',run.status_version,run.id)on conflict on constraint cleanup_operator_audit_error_id_key do nothing;return;
  end if;
  select jsonb_agg(case when x->>'status' in('pending','processing') then x||jsonb_build_object('status','blocked','code',reason) else x end order by ord) into objs from jsonb_array_elements(run.state->'objects')with ordinality a(x,ord);
  update result_cleanup_objects set status='failed_exhausted',active_token=null,next_attempt_at=null,last_code=reason where job_id=j.id and active_token=j.lease_token;
