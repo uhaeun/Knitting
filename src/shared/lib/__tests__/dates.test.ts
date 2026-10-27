@@ -1,4 +1,4 @@
-import { formatDateTime, daysSince, formatMonthDay, toDateOnly } from '@/shared/lib/dates';
+import { formatDateTime, daysSince, formatMonthDay, toDateOnly, validateProjectDates } from '@/shared/lib/dates';
 
 describe('daysSince', () => {
   it('시작 당일은 1일째', () => {
@@ -32,5 +32,18 @@ describe('formatDateTime', () => {
   it('자정은 오전 12시, 정오는 오후 12시', () => {
     expect(formatDateTime('2026-09-18T00:00:00')).toBe('9월 18일 오전 12:00');
     expect(formatDateTime('2026-09-18T12:00:00')).toBe('9월 18일 오후 12:00');
+  });
+});
+
+describe('project date acceptance', () => {
+  it('allows today and same-day completion but rejects future or reversed dates', () => {
+    expect(validateProjectDates('2026-10-27', '2026-10-27', '2026-10-27')).toBeNull();
+    expect(validateProjectDates('2026-10-28', null, '2026-10-27')).not.toBeNull();
+    expect(validateProjectDates('2026-10-27', '2026-10-26', '2026-10-27')).not.toBeNull();
+  });
+  it('does not accept normalized invalid calendar dates or empty input', () => {
+    expect(validateProjectDates('2026-02-29', null, '2026-10-27')).not.toBeNull();
+    expect(validateProjectDates('', null, '2026-10-27')).not.toBeNull();
+    expect(validateProjectDates('2024-02-29', null, '2026-10-27')).toBeNull();
   });
 });

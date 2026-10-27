@@ -110,10 +110,13 @@ export default function ResultScreen() {
           <Text style={styles.hint}>{saveHint(r.output === 'mp4' ? 'video' : 'image')}</Text>
         ) : null}
         <Button label={saveLabel()} large disabled={!ready} onPress={guard('저장하지 못했어요', r.save)} />
+        <Text style={styles.hint}>공개 대상: {r.visibilityLabel}{r.visibilityLabel === '나만' ? ' · 다른 사람에게 보이지 않아요' : ''}</Text>
+        {r.editionError ? <Text style={styles.hint}>{r.editionError}</Text> : null}
+        <Button label="다시 제작" variant="secondary" disabled={r.composing || r.publishing} onPress={r.remake} />
         <Button
-          label={r.publishing ? '올리는 중…' : '피드에 올리기'}
+          label={r.publishing ? '올리는 중…' : r.editionState === 'published' ? '발행 완료' : r.editionState === 'deleted' ? '삭제한 제작 버전' : '피드에 올리기'}
           variant="secondary"
-          disabled={!ready || r.publishing}
+          disabled={!ready || r.publishing || r.checkingEdition || r.editionState !== 'unpublished'}
           onPress={r.publishToFeed}
         />
       </View>

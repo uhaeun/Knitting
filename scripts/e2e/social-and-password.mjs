@@ -26,14 +26,11 @@ try {
   await page.getByPlaceholder('8자 이상').fill('12345678');
   check('8자면 켜진다', (await page.getByRole('button', { name: '가입하기' }).getAttribute('aria-disabled')) !== 'true');
 
-  console.log('\n== 소셜 로그인 버튼');
-  check('카카오 버튼', await page.getByRole('button', { name: '카카오로 계속하기' }).isVisible());
-  check('구글 버튼', await page.getByRole('button', { name: '구글로 계속하기' }).isVisible());
-
-  // 누르면 그쪽 로그인 화면으로 넘어간다 (로컬은 가짜 키라 구글이 오류를 보여 준다. 여기서는 '넘어갔다'까지만 본다)
-  await page.getByRole('button', { name: '구글로 계속하기' }).click();
-  await page.waitForTimeout(3000);
-  check('누르면 그쪽 로그인으로 넘어간다', !page.url().startsWith(BASE), page.url().slice(0, 70));
+  console.log('\n== MVP는 이메일·비밀번호만 지원');
+  check('가입 화면 카카오 비노출', await page.getByRole('button', { name: '카카오로 계속하기' }).count() === 0);
+  check('가입 화면 구글 비노출', await page.getByRole('button', { name: '구글로 계속하기' }).count() === 0);
+  await page.getByText('이미 계정이 있어요').click();
+  check('로그인 화면 소셜 비노출', await page.getByRole('button', { name: /카카오로 계속하기|구글로 계속하기/ }).count() === 0);
 } catch (e) {
   failed += 1; console.log('ERROR', e.message.slice(0, 300));
   await page.screenshot({ path: '/tmp/social-fail.png' }).catch(() => {});

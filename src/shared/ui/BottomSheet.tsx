@@ -17,7 +17,7 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.fill}>
-        <Pressable style={styles.overlay} onPress={onClose} accessibilityLabel="닫기" />
+        <Pressable style={styles.overlay} onPress={onClose} accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space.xxl) }]}>
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>

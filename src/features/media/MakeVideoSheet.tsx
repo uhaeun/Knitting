@@ -14,6 +14,14 @@ type Props = {
   onClose: () => void;
   onRetry: () => void;
   onSave: () => Promise<void>;
+  onPublish: () => void;
+  onRemake: () => void;
+  publishing: boolean;
+  published: boolean;
+  canPublish: boolean;
+  visibilityLabel: string;
+  editionError: string | null;
+  onRecheckEdition: () => void;
 };
 
 const guard = (title: string, fn: () => Promise<void>) => () =>
@@ -21,7 +29,7 @@ const guard = (title: string, fn: () => Promise<void>) => () =>
 
 
 /** 영상 만들기 진행·결과 시트. 인코딩 중에는 닫히지 않는다. */
-export function MakeVideoSheet({ state, recordCount, estimateSec, onClose, onRetry, onSave }: Props) {
+export function MakeVideoSheet({ state, recordCount, estimateSec, onClose, onRetry, onSave, onPublish, onRemake, publishing, published, canPublish, visibilityLabel, editionError, onRecheckEdition }: Props) {
   const encoding = state.status === 'encoding';
   return (
     <BottomSheet visible={state.status !== 'idle'} title="영상 만들기" onClose={encoding ? () => {} : onClose}>
@@ -48,6 +56,10 @@ export function MakeVideoSheet({ state, recordCount, estimateSec, onClose, onRet
           </Text>
           <Button label={saveLabel()} large onPress={guard('저장하지 못했어요', onSave)} />
           {saveHint('video') ? <Text style={styles.muted}>{saveHint('video')}</Text> : null}
+          <Text style={styles.muted}>공개 대상: {visibilityLabel}</Text>
+          {editionError ? <><Text style={styles.muted}>{editionError}</Text><Button label="다시 확인" variant="secondary" onPress={onRecheckEdition} /></> : null}
+          <Button label={publishing ? '올리는 중…' : published ? '발행 완료' : '피드에 올리기'} disabled={!canPublish || publishing} onPress={onPublish} />
+          <Button label="다시 제작" variant="secondary" disabled={publishing} onPress={onRemake} />
         </View>
       ) : null}
 

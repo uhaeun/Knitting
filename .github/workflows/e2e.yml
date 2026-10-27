@@ -7,7 +7,12 @@ name: 웹 검사 (E2E)
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      regression:
+        description: Also run the existing 30-script regression suite
+        type: boolean
+        default: true
 
 jobs:
   e2e:
@@ -24,7 +29,17 @@ jobs:
       - run: npm ci
 
       - name: ffmpeg 설치 (영상 검사가 쓴다)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+        run: |
+          # Only the throwaway runner is changed. Third-party apt repositories
+          # are unrelated to ffmpeg/Chromium and can stall all later UI tests.
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            printf '%s\n' 'Dir::Etc::sourcelist "/etc/apt/sources.list.d/ubuntu.sources";' 'Dir::Etc::sourceparts "-";' | sudo tee /etc/apt/apt.conf.d/99-knitting-test-sources >/dev/null
+          fi
+          if ! command -v ffmpeg >/dev/null; then
+            sudo timeout 180 apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update -qq
+            sudo timeout 180 apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
 
       - name: 브라우저 설치
         run: npx playwright install --with-deps chromium
@@ -45,6 +60,33 @@ jobs:
       - name: DB 권한 회귀 검사
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/rls_matrix.sql
 
+      - name: 출시 P0 서버 무결성 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/p0_integrity.sql
+
+      - name: 과거 링크 회수 DB 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/link_revocation.sql
+
+      - name: 삭제 결과물 정리 DB 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/result_cleanup.sql
+
+      - name: 운영자 권한·수동 정리·감사 DB 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/operator_cleanup.sql
+
+      - name: 로컬 인증 변경 함수 켜기
+        run: |
+          python3 - <<'PYENV'
+          import secrets
+          from pathlib import Path
+          Path('/tmp/p0-functions.env').write_text('MEDIA_SIGNING_SECRET=' + secrets.token_hex(32) + '\nMEDIA_PUBLIC_URL=http://127.0.0.1:54321/functions/v1/revocable-media\nREVOCATION_WORKER_SECRET=' + secrets.token_hex(32) + '\nCLEANUP_WORKER_SECRET=' + secrets.token_hex(32) + '\nREVOCATION_STORAGE_PUBLIC_URL=http://kong:8000\nREVOCATION_VERIFICATION=origin\n')
+          PYENV
+          npx supabase functions serve --env-file /tmp/p0-functions.env > /tmp/edge-functions.log 2>&1 &
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54321/functions/v1/change-username)
+            if [ "$CODE" = 204 ] || [ "$CODE" = 200 ]; then break; fi
+            sleep 1
+          done
+          test "$CODE" = 204 -o "$CODE" = 200
+
       - name: 서버 주소·열쇠 꺼내기
         run: |
           npx supabase status -o env | sed 's/^/SB_/' >> "$GITHUB_ENV"
@@ -63,10 +105,37 @@ jobs:
           done
           curl -sf http://localhost:8098 > /dev/null || { echo "웹 서버가 안 떴다"; tail -30 /tmp/web.log; exit 1; }
 
+      - name: 수정된 P0 인증·발행·삭제 UI 검사
+        run: node --experimental-strip-types scripts/e2e/p0-security.ts
+
+      - name: 실제 Storage 구URL 회수·앱 종료 후 서버 예약 검사
+        run: node --experimental-strip-types scripts/e2e/legacy-links.ts
+
+      - name: 운영자 확인창·권한 회수·실제 Storage 부분 재처리 검사
+        run: node --experimental-strip-types scripts/e2e/operator-cleanup.ts
+
+      - name: 실제 Storage 결과물 정리·보존 변경·서버 예약 검사
+        run: node --experimental-strip-types scripts/e2e/result-cleanup.ts
+
       - name: 웹 E2E 전체 검사
+        if: github.event_name != 'workflow_dispatch' || inputs.regression
         run: |
           SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
           SUPABASE_SERVICE_KEY="$SERVICE" npm run e2e
+
+      - name: 분리 환경 검증 증거 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-isolated-evidence
+          path: |
+            /tmp/p0-security-results.json
+            /tmp/legacy-links-results.json
+            /tmp/operator-cleanup-results.json
+            /tmp/operator-cleanup-partial.png
+            /tmp/result-cleanup-results.json
+            /tmp/result-cleanup-status.png
+          if-no-files-found: ignore
 
       - name: 실패하면 화면 사진 올리기
         if: failure()
@@ -76,4 +145,10 @@ jobs:
           path: |
             /tmp/*.png
             /tmp/web.log
+            /tmp/edge-functions.log
+            /tmp/p0-security-results.json
+            /tmp/legacy-links-results.json
+            /tmp/operator-cleanup-results.json
+            /tmp/operator-cleanup-partial.png
+            /tmp/result-cleanup-results.json
           if-no-files-found: ignore

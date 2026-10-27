@@ -44,3 +44,17 @@ export function formatDateWithYear(iso: string, now: Date = new Date()): string 
   const sameYear = d.getFullYear() === now.getFullYear();
   return sameYear ? formatMonthDay(iso) : `${d.getFullYear()}년 ${formatMonthDay(iso)}`;
 }
+
+export function currentTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+export function validProjectDate(value: string, today = todayIso()): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value > today) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+export function validateProjectDates(start: string, finished: string | null, today = todayIso()): string | null {
+  if (!validProjectDate(start, today) || (finished !== null && !validProjectDate(finished, today))) return '과거 또는 오늘의 유효한 날짜를 선택해 주세요';
+  if (finished !== null && finished < start) return '완성일이 시작일보다 앞이에요';
+  return null;
+}

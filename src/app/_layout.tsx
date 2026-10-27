@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AuthProvider } from '@/features/auth/AuthProvider';
+import { AccountDeletionPending } from '@/features/auth/AccountDeletionPending';
 import { useAuth } from '@/features/auth/store';
 import { installErrorReporter, reportError } from '@/shared/lib/reportError';
 import { supabaseConfigured } from '@/shared/lib/supabase';
@@ -83,6 +84,8 @@ function AuthGate() {
   // 비밀번호를 바꾸고 나면 이 화면에 머물 이유가 없다
   if (onResetScreen && session) return <Redirect href="/projects" />;
 
+  if (session && profile?.deletion_requested_at) return <AccountDeletionPending />;
+
   const needsSignIn = !session;
   const needsOnboarding = !!session && !profile;
   // 약관·개인정보처리방침은 가입 전에도 읽을 수 있어야 한다
@@ -110,6 +113,9 @@ function AuthGate() {
       <Stack.Screen name="settings/requests" />
       <Stack.Screen name="capture/[projectId]" options={{ presentation: 'fullScreenModal' }} />
       <Stack.Screen name="result/[projectId]" />
+      <Stack.Screen name="results" />
+      <Stack.Screen name="results/links" />
+      <Stack.Screen name="published/[id]" />
     </Stack>
   );
 }

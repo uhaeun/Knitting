@@ -25,3 +25,10 @@ jobs:
         run: npx tsc --noEmit
       - name: 단위 테스트
         run: npx jest --ci
+
+      - name: 웹 산출물 빌드 (분리 환경 설정)
+        env:
+          EXPO_NO_DOTENV: '1'
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: isolated-build-placeholder
+        run: npm run build

@@ -12,12 +12,15 @@ export type Profile = {
   avatar_path: string | null;
   is_private: boolean;
   eula_version: number;
+  deletion_requested_at?: string | null;
+  last_username_changed_at?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
 };
 
 export type RemoteProject = {
+  time_zone?: string;
   id: string;
   owner_id: string;
   name: string;
@@ -57,8 +60,11 @@ export type RemotePost = {
 /** 발행한 결과물(결과 사진·영상). posts와 달리 좋아요·댓글이 없다 */
 export type RemoteResult = {
   id: string;
+  edition_id?: string | null;
   project_id: string;
   owner_id: string;
+  project_name_snapshot?: string | null;
+  display_title_override?: string | null;
   kind: string; // 'single' | 'beforeAfter' | 'triple' (features/media/resultPlan.ts의 ResultKind)
   ratio: string; // '1:1' | '4:5' | '9:16' | '16:9' (ResultRatio)
   output: 'jpeg' | 'mp4';
@@ -96,5 +102,5 @@ export type FeedPost = RemotePost & {
 /** 발행한 결과물 카드 하나. results + 작성자 + 편물 이름 조인 */
 export type FeedResult = RemoteResult & {
   profiles: Pick<Profile, 'id' | 'username' | 'display_name' | 'is_private' | 'avatar_path'>;
-  projects: Pick<RemoteProject, 'id' | 'name' | 'started_at'>;
+  projects: Pick<RemoteProject, 'id' | 'name' | 'started_at' | 'deleted_at'> | null;
 };

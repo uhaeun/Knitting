@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useCreateProject } from '@/features/project/queries';
-import { formatMonthDay, todayIso } from '@/shared/lib/dates';
+import { formatMonthDay, todayIso, validProjectDate } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
 import { BottomSheet } from '@/shared/ui/BottomSheet';
 import { Button } from '@/shared/ui/Button';
@@ -23,14 +23,17 @@ type Props = {
   onCreated?: (projectId: string) => void;
 };
 
-/** 시안 1b. 1주차는 시작일 = 오늘 고정 (날짜 선택기는 나중). */
-export function CreateProjectSheet({ visible, onClose, onCreated }: Props) {
+/** Each new creation starts private, including reopening after cancellation. */
+export function CreateProjectSheet(props: Props) {
+  return props.visible ? <CreateProjectForm {...props} /> : null;
+}
+function CreateProjectForm({ onClose, onCreated }: Props) {
   const [name, setName] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
   const create = useCreateProject();
   const today = todayIso();
   const [startedAt, setStartedAt] = useState(today);
-  const canSubmit = name.trim().length > 0 && !create.isPending;
+  const canSubmit = name.trim().length > 0 && validProjectDate(startedAt, today) && !create.isPending;
 
   const submit = () => {
     create.mutate(
@@ -48,7 +51,7 @@ export function CreateProjectSheet({ visible, onClose, onCreated }: Props) {
   };
 
   return (
-    <BottomSheet visible={visible} title="편물 만들기" onClose={onClose}>
+    <BottomSheet visible title="편물 만들기" onClose={onClose}>
       <Field
         label="편물 이름"
         value={name}
@@ -70,7 +73,7 @@ export function CreateProjectSheet({ visible, onClose, onCreated }: Props) {
               <Pressable
                 key={v.key}
                 accessibilityRole="radio"
-                accessibilityState={{ selected: on }}
+                aria-checked={on}
                 onPress={() => setVisibility(v.key)}
                 style={[styles.seg, i > 0 && styles.segDivider, on && styles.segOn]}
               >

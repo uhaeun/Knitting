@@ -1,6 +1,6 @@
 import { PASSWORD_MIN, resetRedirectUrl } from '@/features/auth/recovery';
 import { LEGAL_VERSION } from '@/features/legal/policy';
-import { getSupabase, PHOTOS_BUCKET } from '@/shared/lib/supabase';
+import { getSupabase } from '@/shared/lib/supabase';
 import type { Profile } from '@/shared/types/remote';
 
 export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
@@ -68,43 +68,16 @@ export async function updatePassword(password: string): Promise<void> {
 }
 
 /**
- * 계정 삭제. Storage 파일을 먼저 지우고(주인만 지울 수 있다) 서버 함수로 계정을 지운다.
- * auth.users가 사라지면 프로필·편물·기록·댓글·팔로우가 cascade로 함께 사라진다.
+ * 계정 삭제는 서버의 재시도 가능한 작업으로 수행한다.
+ * 본인 파일의 부재를 확인한 뒤에만 Auth 계정과 종속 데이터를 정리한다.
  */
-export async function deleteAccount(userId: string): Promise<void> {
+export async function deleteAccount(_userId: string): Promise<void> {
   const sb = getSupabase();
-  await removeMyFiles(userId);
-  const { error } = await sb.rpc('delete_my_account');
-  if (error) throw new Error(`계정을 지우지 못했어요: ${error.message}`);
-  await sb.auth.signOut();
-}
-
-/** 결과물 하위 폴더까지 순회한다. 목록 수집을 끝낸 뒤 지워서 페이지가 밀리지 않게 한다. */
-async function removeMyFiles(userId: string): Promise<void> {
-  const sb = getSupabase();
-  try {
-    const bucket = sb.storage.from(PHOTOS_BUCKET);
-    const paths: string[] = [];
-    const visit = async (prefix: string): Promise<void> => {
-      for (let offset = 0; ; offset += 100) {
-        const { data, error } = await bucket.list(prefix, { limit: 100, offset, sortBy: { column: 'name', order: 'asc' } });
-        if (error) throw error;
-        for (const file of data ?? []) {
-          const path = `${prefix}/${file.name}`;
-          if (file.id) paths.push(path);
-          else await visit(path);
-        }
-        if (!data || data.length < 100) break;
-      }
-    };
-    await visit(userId);
-    // 한 번에 너무 많이 보내지 않는다
-    for (let i = 0; i < paths.length; i += 100) {
-      await sb.storage.from(PHOTOS_BUCKET).remove(paths.slice(i, i + 100));
-    }
-  } catch (e) {
-    console.warn('[account] 파일 삭제 실패, 계정 삭제는 계속합니다', e);
+  const { data, error } = await sb.functions.invoke('delete-account', { body: {} });
+  if (error || !(data as { completed?: boolean } | null)?.completed) {
+    throw new Error('삭제를 완료하지 못했어요. 일부 파일은 이미 정리됐을 수 있어요. 다시 시도해 주세요.');
   }
+  await sb.auth.signOut();
 }
 
 export type SocialProvider = 'google' | 'kakao';
@@ -116,17 +89,10 @@ export const SOCIAL_LABEL: Record<SocialProvider, string> = { google: '구글', 
  * 돌아온 주소의 토큰은 AuthProvider가 받아 로그인 처리한다.
  */
 /**
- * 서버에서 켜 둔 로그인 방법만 알아 온다. 안 켠 버튼을 누르면 낯선 오류 화면으로 가버려서
- * 화면에는 켜진 것만 보여 준다 (대시보드에서 켜면 앱을 고치지 않아도 나타난다).
+ * 10월 MVP는 이메일·비밀번호만 노출한다. 기존 소셜 계정의 서버 설정은 변경하지 않는다.
  */
 export async function fetchEnabledSocials(): Promise<SocialProvider[]> {
-  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return [];
-  const res = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } });
-  if (!res.ok) return [];
-  const body = (await res.json()) as { external?: Record<string, boolean> };
-  return (['kakao', 'google'] as SocialProvider[]).filter((p) => body.external?.[p]);
+  return []; // AUTH-003: email/password only in the October MVP.
 }
 
 export async function signInWithSocial(provider: SocialProvider): Promise<void> {
@@ -164,6 +130,17 @@ export async function createProfile(input: {
     throw new Error(error.message);
   }
   return data as Profile;
+}
+
+/** Password verification and the only username-changing capability live on the server. */
+export async function changeUsername(username: string, password: string): Promise<Profile> {
+  const { data, error } = await getSupabase().functions.invoke('change-username', { body: { username, password } });
+  if (error) {
+    const context = 'context' in error ? error.context as Response | undefined : undefined;
+    const body = await context?.json().catch(() => null) as { error?: string } | null | undefined;
+    throw new Error(body?.error ?? '아이디를 바꾸지 못했어요. 프로필을 다시 확인해 주세요.');
+  }
+  return (data as { profile: Profile }).profile;
 }
 
 export async function updateProfile(id: string, patch: Partial<Pick<Profile, 'display_name' | 'bio' | 'is_private' | 'avatar_path'>>): Promise<Profile> {

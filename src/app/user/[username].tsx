@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useMemo, useState, useCallback } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,7 +28,10 @@ export default function UserScreen() {
   const router = useRouter();
   const me = useAuth((s) => s.session?.user.id);
   const profile = useProfile(username);
-  const user = profile.data;
+  const { refetch: refreshProfile } = profile;
+  useFocusEffect(useCallback(() => { void refreshProfile(); }, [refreshProfile]));
+  // Revalidate a username URL before displaying a previously cached identity.
+  const user = profile.isFetching ? undefined : profile.data;
   const posts = useUserPosts(user?.id);
   const { posts: items, urls } = useMemo(() => flattenFeed(posts.data), [posts.data]);
   const counts = useFollowCounts(user?.id);
@@ -37,7 +40,7 @@ export default function UserScreen() {
   const blockUser = useToggleBlock();
   const [reporting, setReporting] = useState(false);
 
-  if (profile.isSuccess && !user) {
+  if (profile.isSuccess && !profile.isFetching && !user) {
     return (
       <SafeAreaView style={styles.root}>
         <EmptyState title="없는 사용자예요" description="아이디를 다시 확인해 주세요." actionLabel="뒤로" onAction={() => router.back()} />
