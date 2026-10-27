@@ -33,6 +33,17 @@ insert into results(id,project_id,owner_id,kind,ratio,output,file_path,thumb_pat
  ('d0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','11111111-1111-1111-1111-111111111111','single','1:1','jpeg','11111111-1111-1111-1111-111111111111/a0000000-0000-4000-8000-000000000001/results/d0000000-0000-4000-8000-000000000001.jpg','11111111-1111-1111-1111-111111111111/a0000000-0000-4000-8000-000000000001/results/d0000000-0000-4000-8000-000000000001_t.jpg',true),
  ('d0000000-0000-4000-8000-000000000002','c0000000-0000-4000-8000-000000000002','33333333-3333-3333-3333-333333333333','single','1:1','jpeg','33333333-3333-3333-3333-333333333333/c0000000-0000-4000-8000-000000000002/results/d0000000-0000-4000-8000-000000000002.jpg','33333333-3333-3333-3333-333333333333/c0000000-0000-4000-8000-000000000002/results/d0000000-0000-4000-8000-000000000002_t.jpg',true);
 insert into storage.objects(bucket_id,name,owner) select 'photos',file_path,owner_id from results;
+-- A temporary test-only read policy reaches UPDATE/DELETE triggers even though
+-- production SELECT RLS already hides result objects from authenticated clients.
+create policy p0_test_result_read on storage.objects for select to authenticated
+ using(bucket_id='photos' and (storage.foldername(name))[1]=auth.uid()::text);
+select pg_temp.check_that('result object overwrite rejected by server',not pg_temp.run_as('11111111-1111-1111-1111-111111111111',$$update storage.objects set name=name where name='11111111-1111-1111-1111-111111111111/a0000000-0000-4000-8000-000000000001/results/d0000000-0000-4000-8000-000000000001.jpg'$$));
+select pg_temp.check_that('result failure cleanup rejected by server',not pg_temp.run_as('11111111-1111-1111-1111-111111111111',$$delete from storage.objects where name='11111111-1111-1111-1111-111111111111/a0000000-0000-4000-8000-000000000001/results/d0000000-0000-4000-8000-000000000001.jpg'$$));
+select pg_temp.check_that('protected result object remains',exists(select 1 from storage.objects where name='11111111-1111-1111-1111-111111111111/a0000000-0000-4000-8000-000000000001/results/d0000000-0000-4000-8000-000000000001.jpg'));
+insert into storage.objects(bucket_id,name,owner)values('photos','11111111-1111-1111-1111-111111111111/staged-daily.jpg','11111111-1111-1111-1111-111111111111');
+select pg_temp.run_as('11111111-1111-1111-1111-111111111111',$$delete from storage.objects where name='11111111-1111-1111-1111-111111111111/staged-daily.jpg'$$) as daily_cleanup_ok \gset
+select pg_temp.check_that('daily upload failure cleanup remains permitted',:'daily_cleanup_ok'::boolean and not exists(select 1 from storage.objects where name='11111111-1111-1111-1111-111111111111/staged-daily.jpg'));
+drop policy p0_test_result_read on storage.objects;
 -- Gateway authorization is dynamic and never honors an old epoch after privacy changes.
 select media_epoch::text as old_epoch from results where id='d0000000-0000-4000-8000-000000000001' \gset
 select pg_temp.check_that('gateway target exists before a privacy change',(select count(*)=1 from result_media_target('d0000000-0000-4000-8000-000000000001','22222222-2222-2222-2222-222222222222',:'old_epoch','file')));

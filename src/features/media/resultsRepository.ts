@@ -16,7 +16,7 @@ const RESULT_SELECT = `
   projects!results_project_id_fkey ( id, name, started_at, deleted_at )
 `;
 
-/** 업로드 → INSERT 순서 고정 (CLAUDE.md 절대 규칙과 같다). 실패하면 올린 파일을 지운다. */
+/** 업로드 → INSERT 순서 고정. 제작 키는 기기 간 공유되므로 실패 파일은 서버 정리 대상으로 보존한다. */
 export async function publishResult(input: {
   projectId: string;
   kind: ResultKind | 'growth';
@@ -52,7 +52,6 @@ export async function publishResult(input: {
     upsert: false,
   });
   if (thumbErr && !/already exists/i.test(thumbErr.message)) {
-    await bucket.remove([fileKey]);
     throw new Error(`대표 이미지를 올리지 못했어요: ${thumbErr.message}`);
   }
 
@@ -80,7 +79,6 @@ export async function publishResult(input: {
     });
     const state = (confirmed.data as { state: string }[] | null)?.[0]?.state;
     if (!confirmed.error && state === 'published') return;
-    if (!confirmed.error && state === 'unpublished') await bucket.remove([fileKey, thumbKey]);
     throw new Error('발행 상태를 다시 확인해 주세요. 제작 버전과 원본은 유지했어요.');
   }
 }

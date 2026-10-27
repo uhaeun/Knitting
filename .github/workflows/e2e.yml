@@ -81,13 +81,13 @@ jobs:
           done
           curl -sf http://localhost:8098 > /dev/null || { echo "웹 서버가 안 떴다"; tail -30 /tmp/web.log; exit 1; }
 
+      - name: 수정된 P0 인증·발행·삭제 UI 검사
+        run: node --experimental-strip-types scripts/e2e/p0-security.ts
+
       - name: 웹 E2E 전체 검사
         run: |
           SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
           SUPABASE_SERVICE_KEY="$SERVICE" npm run e2e
-
-      - name: 수정된 P0 인증·발행·삭제 UI 검사
-        run: node --experimental-strip-types scripts/e2e/p0-security.ts
 
       - name: 실패하면 화면 사진 올리기
         if: failure()
