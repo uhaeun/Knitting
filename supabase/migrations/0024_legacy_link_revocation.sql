@@ -181,10 +181,9 @@ begin
  if code not in('OK','STORAGE_ERROR','UNSAFE_PATH','SOURCE_MISSING','DIGEST_MISMATCH','CDN_PENDING','CDN_ACCESSIBLE','CDN_UNVERIFIED','NETWORK_ERROR','LEASE_EXPIRED') then code:='STORAGE_ERROR';end if;
  select a.mode into mode from result_link_attempts a where a.lease_token=token;
  select count(*)=2 and bool_and(cdn_verified_at is not null) into done from result_link_objects where job_id=jid;
- if done then
-  -- No result metadata/title changes; the later cleanup workflow is independent.
-  update results set legacy_links_unverified=false where id=j.result_id and deleted_at is null;
- end if;
+ -- Do not update the result row while holding the job lock: privacy transitions
+ -- lock result -> job. Keeping the same direction avoids a deadlock. Confirmed
+ -- job state, not the immutable migration inventory flag, clears the risk DTO.
  n:=greatest(1,j.auto_attempts);
  update result_link_jobs set status=case when done then 'confirmed' when auto_attempts>=6 then 'failed_exhausted'
    when code in('CDN_PENDING','CDN_UNVERIFIED') then 'unverified' else 'failed' end,

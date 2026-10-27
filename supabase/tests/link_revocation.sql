@@ -86,7 +86,9 @@ select (:'claimed'::jsonb->>'token') as token \gset
 select record_link_object(:'jid',:'token',id,'cdn_verified',null,null,403) from result_link_objects where asset='thumb';
 select finish_link_revocation(:'jid',:'token','OK');
 select pg_temp.check_that('all objects required for confirmation',(select status='confirmed' and next_attempt_at is null from result_link_jobs));
-select pg_temp.check_that('legacy warning cleared only after both CDN probes',(select not legacy_links_unverified from results));
+select set_config('request.jwt.claims','{"sub":"71111111-1111-4111-8111-111111111111"}',true);
+select pg_temp.check_that('legacy warning cleared only after both CDN probes',not exists(select 1 from my_legacy_link_risks()));
+select set_config('request.jwt.claims','{}',true);
 select pg_temp.check_that('minimal attempt history retained',(select count(*)=9 from result_link_attempts) and not exists(select 1 from result_link_attempts where finished_at is null));
 -- An interrupted sixth automatic attempt must become exhausted, not run forever.
 insert into results(id,project_id,owner_id,kind,ratio,output,file_path,thumb_path,legacy_links_unverified)
