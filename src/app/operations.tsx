@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -22,7 +22,8 @@ function Operations() {
   const ui = useMemo(() => createStore<Selection>(() => ({ rid: '', run: null, dialog: null, notice: null })), []);const selection = useStore(ui);
   const permitted = access.data?.allowed === true && !access.isError && !access.blocked;
   const run = useOperatorRun(selection.run, permitted);const denied = run.paused === 'auth';
-  const allowed = permitted && !denied;const cases = useOperatorCases(allowed);
+  const allowed = permitted;const cases = useOperatorCases(allowed);
+  useEffect(()=>{if(access.blocked)ui.setState({dialog:null});},[access.blocked,ui]);
   const audit = useOperatorAudit(selection.rid || null, allowed, run.data?.status_version);const auto = useAutomaticAudit(allowed ? selection.rid || null : null);
   const preview = useCleanupPreview(allowed ? selection.dialog?.rid ?? null : null, selection.dialog?.id ?? null);
   const request = useRequestManualCleanup();

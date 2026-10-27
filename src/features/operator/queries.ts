@@ -7,6 +7,7 @@ import { createStore } from 'zustand/vanilla';
 import { useAuth } from '@/features/auth/store';
 import { fetchAutomaticAudit, fetchManualAudit, fetchOperatorAccess, fetchOperatorCases, fetchOperatorRun, operatorSessionKey, previewManualCleanup, reportSnapshotIssue, requestManualCleanup } from './api';
 import { OperatorPoller, type PollState } from './poller';
+import { forgetOperatorData } from './cache';
 import { useOperatorSecurity } from './security';
 import { isProcessing, type RunSnapshot } from './snapshot';
 const suspended = new Map<string, Pick<PollState, 'paused' | 'failures'>>();
@@ -20,7 +21,7 @@ function useSession() {
 export function useOperatorAccess() {
   const session=useSession();const client=useQueryClient();const blocked=useOperatorSecurity((s)=>s.blocked===session && !!session);
   const query=useQuery({ queryKey: ['operator-access',session],enabled:!!session,queryFn:fetchOperatorAccess,retry:false,gcTime:0,staleTime:0 });
-  useEffect(()=>{if(blocked){const predicate=(q:{queryKey:readonly unknown[]})=>String(q.queryKey[0]).startsWith('operator-') && q.queryKey[0]!=='operator-access';void client.cancelQueries({predicate});client.removeQueries({predicate});}},[blocked,client]);
+  useEffect(()=>{if(blocked)forgetOperatorData(client);},[blocked,client]);
   return {...query,blocked,recheckRights:async()=>{const reply=await query.refetch();if(session && reply.data?.allowed && !reply.isError)useOperatorSecurity.getState().clear(session);}};
 }
 export function useOperatorCases(allowed: boolean) {
@@ -37,6 +38,7 @@ export function useRequestManualCleanup() {
 }
 export function useOperatorRun(jobId: string | null, allowed: boolean) {
   const session = useSession();const client = useQueryClient();const routeActive = useRef(false);
+  const blocked=useOperatorSecurity((s)=>!!session && s.blocked===session);
   const key = useMemo(() => ['operator-run', session, jobId] as const, [session, jobId]);
   const query = useQuery<RunSnapshot>({ queryKey: key, queryFn: skipToken, enabled: false, retry: false, gcTime: 0 });
   const meta = useMemo(() => createStore<PollState>(() => ({ fetching: false, unknown: true, failures: 0, paused: null, lastCheckedAt: null, ...(session && jobId ? suspended.get(`${session}:${jobId}`) : undefined) })), [session, jobId]);
@@ -47,15 +49,16 @@ export function useOperatorRun(jobId: string | null, allowed: boolean) {
     return new OperatorPoller(jobId, {
       fetch: (nonce, signal) => fetchOperatorRun(jobId, nonce, signal, session),
       accept: (s) => { const previous=client.getQueryData<RunSnapshot>(key);client.setQueryData(key,s);if(!isProcessing(s) && previous?.status_version!==s.status_version)void client.invalidateQueries({queryKey:['operator-cases']}); },
-      clear: (reason) => {
-        if (reason === 'auth') { const predicate = (q: { queryKey: readonly unknown[] }) => String(q.queryKey[0]).startsWith('operator-');void client.cancelQueries({ predicate });client.removeQueries({ predicate }); }
-        else client.removeQueries({ queryKey: key, exact: true });
-      },
+      clear: (reason) => forgetOperatorData(client,reason==='auth'?undefined:key),
       change: (s) => { meta.setState(s);if (s.paused || s.failures) suspended.set(identity, { paused: s.paused, failures: s.failures });else suspended.delete(identity); },
       report: (id, s) => { void reportSnapshotIssue(jobId, id, s).catch(() => undefined); },
     }, suspended.get(identity));
   }, [session, jobId, allowed, client, key, meta]);
   useEffect(() => () => poller?.dispose(), [poller]);
+  useEffect(()=>{
+    if(blocked && session && jobId){const failures=meta.getState().failures;suspended.set(`${session}:${jobId}`,{paused:'auth',failures});meta.setState({fetching:false,unknown:true,paused:'auth',lastCheckedAt:null});}
+  },[blocked,session,jobId,meta]);
+
   useFocusEffect(useCallback(() => {
     routeActive.current = true;if (!poller) return () => { routeActive.current = false; };
     let appActive = AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
@@ -64,7 +67,7 @@ export function useOperatorRun(jobId: string | null, allowed: boolean) {
     if (typeof window !== 'undefined') { window.addEventListener('focus', sync);window.addEventListener('blur', sync);document.addEventListener('visibilitychange', sync); }
     sync();return () => {
       routeActive.current = false;app.remove();if (typeof window !== 'undefined') { window.removeEventListener('focus', sync);window.removeEventListener('blur', sync);document.removeEventListener('visibilitychange', sync); }
-      poller.setActive(false);client.removeQueries({ queryKey: key, exact: true });
+      poller.setActive(false);forgetOperatorData(client,key);
     };
   }, [poller, client, key]));
   return { data: allowed ? query.data : undefined, ...state, recheck: () => poller?.manual() };
