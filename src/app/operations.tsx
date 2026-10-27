@@ -20,7 +20,7 @@ export default function OperationsScreen() {
 function Operations() {
   const router = useRouter();const access = useOperatorAccess();
   const ui = useMemo(() => createStore<Selection>(() => ({ rid: '', run: null, dialog: null, notice: null })), []);const selection = useStore(ui);
-  const permitted = access.data?.allowed === true && !access.isError;
+  const permitted = access.data?.allowed === true && !access.isError && !access.blocked;
   const run = useOperatorRun(selection.run, permitted);const denied = run.paused === 'auth';
   const allowed = permitted && !denied;const cases = useOperatorCases(allowed);
   const audit = useOperatorAudit(selection.rid || null, allowed, run.data?.status_version);const auto = useAutomaticAudit(allowed ? selection.rid || null : null);
@@ -42,7 +42,7 @@ function Operations() {
   return <SafeAreaView style={styles.root}>
     <Button label="뒤로" variant="secondary" onPress={() => router.back()} />
     <Text style={styles.heading}>운영자 결과물 정리</Text>
-    {!allowed ? <View style={styles.row}><Text>{denied ? label('auth') : access.isPending ? '권한 확인 중' : '운영자 권한이 필요해요.'}</Text><Button label="권한 다시 확인" variant="secondary" onPress={() => { if (denied) run.recheck();else void access.refetch(); }} /></View> : <ScrollView contentContainerStyle={styles.content}>
+    {!allowed ? <View style={styles.row}><Text>{denied || access.blocked ? label('auth') : access.isPending ? '권한 확인 중' : '운영자 권한이 필요해요.'}</Text><Button label="권한 다시 확인" variant="secondary" onPress={() => { void access.recheckRights(); }} /></View> : <ScrollView contentContainerStyle={styles.content}>
       <Text>결과물 한 건의 미삭제 파일만 처리합니다. 자동 시도 횟수와 기존 링크·보존 정책은 유지됩니다.</Text>
       <Text>{access.data?.can_execute ? '실행 권한 있음' : '조회 전용 · 실행 불가'}</Text>
       <Button label="실패 목록 다시 확인" variant="secondary" disabled={cases.isFetching} onPress={() => void cases.refetch()} />

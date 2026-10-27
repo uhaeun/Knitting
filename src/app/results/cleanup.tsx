@@ -13,7 +13,7 @@ export default function ResultCleanupScreen() {
   return <SafeAreaView style={styles.root}>
     <Button label="뒤로" variant="secondary" onPress={() => router.back()} />
     <Text style={styles.heading}>삭제 결과물 정리 상태</Text>
-    {operator.data?.allowed ? <Button label="운영자 결과물 정리" variant="secondary" onPress={() => router.push('/operations')} /> : null}
+    {operator.data?.allowed && !operator.blocked ? <Button label="운영자 결과물 정리" variant="secondary" onPress={() => router.push('/operations')} /> : null}
     <Text style={styles.text}>결과물 삭제와 저장 파일 정리는 별도예요. 과거 링크 차단과 보존 검토를 통과한 뒤 제목과 파일을 정리합니다.</Text>
     <Text style={styles.text}>이 화면의 정리 확인은 서비스의 해당 제목·파일만 뜻해요. 백업이나 이미 내려받은 파일·기기 캐시까지 삭제됐다는 뜻은 아닙니다.</Text>
     <Button label="다시 확인" variant="secondary" disabled={q.isFetching} onPress={() => void q.refetch()} />

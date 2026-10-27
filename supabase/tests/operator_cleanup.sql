@@ -35,6 +35,16 @@ end loop;end $$;
 select pg_temp.check_that('both objects exhaust exactly six automatic attempts',(select bool_and(auto_attempts=6 and status='failed_exhausted') from result_cleanup_objects));
 select pg_temp.check_that('viewer may inspect but not execute',(pg_temp.user_json('a2222222-2222-4222-8222-222222222222',$$select preview_manual_result_cleanup('a5555555-5555-4555-8555-555555555555')$$)->>'reason')='EXECUTOR_REQUIRED');
 select set_config('request.jwt.claims','{"sub":"a3333333-3333-4333-8333-333333333333"}',true);
+select review_result_retention('a5555555-5555-4555-8555-555555555555','hold','qa:hold');
+select pg_temp.check_that('manual execution cannot override hold',(preview_manual_result_cleanup('a5555555-5555-4555-8555-555555555555')->>'reason')='RETENTION_HOLD');
+select review_result_retention('a5555555-5555-4555-8555-555555555555','clear','qa:clear');
+select preview_manual_result_cleanup('a5555555-5555-4555-8555-555555555555') as expiring \gset
+update cleanup_operator_previews set expires_at=clock_timestamp()-interval '1 second' where id=(:'expiring'::jsonb->>'preview_id')::uuid;
+select pg_temp.check_that('expired preview cannot queue a run',(request_manual_result_cleanup('a5555555-5555-4555-8555-555555555555',(:'expiring'::jsonb->>'preview_id')::uuid,gen_random_uuid())->>'reason')='PREVIEW_EXPIRED');
+select preview_manual_result_cleanup('a5555555-5555-4555-8555-555555555555') as expiring \gset
+update cleanup_operators set role='viewer' where user_id='a3333333-3333-4333-8333-333333333333';
+update cleanup_operators set role='executor' where user_id='a3333333-3333-4333-8333-333333333333';
+select pg_temp.check_that('regrant does not revive an old confirmation',(request_manual_result_cleanup('a5555555-5555-4555-8555-555555555555',(:'expiring'::jsonb->>'preview_id')::uuid,gen_random_uuid())->>'reason')='PREVIEW_EXPIRED');
 select preview_manual_result_cleanup('a5555555-5555-4555-8555-555555555555') as preview \gset
 select (:'preview'::jsonb->>'preview_id') pid \gset
 select pg_temp.check_that('preview has exact count without paths',(:'preview'::jsonb->>'remaining')::int=2 and :'preview' not like '%/results/%' and :'preview' not like '%保護%');
@@ -93,6 +103,16 @@ select pg_temp.check_that('snapshot and audit contain no media or credentials',o
 select pg_temp.check_that('audit is available only to operators',(pg_temp.user_json('a1111111-1111-4111-8111-111111111111',format('select to_jsonb(operator_cleanup_audit(%L))',:'last_run'))->>'error')='42501');
 select pg_temp.check_that('read-only status remains readable for viewer',pg_temp.user_json('a2222222-2222-4222-8222-222222222222',format('select operator_cleanup_status(%L,%L)',:'last_run',:'requestid')) ? 'status_version');
 select pg_temp.check_that('all rejections have minimal error identifiers',not exists(select 1 from cleanup_operator_audit where code in('EXECUTOR_REQUIRED','SELECTION_CHANGED','BUSY') and error_id is null));
+select set_config('request.jwt.claims','{"sub":"a3333333-3333-4333-8333-333333333333"}',true);
+-- Fixture-only saturation, representing a previous committed transaction.
+alter table result_cleanup_runs disable trigger manual_cleanup_version;
+update result_cleanup_runs set status_version=9223372036854775807,version_xid=0 where id=:'last_run';
+alter table result_cleanup_runs enable trigger manual_cleanup_version;
+select pg_temp.check_that('saturated BIGINT is serialized without rounding',operator_cleanup_status(:'last_run',gen_random_uuid())->>'status_version'='9223372036854775807');
+select pg_temp.check_that('overflow rejects state transaction atomically',not pg_temp.allowed(format('update result_cleanup_runs set state=state||%L::jsonb where id=%L','{"reason":"UNEXPECTED"}',:'last_run')) and(select state->>'reason'<>'UNEXPECTED' and status_version=9223372036854775807 from result_cleanup_runs where id=:'last_run'));
+select pg_temp.check_that('version limit cannot be reset by a fresh run',(preview_manual_result_cleanup('a5555555-5555-4555-8555-555555555555')->>'reason')='VERSION_LIMIT');
+select pg_temp.check_that('version edits are never a user API',not pg_temp.allowed(format('update result_cleanup_runs set status_version=1 where id=%L',:'last_run')));
+select pg_temp.check_that('denials are readable via the scoped case audit',exists(select 1 from operator_cleanup_case_audit('a5555555-5555-4555-8555-555555555555')where code='SELECTION_CHANGED'));
 select label,ok from checks order by label;
 select count(*) total,count(*) filter(where ok) passed from checks;
 do $$begin if exists(select 1 from checks where ok is distinct from true)then raise exception 'Operator cleanup regression failed';end if;end $$;

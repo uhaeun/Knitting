@@ -7,17 +7,21 @@ import { createStore } from 'zustand/vanilla';
 import { useAuth } from '@/features/auth/store';
 import { fetchAutomaticAudit, fetchManualAudit, fetchOperatorAccess, fetchOperatorCases, fetchOperatorRun, operatorSessionKey, previewManualCleanup, reportSnapshotIssue, requestManualCleanup } from './api';
 import { OperatorPoller, type PollState } from './poller';
+import { useOperatorSecurity } from './security';
 import type { RunSnapshot } from './snapshot';
 const suspended = new Map<string, Pick<PollState, 'paused' | 'failures'>>();
 useAuth.subscribe((state, previous) => {
-  if (operatorSessionKey(state.session) !== operatorSessionKey(previous.session)) suspended.clear();
+  if (operatorSessionKey(state.session) !== operatorSessionKey(previous.session)) { suspended.clear();useOperatorSecurity.setState({ blocked: null }); }
 });
 function useSession() {
   const session = useAuth((s) => s.session);const key = operatorSessionKey(session);
   return key;
 }
 export function useOperatorAccess() {
-  const session = useSession();return useQuery({ queryKey: ['operator-access', session], enabled: !!session, queryFn: fetchOperatorAccess, retry: false, gcTime: 0, staleTime: 0 });
+  const session=useSession();const client=useQueryClient();const blocked=useOperatorSecurity((s)=>s.blocked===session && !!session);
+  const query=useQuery({ queryKey: ['operator-access',session],enabled:!!session,queryFn:fetchOperatorAccess,retry:false,gcTime:0,staleTime:0 });
+  useEffect(()=>{if(blocked){const predicate=(q:{queryKey:readonly unknown[]})=>String(q.queryKey[0]).startsWith('operator-') && q.queryKey[0]!=='operator-access';void client.cancelQueries({predicate});client.removeQueries({predicate});}},[blocked,client]);
+  return {...query,blocked,recheckRights:async()=>{const reply=await query.refetch();if(session && reply.data?.allowed && !reply.isError)useOperatorSecurity.getState().clear(session);}};
 }
 export function useOperatorCases(allowed: boolean) {
   const session = useSession();return useQuery({ queryKey: ['operator-cases', session], enabled: !!session && allowed, queryFn: fetchOperatorCases, retry: false, gcTime: 0 });
