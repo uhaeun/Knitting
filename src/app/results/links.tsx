@@ -19,7 +19,7 @@ export default function LinkRisksScreen() {
     {q.isError ? <EmptyState title="확인 불가" description="현재 위험 건수를 확인하지 못했어요. 0건으로 판정하지 않습니다." /> :
       <FlatList data={q.data ?? []} keyExtractor={(r) => r.id}
         ListEmptyComponent={q.isPending ? null : <Text style={styles.text}>미해결 과거 링크 위험이 없어요.</Text>}
-        renderItem={({ item }) => <View style={styles.row}>
+        renderItem={({ item }) => <View testID={`link-risk-${item.id}`} style={styles.row}>
           <Text style={styles.title}>{item.title}</Text><Text>{item.kind === 'growth' ? '성장 영상 MP4' : item.output === 'mp4' ? '합성 영상 MP4' : '결과 사진 JPEG'} · {['failed', 'failed_exhausted'].includes(item.status) ? '조치 필요' : '처리 중'}</Text>
           <Text>{item.status === 'failed_exhausted' ? '추가 자동 5회를 모두 사용했어요. 수동으로 다시 시도할 수 있어요.' : item.status === 'retrying' ? '회수 작업을 처리하고 있어요.' : item.status === 'unverified' ? '접근 차단 검증 미완료' : item.status === 'failed' ? '링크 차단에 실패했어요.' : '회수 작업 대기 중'}</Text>
           <Text>구경로 차단 {item.origin_blocked}/2 · CDN 확인 {item.cdn_verified}/2</Text>

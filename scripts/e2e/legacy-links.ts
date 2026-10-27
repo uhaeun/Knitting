@@ -71,10 +71,49 @@ try {
   assert.equal(sql(`select count(*) from posts where id='${post}' and deleted_at is null`), '1');
   console.log('PASS actual Storage old full/Range URLs blocked; copied bytes and source posts preserved');
 
+  // All result outputs use the same retirement safety conditions, including a
+  // deleted growth publication that must not regain media access.
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=blue:s=32x32:r=30:d=1', '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '/tmp/legacy-link.mp4']);
+  const video = readFileSync('/tmp/legacy-link.mp4');
+  for (const kind of ['single', 'growth'] as const) {
+    const videoId = randomUUID();
+    const videoPaths = [`${owner}/${pid}/results/${videoId}.mp4`, `${owner}/${pid}/results/${videoId}_t.jpg`];
+    assert.equal((await sb.storage.from('photos').upload(videoPaths[0]!, video, { contentType: 'video/mp4' })).error, null);
+    assert.equal((await sb.storage.from('photos').upload(videoPaths[1]!, bytes, { contentType: 'image/jpeg' })).error, null);
+    assert.equal((await sb.from('results').insert({ id: videoId, project_id: pid, owner_id: owner, kind, ratio: '1:1', output: 'mp4', file_path: videoPaths[0], thumb_path: videoPaths[1], display_title_override: kind === 'growth' ? '삭제 성장 영상 QA' : '합성 영상 QA', legacy_links_unverified: true })).error, null);
+    const links = await sb.storage.from('photos').createSignedUrls(videoPaths, 3600);
+    assert.equal(links.error, null);
+    for (const link of links.data!) assert.equal((await fetch(link.signedUrl)).status, 200);
+    if (kind === 'growth') assert.equal((await ownerClient.rpc('delete_result', { result_id: videoId })).error, null);
+    assert.equal((await work()).code, 'CDN_UNVERIFIED');
+    for (const link of links.data!) {
+      assert.ok([400, 401, 403, 404, 410].includes((await fetch(link.signedUrl)).status));
+      assert.ok([400, 401, 403, 404, 410].includes((await fetch(link.signedUrl, { headers: { Range: 'bytes=0-9' } })).status));
+    }
+    const resolved = await ownerClient.functions.invoke('revocable-media', { body: { keys: videoPaths } });
+    assert.equal(resolved.error, null);
+    const media = (resolved.data as { urls: { path: string; url: string }[] }).urls;
+    if (kind === 'growth') assert.equal(media.length, 0, 'deleted growth must never gain fresh media access');
+    else {
+      const movieURL = media.find((m) => m.path.endsWith('.mp4'))!.url;
+      const movie = await fetch(movieURL);
+      assert.equal(movie.status, 200);assert.equal(movie.headers.get('Content-Type'), 'video/mp4');
+      assert.equal(createHash('sha256').update(Buffer.from(await movie.arrayBuffer())).digest('hex'), createHash('sha256').update(video).digest('hex'));
+      assert.equal((await fetch(movieURL, { headers: { Range: 'bytes=0-9' } })).status, 206);
+    }
+  }
+  console.log('PASS composite MP4 and deleted growth MP4 old URLs blocked; deleted media stays inaccessible');
+  // Keep the automatic fixture deadline in the future while testing independent
+  // manual/cron execution. Otherwise crossing a minute boundary can legitimately
+  // run a due automatic attempt, making the counter assertion nondeterministic.
+  sql(`update result_link_jobs set next_attempt_at=clock_timestamp()+interval '10 minutes' where id='${jid}'`);
   await page.goto(`${BASE}/results/links`);
   await page.getByText('과거 링크 테스트', { exact: true }).waitFor();
-  await page.getByText('접근 차단 검증 미완료', { exact: true }).waitFor();
-  await page.getByRole('button', { name: '링크 차단 다시 시도', exact: true }).click();
+  await page.getByTestId(`link-risk-${rid}`).getByText('접근 차단 검증 미완료', { exact: true }).waitFor();
+  const deletedRow = page.getByText('삭제 성장 영상 QA', { exact: true }).locator('..');
+  assert.equal(await deletedRow.locator('img,video').count(), 0);
+  const jpegRow = page.getByTestId(`link-risk-${rid}`);
+  await jpegRow.getByRole('button', { name: '링크 차단 다시 시도', exact: true }).click();
   await page.getByRole('alert').getByText('재시도를 요청했어요', { exact: true }).waitFor();
   assert.equal(sql(`select manual_requested from result_link_jobs where id='${jid}'`), 't');
   const beforeAuto = sql(`select auto_attempts from result_link_jobs where id='${jid}'`);

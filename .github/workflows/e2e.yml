@@ -7,7 +7,12 @@ name: 웹 검사 (E2E)
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      regression:
+        description: Also run the existing 30-script regression suite
+        type: boolean
+        default: true
 
 jobs:
   e2e:
@@ -101,6 +106,7 @@ jobs:
         run: node --experimental-strip-types scripts/e2e/legacy-links.ts
 
       - name: 웹 E2E 전체 검사
+        if: github.event_name != 'workflow_dispatch' || inputs.regression
         run: |
           SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
           SUPABASE_SERVICE_KEY="$SERVICE" npm run e2e
