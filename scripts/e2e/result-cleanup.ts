@@ -22,7 +22,11 @@ const cases: string[] = [];
 // API 404 alone could hide a metadata/byte mismatch, so inspect physical files too.
 const storageContainer = execFileSync('docker', ['ps', '--format', '{{.Names}}'], { encoding: 'utf8' }).split('\n').find((n) => n.startsWith('supabase_storage_'));
 assert.ok(storageContainer);
-const backendFiles = () => execFileSync('docker', ['exec', storageContainer, 'find', '/var/lib/storage', '-type', 'f'], { encoding: 'utf8' }).split('\n');
+const storageEnv = JSON.parse(execFileSync('docker', ['inspect', storageContainer, '--format', '{{json .Config.Env}}'], { encoding: 'utf8' })) as string[];
+const backendRoot = storageEnv.find((value) => value.startsWith('STORAGE_FILE_BACKEND_PATH='))?.split('=')[1]
+  ?? storageEnv.find((value) => value.startsWith('FILE_STORAGE_BACKEND_PATH='))?.split('=')[1];
+assert.ok(backendRoot?.startsWith('/'), 'isolated file backend must expose its configured root');
+const backendFiles = () => execFileSync('docker', ['exec', storageContainer, 'find', backendRoot, '-type', 'f'], { encoding: 'utf8' }).split('\n');
 
 try {
   const username = `clean_${Date.now().toString(36)}`;
