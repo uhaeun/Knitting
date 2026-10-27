@@ -1,5 +1,9 @@
 -- Local/test database only. No real accounts, all test data rolled back.
 begin;
+-- Fixtures contain metadata only, never real Storage blobs. Match the Storage
+-- API's transaction flag for SQL deletion simulations; rollback restores it.
+-- https://github.com/supabase/storage/blob/master/migrations/tenant/0055-prevent-direct-deletes.sql
+set local storage.allow_delete_query = 'true';
 create temporary table checks(name text,ok boolean);
 create function pg_temp.check_that(label text,pass boolean) returns void language sql as $$insert into checks values(label,pass)$$;
 create function pg_temp.run_as(uid uuid,stmt text,as_role text default 'authenticated') returns boolean language plpgsql as $$
