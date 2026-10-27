@@ -16,6 +16,7 @@ values('a5555555-5555-4555-8555-555555555555','a4444444-4444-4444-8444-444444444
 'a1111111-1111-4111-8111-111111111111/a4444444-4444-4444-8444-444444444444/results/a5555555-5555-4555-8555-555555555555.jpg',
 'a1111111-1111-4111-8111-111111111111/a4444444-4444-4444-8444-444444444444/results/a5555555-5555-4555-8555-555555555555_t.jpg');
 insert into storage.objects(bucket_id,name,owner)select 'photos',file_path,owner_id from results union all select 'photos',thumb_path,owner_id from results;
+select pg_temp.check_that('worker role cannot mutate or truncate audit history',not has_table_privilege('service_role','cleanup_operator_audit','UPDATE,DELETE,TRUNCATE'));
 select pg_temp.check_that('operators are not provisioned by migration',not exists(select 1 from cleanup_operators));
 select pg_temp.check_that('normal user cannot list cases',(pg_temp.user_json('a1111111-1111-4111-8111-111111111111',$$select to_jsonb(operator_cleanup_cases())$$)->>'error')='42501');
 select pg_temp.check_that('normal user cannot self assign a role',(pg_temp.user_json('a1111111-1111-4111-8111-111111111111',$$insert into cleanup_operators(user_id,role)values('a1111111-1111-4111-8111-111111111111','executor')returning to_jsonb(cleanup_operators)$$)->>'error')='42501');

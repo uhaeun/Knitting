@@ -35,7 +35,7 @@ do $$declare t text;begin
   execute format('alter table %I enable row level security',t);execute format('revoke all on %I from public,anon,authenticated',t);execute format('grant all on %I to service_role',t);
  end loop;
 end $$;
-revoke update,delete on cleanup_operator_audit from service_role;
+revoke update,delete,truncate,references,trigger on cleanup_operator_audit from service_role;
 
 create function operator_utc(t timestamptz) returns text language sql immutable as $$select to_char(t at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')$$;
 create function cleanup_operator_role(uid uuid) returns text language sql stable security definer set search_path=public as $$
