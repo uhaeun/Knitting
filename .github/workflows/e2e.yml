@@ -117,6 +117,18 @@ jobs:
           SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
           SUPABASE_SERVICE_KEY="$SERVICE" npm run e2e
 
+      - name: 분리 환경 검증 증거 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-isolated-evidence
+          path: |
+            /tmp/p0-security-results.json
+            /tmp/legacy-links-results.json
+            /tmp/result-cleanup-results.json
+            /tmp/result-cleanup-status.png
+          if-no-files-found: ignore
+
       - name: 실패하면 화면 사진 올리기
         if: failure()
         uses: actions/upload-artifact@v4

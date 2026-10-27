@@ -90,7 +90,9 @@ select pg_temp.check_that('legacy unknown link preserves stored title',(select p
 -- It exercises all four inventory entries without adding a runtime bypass.
 insert into storage.objects(bucket_id,name,owner)select 'photos',target_path,'91111111-1111-4111-8111-111111111111'::uuid from result_link_objects;
 update result_link_objects set source_hash=repeat('a',64),activated_at=clock_timestamp(),removed_at=clock_timestamp(),origin_blocked_at=clock_timestamp(),cdn_verified_at=clock_timestamp();
+update result_link_objects set probe_url='https://synthetic.invalid/token-only-for-test';
 update result_link_jobs set status='confirmed',next_attempt_at=null;
+select pg_temp.check_that('confirmed link keeps proof but discards signed probe URL',not exists(select 1 from result_link_objects where probe_url is not null) and (select count(*)=2 from result_link_objects where cdn_verified_at is not null));
 -- Inject title failure independently; file cleanup must continue and title may retry.
 create function pg_temp.fail_title_purge() returns trigger language plpgsql as $$begin if NEW.titles_purged_at is not null and OLD.titles_purged_at is null then raise exception 'synthetic title failure';end if;return NEW;end $$;
 create trigger synthetic_title_failure before update on results for each row execute function pg_temp.fail_title_purge();

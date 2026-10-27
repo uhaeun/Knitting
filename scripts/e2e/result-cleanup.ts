@@ -47,7 +47,7 @@ try {
     for (const [i, path] of paths.entries()) assert.equal((await sb.storage.from('photos').upload(path, i === 0 && output === 'mp4' ? mp4 : jpeg, { contentType: i === 0 && output === 'mp4' ? 'video/mp4' : 'image/jpeg' })).error, null);
     assert.equal((await client.from('results').insert({ id: rid, project_id: pid, owner_id: owner, kind, ratio: '1:1', output, file_path: paths[0], thumb_path: paths[1], edition_id: editionId, display_title_override: '지울 결과 제목' })).error, null);
     if (legacy) sql(`update results set legacy_links_unverified=true where id='${rid}'`);
-    return { rid, paths, editionId };
+    return { rid, paths, editionId, recipe };
   };
   const work = async () => {
     const result = await fetch(`${API}/functions/v1/cleanup-results`, { method: 'POST', headers: { Authorization: `Bearer ${secret}` } });
@@ -90,7 +90,9 @@ try {
     assert.equal(sql(`select project_name_snapshot is null and display_title_override is null and titles_purged_at is not null and deleted_at is not null from results where id='${f.rid}'`), 't');
     for (const path of f.paths) assert.ok((await sb.storage.from('photos').download(path)).error);
     assert.equal(sql(`select count(*) from storage.objects where bucket_id='photos' and name like '${owner}/${pid}/results/${f.rid}%'`), '0');
-    assert.equal(sql(`select state from result_editions where id='${f.editionId}'`), 'deleted');
+    assert.equal(sql(`select count(*) from result_editions e join results r on r.edition_id=e.id where e.id='${f.editionId}' and r.deleted_at is not null`), '1');
+    const tombstone = await client.rpc('prepare_result_edition', { pid, recipe: f.recipe });assert.equal(tombstone.error, null);
+    assert.deepEqual(tombstone.data, [{ id: f.editionId, state: 'deleted' }]);
     assert.ok(!backendFiles().some((path) => path.includes(f.rid)), 'all physical backend bytes and sidecars removed');
   }
   cases.push('JPEG, composite MP4, growth MP4 and three thumbnails physically absent via Storage API; tombstones retained');
