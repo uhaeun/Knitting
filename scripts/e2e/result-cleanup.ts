@@ -123,11 +123,14 @@ try {
   sql(`select vault.create_secret('http://kong:8000/functions/v1/cleanup-results','knitting_cleanup_function_url');select vault.create_secret('${secret}','knitting_cleanup_worker_secret');`);
   execFileSync('psql', [DB, '-X', '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/ops/schedule_result_cleanup.sql'], { stdio: 'pipe' });
   let completed = false;
-  for (let n = 0; n < 80; n++) {
+  // Parallel dispatch cannot process two objects of the same leased job at
+  // once. Allow two real minute ticks plus startup/network margin.
+  for (let n = 0; n < 150; n++) {
     if (sql(`select status='confirmed' from result_cleanup_jobs where result_id='${scheduled.rid}'`) === 't') { completed = true;break; }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  assert.ok(completed, 'independent pg_cron must finish two objects after app exit');
+  assert.ok(completed, 'independent pg_cron must finish two objects after app exit across two minute ticks');
+  assert.equal(sql(`select count(*) from result_cleanup_objects o join result_cleanup_jobs j on j.id=o.job_id where j.result_id='${scheduled.rid}' and o.status='confirmed' and o.auto_attempts=1`), '2');
   sql(`select cron.unschedule('knitting-result-cleanup')`);
   cases.push('actual independent pg_cron/pg_net schedule completes after app exit');
   writeFileSync('/tmp/result-cleanup-results.json', JSON.stringify({ result: 'PASS', environment: 'disposable local Supabase', cases, actualHostedCDN: 'NOT_TESTED: legacy gate remains closed', legalReview: 'SYNTHETIC fixtures only; no real decision or reviewer provisioned' }, null, 2));
