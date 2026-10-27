@@ -67,7 +67,7 @@ begin
  insert into result_retention_reviews(result_id,decision,reviewer_id,reference)
  values(rid,decision,auth.uid(),reference)
  on conflict(result_id)do update set decision=excluded.decision,version=result_retention_reviews.version+1,
- reviewer_id=excluded.reviewer_id,reference=excluded.reference,reviewed_at=clock_timestamp(),updated_at=clock_timestamp()
+ reviewer_id=excluded.reviewer_id,reference=excluded.reference,reviewed_at=clock_timestamp(),updated_at=clock_timestamp(),deleted_at=null
  returning version into v;
  insert into result_retention_events(result_id,decision,version,reviewer_id,reference)values(rid,decision,v,auth.uid(),reference);
 end $$;
@@ -99,7 +99,7 @@ begin
  select * into r from results where id=rid;
  if not found or r.deleted_at is null then return 'NOT_DELETED';end if;
  if not exists(select 1 from profiles where id=r.owner_id and deleted_at is null and deletion_requested_at is null) then return 'ACCOUNT_DELETION';end if;
- select * into review from result_retention_reviews where result_id=rid;
+ select * into review from result_retention_reviews where result_id=rid and deleted_at is null;
  if review.result_id is null or review.decision='unknown' then return 'RETENTION_UNKNOWN';end if;
  if review.decision='hold' then return 'RETENTION_HOLD';end if;
  expected:=r.owner_id::text||'/'||r.project_id::text||'/results/'||r.id::text;

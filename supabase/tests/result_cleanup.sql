@@ -31,6 +31,12 @@ select pg_temp.as_user('92222222-2222-4222-8222-222222222222',$$select review_re
 select pg_temp.check_that('hold blocks without counting failure',claim_result_cleanup() is null and (select sum(auto_attempts)=0 from result_cleanup_objects));
 select pg_temp.check_that('hold cannot be bypassed by direct title update',not pg_temp.allowed($$update results set project_name_snapshot=null,display_title_override=null,titles_purged_at=clock_timestamp()$$));
 select pg_temp.as_user('92222222-2222-4222-8222-222222222222',$$select review_result_retention('94444444-4444-4444-8444-444444444444','clear','qa:clear')$$);
+-- Revoking a review record through the common soft-delete field cannot leave
+-- its old clear decision effective. Only a new authorized review restores it.
+update result_retention_reviews set deleted_at=clock_timestamp();
+select pg_temp.check_that('invalidated review is unknown and spends no attempts',result_cleanup_gate('94444444-4444-4444-8444-444444444444')='RETENTION_UNKNOWN' and claim_result_cleanup() is null and(select sum(auto_attempts)=0 from result_cleanup_objects));
+select pg_temp.as_user('92222222-2222-4222-8222-222222222222',$$select review_result_retention('94444444-4444-4444-8444-444444444444','clear','qa:renew')$$);
+select pg_temp.check_that('new authorized review revalidates a revoked record',result_cleanup_gate('94444444-4444-4444-8444-444444444444')='READY' and(select deleted_at is null and version=3 from result_retention_reviews));
 select claim_result_cleanup() as task \gset
 select (:'task'::jsonb->>'id') jid,(:'task'::jsonb->>'token') token,(:'task'::jsonb->'object'->>'id') oid \gset
 select pg_temp.check_that('single lease prevents duplicate claim',claim_result_cleanup() is null);
