@@ -12,7 +12,7 @@ const secret=readFileSync('/tmp/p0-functions.env','utf8').split('\n').find(s=>s.
 const sql=(q:string)=>execFileSync('psql',[DB,'-X','-v','ON_ERROR_STOP=1','-tAc',q],{encoding:'utf8'}).trim();
 const sb=createClient(API,service,{auth:{persistSession:false,autoRefreshToken:false}});
 const browser=await chromium.launch();const page=await browser.newPage({viewport:{width:390,height:844}});await page.addInitScript(()=>localStorage.setItem('knitting.tourSeen','1'));
-const cases:string[]=[];
+const cases:string[]=[];const observations:{status:number}[]=[];page.on('response',r=>{if(r.url().includes('/rpc/operator_cleanup_status'))observations.push({status:r.status()});});
 const storage=execFileSync('docker',['ps','--format','{{.Names}}'],{encoding:'utf8'}).split('\n').find(s=>s.startsWith('supabase_storage_'));assert.ok(storage);
 const env=JSON.parse(execFileSync('docker',['inspect',storage,'--format','{{json .Config.Env}}'],{encoding:'utf8'})) as string[];
 const root=env.find(s=>s.startsWith('STORAGE_FILE_BACKEND_PATH='))?.split('=')[1]??env.find(s=>s.startsWith('FILE_STORAGE_BACKEND_PATH='))?.split('=')[1];assert.ok(root?.startsWith('/'));
@@ -117,5 +117,5 @@ try {
   assert.equal((await rpc('preview_manual_result_cleanup',{rid:f.rid})).reason,'VERSION_LIMIT');
   cases.push('saturated BIGINT serializes exactly and prevents new generation reset');
   writeFileSync('/tmp/operator-cleanup-results.json',JSON.stringify({pass:true,environment:'disposable-local-supabase',cases},null,2));console.log(JSON.stringify({pass:true,cases},null,2));
-} catch(error) {writeFileSync('/tmp/operator-cleanup-results.json',JSON.stringify({pass:false,cases,error:String(error)},null,2));await page.screenshot({path:'/tmp/operator-cleanup-failure.png',fullPage:true}).catch(()=>undefined);throw error;}
+} catch(error) {writeFileSync('/tmp/operator-cleanup-results.json',JSON.stringify({pass:false,cases,error:String(error),statusReads:observations,screen:await page.evaluate(()=>({focus:document.hasFocus(),visibility:document.visibilityState})).catch(()=>null)},null,2));await page.screenshot({path:'/tmp/operator-cleanup-failure.png',fullPage:true}).catch(()=>undefined);throw error;}
 finally {await browser.close();}

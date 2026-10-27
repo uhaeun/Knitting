@@ -43,34 +43,38 @@ export function useOperatorRun(jobId: string | null, allowed: boolean) {
   const query = useQuery<RunSnapshot>({ queryKey: key, queryFn: skipToken, enabled: false, retry: false, gcTime: 0 });
   const meta = useMemo(() => createStore<PollState>(() => ({ fetching: false, unknown: true, failures: 0, paused: null, lastCheckedAt: null, ...(session && jobId ? suspended.get(`${session}:${jobId}`) : undefined) })), [session, jobId]);
   const state = useStore(meta);
-  const poller = useMemo(() => {
-    if (!jobId || !session || !allowed) return null;
-    const identity = `${session}:${jobId}`;
-    return new OperatorPoller(jobId, {
-      fetch: (nonce, signal) => fetchOperatorRun(jobId, nonce, signal, session),
-      accept: (s) => { const previous=client.getQueryData<RunSnapshot>(key);client.setQueryData(key,s);if(!isProcessing(s) && previous?.status_version!==s.status_version)void client.invalidateQueries({queryKey:['operator-cases']}); },
-      clear: (reason) => forgetOperatorData(client,reason==='auth'?undefined:key),
-      change: (s) => { meta.setState(s);if (s.paused || s.failures) suspended.set(identity, { paused: s.paused, failures: s.failures });else suspended.delete(identity); },
-      report: (id, s) => { void reportSnapshotIssue(jobId, id, s).catch(() => undefined); },
-    }, suspended.get(identity));
-  }, [session, jobId, allowed, client, key, meta]);
-  useEffect(() => () => poller?.dispose(), [poller]);
+  const holder=useRef<{session:string;jobId:string;poller:OperatorPoller}|null>(null);
+  const appActive=useRef(true);
+  const sync=useCallback(()=>holder.current?.poller.setActive(routeActive.current && appActive.current && (typeof document==='undefined' || document.visibilityState==='visible' && document.hasFocus())),[]);
+  useFocusEffect(useCallback(()=>{
+    routeActive.current=true;sync();return()=>{routeActive.current=false;sync();forgetOperatorData(client,key);};
+  },[client,key,sync]));
+  // Construct and destroy the controller in the same effect lifetime. React's
+  // development effect replay must never reuse a permanently disposed instance.
+  useEffect(()=>{
+    if(!jobId || !session || !allowed)return;
+    const identity=`${session}:${jobId}`;
+    const controller=new OperatorPoller(jobId,{
+      fetch:(nonce,signal)=>fetchOperatorRun(jobId,nonce,signal,session),
+      accept:(s)=>{const previous=client.getQueryData<RunSnapshot>(key);client.setQueryData(key,s);if(!isProcessing(s) && previous?.status_version!==s.status_version)void client.invalidateQueries({queryKey:['operator-cases']});},
+      clear:(reason)=>forgetOperatorData(client,reason==='auth'?undefined:key),
+      change:(s)=>{meta.setState(s);if(s.paused || s.failures)suspended.set(identity,{paused:s.paused,failures:s.failures});else suspended.delete(identity);},
+      report:(id,s)=>{void reportSnapshotIssue(jobId,id,s).catch(()=>undefined);},
+    },suspended.get(identity));
+    const entry={session,jobId,poller:controller};holder.current=entry;
+    appActive.current=AppState.currentState!=='background' && AppState.currentState!=='inactive';
+    const app=AppState.addEventListener('change',(s)=>{appActive.current=s==='active';sync();});
+    if(typeof window!=='undefined'){window.addEventListener('focus',sync);window.addEventListener('blur',sync);document.addEventListener('visibilitychange',sync);}
+    sync();return()=>{
+      app.remove();if(typeof window!=='undefined'){window.removeEventListener('focus',sync);window.removeEventListener('blur',sync);document.removeEventListener('visibilitychange',sync);}
+      controller.dispose();if(holder.current===entry)holder.current=null;
+    };
+  },[session,jobId,allowed,client,key,meta,sync]);
   useEffect(()=>{
     if(blocked && session && jobId){const failures=meta.getState().failures;suspended.set(`${session}:${jobId}`,{paused:'auth',failures});meta.setState({fetching:false,unknown:true,paused:'auth',lastCheckedAt:null});}
   },[blocked,session,jobId,meta]);
+  return {data:allowed?query.data:undefined,...state,recheck:()=>{const entry=holder.current;if(entry?.session===session && entry.jobId===jobId)entry.poller.manual();}};
 
-  useFocusEffect(useCallback(() => {
-    routeActive.current = true;if (!poller) return () => { routeActive.current = false; };
-    let appActive = AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
-    const sync = () => poller.setActive(routeActive.current && appActive && (typeof document === 'undefined' || document.visibilityState === 'visible' && document.hasFocus()));
-    const app = AppState.addEventListener('change', (s) => { appActive = s === 'active';sync(); });
-    if (typeof window !== 'undefined') { window.addEventListener('focus', sync);window.addEventListener('blur', sync);document.addEventListener('visibilitychange', sync); }
-    sync();return () => {
-      routeActive.current = false;app.remove();if (typeof window !== 'undefined') { window.removeEventListener('focus', sync);window.removeEventListener('blur', sync);document.removeEventListener('visibilitychange', sync); }
-      poller.setActive(false);forgetOperatorData(client,key);
-    };
-  }, [poller, client, key]));
-  return { data: allowed ? query.data : undefined, ...state, recheck: () => poller?.manual() };
 }
 
 /** One fresh preview for each explicit dialog opening; never refetch on focus. */
