@@ -61,3 +61,8 @@ it('rejects caller-selected jobs and unauthorized requests before touching persi
   const t = setup();expect((await t.run(undefined, 'Bearer no')).status).toBe(401);
   expect((await t.run('{"path":"x"}')).status).toBe(400);expect(t.fake).not.toHaveBeenCalled();
 });
+it.each([['file', 'jpg'], ['file', 'mp4'], ['thumb', 'jpg']])('cleans only the exact confirmed replacement key for %s.%s', async (asset, extension) => {
+  const t = setup();t.task.object.location = 'rotated';t.task.object.asset = asset;
+  t.task.object.path = `${owner}/${project}/results/${rid}/revoked/98888888-8888-4888-8888-888888888888/${asset}.${extension}`;
+  await t.run();expect(t.deleted).toEqual([[t.task.object.path]]);expect(t.outcomes).toEqual(['ABSENT']);
+});
