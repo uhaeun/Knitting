@@ -25,6 +25,11 @@ jobs:
 
       - name: ffmpeg 설치 (영상 검사가 쓴다)
         run: |
+          # Only the throwaway runner is changed. Third-party apt repositories
+          # are unrelated to ffmpeg/Chromium and can stall all later UI tests.
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            printf '%s\n' 'Dir::Etc::sourcelist "/etc/apt/sources.list.d/ubuntu.sources";' 'Dir::Etc::sourceparts "-";' | sudo tee /etc/apt/apt.conf.d/99-knitting-test-sources >/dev/null
+          fi
           if ! command -v ffmpeg >/dev/null; then
             sudo timeout 180 apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update -qq
             sudo timeout 180 apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y -qq ffmpeg
