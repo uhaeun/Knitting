@@ -153,8 +153,13 @@ export async function setResultVisibility(id: string, visibility: Visibility): P
   if (error) throw new Error('공개 범위를 바꾸지 못했어요');
 }
 
-export type LegacyLinkRisk = { id: string; title: string; deleted_at: string | null; kind: string; status: string };
+export type LegacyLinkRisk = { id: string; title: string; deleted_at: string | null; kind: string; output: string; status: string; auto_attempts: number; manual_attempts: number; next_attempt_at: string | null; last_code: string | null; origin_blocked: number; cdn_verified: number; objects: { asset: string; origin_blocked: boolean; cdn_verified: boolean; code: string | null }[] };
 export async function fetchLegacyLinkRisks(): Promise<LegacyLinkRisk[]> {
   const rows = await readAllPages<LegacyLinkRisk>((from, to) => getSupabase().rpc('my_legacy_link_risks').range(from, to));
   return rows;
+}
+
+export async function retryLegacyLink(id: string): Promise<void> {
+  const { error } = await getSupabase().rpc('retry_my_link_revocation', { rid: id });
+  if (error) throw new Error('재시도를 요청하지 못했어요. 잠시 후 다시 시도해 주세요.');
 }

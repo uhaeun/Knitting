@@ -427,3 +427,7 @@ secret = "local-test-secret"
 # GET validates the HMAC ticket itself; POST separately validates the user's Auth JWT.
 [functions.revocable-media]
 verify_jwt = false
+
+# Scheduled worker uses its own server-only secret and accepts no client body.
+[functions.revoke-legacy-links]
+verify_jwt = false

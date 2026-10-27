@@ -53,7 +53,8 @@ export function revocableMediaHandler(config: MediaConfig, request: HttpRequest 
       if (!target || !UUID.test(target.owner_id) || !UUID.test(target.project_id)) return json({ error: '미디어를 열 수 없어요' }, 404);
       // Only canonical published result objects, never raw posts or arbitrary Storage paths.
       const canonical = new RegExp(`^${target.owner_id}/${target.project_id}/results/${ticket.result}${ticket.asset === 'thumb' ? '_t\\.jpg' : target.output === 'mp4' ? '\\.mp4' : '\\.jpg'}$`, 'i');
-      if (!canonical.test(target.path)) return json({ error: '미디어 파일 확인이 필요해요' }, 404);
+      const rotated = new RegExp(`^${target.owner_id}/${target.project_id}/results/${ticket.result}/revoked/[0-9a-f-]{36}/${ticket.asset === 'thumb' ? 'thumb\\.jpg' : target.output === 'mp4' ? 'file\\.mp4' : 'file\\.jpg'}$`, 'i');
+      if (!canonical.test(target.path) && !rotated.test(target.path)) return json({ error: '미디어 파일 확인이 필요해요' }, 404);
       const range = req.headers.get('Range');
       if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) return json({ error: '잘못된 범위 요청이에요' }, 416);
       const streamController = new AbortController();

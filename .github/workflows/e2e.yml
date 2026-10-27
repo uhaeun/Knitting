@@ -53,12 +53,15 @@ jobs:
       - name: 출시 P0 서버 무결성 검사
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/p0_integrity.sql
 
+      - name: 과거 링크 회수 DB 검사
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/link_revocation.sql
+
       - name: 로컬 인증 변경 함수 켜기
         run: |
           python3 - <<'PYENV'
           import secrets
           from pathlib import Path
-          Path('/tmp/p0-functions.env').write_text('MEDIA_SIGNING_SECRET=' + secrets.token_hex(32) + '\nMEDIA_PUBLIC_URL=http://127.0.0.1:54321/functions/v1/revocable-media\n')
+          Path('/tmp/p0-functions.env').write_text('MEDIA_SIGNING_SECRET=' + secrets.token_hex(32) + '\nMEDIA_PUBLIC_URL=http://127.0.0.1:54321/functions/v1/revocable-media\nREVOCATION_WORKER_SECRET=' + secrets.token_hex(32) + '\nREVOCATION_STORAGE_PUBLIC_URL=http://kong:8000\nREVOCATION_VERIFICATION=origin\n')
           PYENV
           npx supabase functions serve --env-file /tmp/p0-functions.env > /tmp/edge-functions.log 2>&1 &
           for i in $(seq 1 30); do
@@ -89,6 +92,9 @@ jobs:
       - name: 수정된 P0 인증·발행·삭제 UI 검사
         run: node --experimental-strip-types scripts/e2e/p0-security.ts
 
+      - name: 실제 Storage 구URL 회수·앱 종료 후 서버 예약 검사
+        run: node --experimental-strip-types scripts/e2e/legacy-links.ts
+
       - name: 웹 E2E 전체 검사
         run: |
           SERVICE=$(npx supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
@@ -104,4 +110,5 @@ jobs:
             /tmp/web.log
             /tmp/edge-functions.log
             /tmp/p0-security-results.json
+            /tmp/legacy-links-results.json
           if-no-files-found: ignore

@@ -7,10 +7,12 @@ export function LinkRiskBanner({ resultId }: { resultId?: string }) {
   const q = useLinkRisks();
   const router = useRouter();
   const count = q.data?.length;
+  if (!resultId && q.isSuccess && count === 0) return null;
   if (resultId && q.isSuccess && !q.data.some((r) => r.id === resultId)) return null;
   return <View style={styles.box}>
     <Text style={styles.text}>{q.isError ? '링크 차단 위험: 확인 불가' : count === undefined ? '링크 차단 위험을 확인하는 중이에요' : resultId ? '기존 공유 링크의 차단이 확인되지 않았어요' : `미해결 링크 위험 ${count}건`}</Text>
-    {(count ?? 0) > 0 ? <Text style={styles.text}>과거에 발급된 주소는 아직 열릴 수 있어요. 새 접근 권한 변경과 과거 링크 회수는 별도예요.</Text> : null}
+    {(count ?? 0) > 0 ? <Text style={styles.text}>과거에 발급된 주소는 아직 열릴 수 있어요. 이미 내려받은 파일·스크린샷·기기 캐시는 회수할 수 없습니다.</Text> : null}
+    {q.isSuccess && (count ?? 0) > 0 ? <Text style={styles.text}>처리 중 {q.data.filter((r) => !['failed', 'failed_exhausted'].includes(r.status)).length}건 · 조치 필요 {q.data.filter((r) => ['failed', 'failed_exhausted'].includes(r.status)).length}건</Text> : null}
     <Button label="링크 차단 문제 관리" variant="secondary" onPress={() => router.push('/results/links')} />
     {q.isError ? <Button label="다시 확인" variant="secondary" onPress={() => void q.recheck()} /> : null}
   </View>;

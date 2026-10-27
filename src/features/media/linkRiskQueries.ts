@@ -1,7 +1,7 @@
 import { useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/store';
-import { fetchLegacyLinkRisks } from '@/features/media/resultsRepository';
+import { fetchLegacyLinkRisks, retryLegacyLink } from '@/features/media/resultsRepository';
 const lastRequest = new Map<string, number>();
 const INTERVAL = 60_000;
 export function useLinkRisks() {
@@ -26,4 +26,13 @@ export function useLinkRisks() {
     try { await q.refetch({ cancelRefetch: false }); } finally { manual.current = false; }
   };
   return { ...q, recheck };
+}
+
+export function useRetryLegacyLink() {
+  const user = useAuth((s) => s.session?.user.id);
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: retryLegacyLink, onSuccess: async () => {
+    lastRequest.delete(user ?? '');
+    await qc.invalidateQueries({ queryKey: ['results', 'link-risks', user] });
+  } });
 }
