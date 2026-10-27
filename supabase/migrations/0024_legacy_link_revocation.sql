@@ -75,12 +75,18 @@ create function retired_result_path(path text) returns boolean language sql stab
 $$;
 revoke all on function retired_result_path(text) from public,anon;
 grant execute on function retired_result_path(text) to authenticated;
+grant execute on function lock_active_account(uuid) to service_role;
 create function guard_retired_result_upload() returns trigger language plpgsql set search_path=public as $$
 begin
  if current_user in ('authenticated','anon') and NEW.bucket_id='photos' and
    (NEW.name like '%/results/%/revoked/%' or retired_result_path(NEW.name)) then
    raise exception '회수한 결과물 주소는 다시 사용할 수 없어요' using errcode='42501';
- end if;return NEW;
+ end if;
+ -- Service copies must participate in the same profile lock as account deletion.
+ -- A client role is rejected above; no copied object may appear after deletion begins.
+ if NEW.bucket_id='photos' and NEW.name like '%/results/%/revoked/%' and not lock_active_account(split_part(NEW.name,'/',1)::uuid) then
+   raise exception '계정을 삭제하는 중에는 복사할 수 없어요' using errcode='42501';end if;
+ return NEW;
 end $$;
 create trigger retired_result_upload before insert or update on storage.objects for each row execute function guard_retired_result_upload();
 

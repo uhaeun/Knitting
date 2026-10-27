@@ -98,6 +98,13 @@ insert into results(id,project_id,owner_id,kind,ratio,output,file_path,thumb_pat
 update result_link_jobs set auto_attempts=6,status='retrying',lease_token=gen_random_uuid(),lease_until=clock_timestamp()-interval '1 second' where result_id='79999999-9999-4999-8999-999999999999';
 select pg_temp.check_that('expired sixth lease never creates a seventh attempt',claim_link_revocation() is null);
 select pg_temp.check_that('expired sixth lease persisted as exhausted',(select status='failed_exhausted' and last_code='LEASE_EXPIRED' and lease_token is null from result_link_jobs where result_id='79999999-9999-4999-8999-999999999999'));
+select begin_account_deletion('71111111-1111-4111-8111-111111111111');
+do $$declare blocked boolean:=false;begin
+ begin
+  insert into storage.objects(bucket_id,name)values('photos','71111111-1111-4111-8111-111111111111/73333333-3333-4333-8333-333333333333/results/74444444-4444-4444-8444-444444444444/revoked/75555555-5555-4555-8555-555555555555/file.jpg');
+ exception when others then blocked:=true;end;
+ perform pg_temp.check_that('server copy cannot create objects after account deletion begins',blocked);
+end $$;
 select label,ok from checks order by label;
 select count(*) total,count(*) filter(where ok) passed from checks;
 do $$begin if exists(select 1 from checks where ok is distinct from true)then raise exception 'Link revocation regression failed';end if;end $$;
