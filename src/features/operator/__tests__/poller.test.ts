@@ -116,3 +116,11 @@ it('rejects hidden fields, wrong task IDs and fabricated aggregate success',()=>
   expect(()=>parseSnapshot(snapshot('req'),result,'req')).toThrow(SnapshotError);
   expect(()=>parseSnapshot({...snapshot('req'),cleanup_status:'confirmed'},job,'req')).toThrow(SnapshotError);
 });
+
+it.each(['manifest','counter'])('higher versions cannot replace/reset the fixed %s',async(mode)=>{
+  let changed=false;const t=setup(async(id)=>{const s=snapshot(id);return changed?{...s,status_version:'2',objects:s.objects.map((o,i)=>i?o:{...o,...(mode==='manifest'?{id:'b5555555-5555-4555-8555-555555555555'}:{auto_attempts:5})})}:s;});
+  t.poller.setActive(true);await tick();changed=true;await tick(10000);expect(t.accept).toHaveBeenCalledTimes(1);expect(t.state().paused).toBe('integrity');t.poller.dispose();
+});
+it('remount preserves an integrity pause until an explicit valid manual read',async()=>{
+  const t=setup(undefined,{paused:'integrity',failures:1});t.poller.setActive(true);await tick(30000);expect(t.fetch).not.toHaveBeenCalled();t.poller.manual();await tick();expect(t.state().paused).toBeNull();await tick(10000);expect(t.fetch).toHaveBeenCalledTimes(2);t.poller.dispose();
+});

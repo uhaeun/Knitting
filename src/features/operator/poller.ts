@@ -69,7 +69,11 @@ export class OperatorPoller {
       const s = parseSnapshot(raw, this.jobId, requestId);
       if (this.last) {
         const v = BigInt(s.status_version), old = BigInt(this.last.status_version);
-        if (s.result_id !== this.last.result_id || v < old || v === old && (stateFingerprint(s) !== stateFingerprint(this.last) || s.checked_at < this.last.checked_at)) throw new SnapshotError();
+        const manifestChanged=s.objects.length!==this.last.objects.length || s.objects.some((o)=>{
+          const previous=this.last!.objects.find((item)=>item.id===o.id);
+          return !previous || o.asset!==previous.asset || o.location!==previous.location || o.target!==previous.target || o.auto_attempts!==previous.auto_attempts || o.manual_attempts<previous.manual_attempts || previous.status==='confirmed' && (o.status!=='confirmed' || o.verified_at!==previous.verified_at || o.manual_attempts!==previous.manual_attempts);
+        });
+        if (s.result_id !== this.last.result_id || manifestChanged || v < old || v === old && (stateFingerprint(s) !== stateFingerprint(this.last) || s.checked_at < this.last.checked_at)) throw new SnapshotError();
       }
       this.last = s;this.d.accept(s);
       // A nonce echoed by the server in a GET sent after a manual click is the
