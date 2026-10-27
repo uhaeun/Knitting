@@ -82,9 +82,19 @@ try {
   // Status GETs are read-only and do not allocate a version or run a worker.
   const rows=sql(`select count(*) from cleanup_operator_audit where run_id='${run}'`);for(let n=0;n<3;n++)assert.equal((await status()).status_version,'5');assert.equal(sql(`select count(*) from cleanup_operator_audit where run_id='${run}'`),rows);
   await page.getByTestId('operator-run').getByRole('button',{name:'상태 다시 확인',exact:true}).click();
-  await page.getByText('부분 성공 · 미완료',{exact:true}).waitFor();assert.equal(await page.locator('img,video').count(),0);assert.equal(await page.getByText('노출 금지 제목',{exact:true}).count(),0);
+  await page.getByTestId('operator-run').getByText('부분 성공 · 미완료 · 버전 5',{exact:true}).waitFor();assert.equal(await page.locator('img,video').count(),0);assert.equal(await page.getByText('노출 금지 제목',{exact:true}).count(),0);
   await page.screenshot({path:'/tmp/operator-cleanup-partial.png',fullPage:true});
   cases.push('operator UI distinguishes partial and cumulative completion without deleted titles/media/paths');
+  sql(`update cleanup_operators set deleted_at=clock_timestamp() where user_id='${owner}'`);
+  await page.getByTestId('operator-run').getByRole('button',{name:'상태 다시 확인',exact:true}).click();
+  await page.getByText('권한 확인 실패 · 자동 조회 중단',{exact:true}).waitFor();
+  assert.equal(await page.getByTestId('operator-run').count(),0);assert.equal(await page.getByTestId(`operator-case-${f.rid}`).count(),0);
+  sql(`update cleanup_operators set deleted_at=null where user_id='${owner}'`);
+  await page.getByRole('button',{name:'권한 다시 확인',exact:true}).click();
+  await page.getByTestId('operator-run').getByRole('button',{name:'상태 다시 확인',exact:true}).click();
+  await page.getByTestId('operator-run').getByText('부분 성공 · 미완료 · 버전 5',{exact:true}).waitFor();
+  cases.push('actual 403 immediately hides privileged lists/status/audit; explicit fresh rights and status reads recover');
+
   // Revoke after claim: final actual Storage transaction must preserve bytes.
   const p=await rpc('preview_manual_result_cleanup',{rid:f.rid});assert.equal(p.remaining,1);const r=await rpc('request_manual_result_cleanup',{rid:f.rid,preview_id:p.preview_id,request_id:randomUUID()});
   const t=await sb.rpc('claim_result_cleanup');assert.equal(t.error,null);sql(`update cleanup_operators set role='viewer' where user_id='${owner}'`);

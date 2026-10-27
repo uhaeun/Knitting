@@ -53,8 +53,8 @@ export async function fetchOperatorRun(jobId: string, requestId: string, signal:
   const response = await fetch(`${base}/rest/v1/rpc/operator_cleanup_status?run_id=${encodeURIComponent(jobId)}&request_id=${encodeURIComponent(requestId)}`, {
     method: 'GET', headers: { apikey: anon, Authorization: `Bearer ${session.access_token}`, Accept: 'application/json' }, signal, cache: 'no-store', redirect: 'error',
   });
-  unchanged(key);if (!response.ok) { await response.body?.cancel();denied(response.status,key); }
-  return response.json();
+  unchanged(key);if (!response.ok) { void response.body?.cancel().catch(() => undefined);denied(response.status,key); }
+  const body: unknown = await response.json();unchanged(key);return body;
 }
 export type AuditEvent = { id: string; actor_id: string; object_id: string | null; code: string; status_version: string | null; error_id: string | null; created_at: string };
 export const fetchManualAudit = (rid: string) => pages<AuditEvent>('operator_cleanup_case_audit', { rid });
