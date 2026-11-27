@@ -1,98 +1,89 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { StitchRow } from '@/shared/ui/StitchRow';
-import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
+import { JournalIcon } from '@/shared/ui/JournalIcon';
+import { color, fontSize, fontWeight, journalType, radius, size, space } from '@/shared/ui/tokens';
 
 type Props = {
   name: string;
-  /** "9월 7일 시작" 형태로 호출부에서 만들어 넘긴다 */
   subtitle: string;
   photoCount: number;
-  /** 대표 사진 썸네일 file:// URI. 없으면 빈 사각형 */
   thumbUri?: string;
   onPress: () => void;
-  /** 카드에서 바로 촬영 화면으로. 없으면 버튼을 그리지 않는다 */
-  onCapture?: () => void;
-  /** 완성한 편물이면 이름 옆에 표시한다 */
-  done?: boolean;
+  onCapture: () => void;
+  done: boolean;
+  featured: boolean;
 };
 
-export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress, onCapture, done }: Props) {
-  // 카드 본문과 '찍기'를 형제 버튼으로 둔다 (버튼 안에 버튼을 넣으면 웹·스크린리더에서 깨진다)
-  return (
-    <View style={styles.card}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onPress}
-        style={({ pressed }) => [styles.main, pressed && styles.pressed]}
-      >
-        {thumbUri ? (
-          <Image source={{ uri: thumbUri }} style={styles.thumb} contentFit="cover" />
-        ) : (
-          <View style={[styles.thumb, styles.thumbEmpty]} />
-        )}
-        <View style={styles.body}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name} numberOfLines={1}>
-              {name}
-            </Text>
-            {done ? <Text style={styles.done}>완성</Text> : null}
-          </View>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-          <View style={styles.ticks}>
-            <StitchRow total={photoCount} unit={9} perRow={16} />
-          </View>
-          <Text style={styles.subtitle}>기록 {photoCount}개</Text>
-        </View>
-      </Pressable>
-      {onCapture ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${name} 찍기`}
-          onPress={onCapture}
-          hitSlop={8}
-          style={({ pressed }) => [styles.capture, pressed && styles.capturePressed]}
-        >
-          <Text style={styles.captureText}>찍기</Text>
+export function ProjectCard({ name, subtitle, photoCount, thumbUri, onPress, onCapture, done, featured }: Props) {
+  const picture = (
+    <View style={featured ? styles.cover : styles.thumb}>
+      {thumbUri ? (
+        <Image source={{ uri: thumbUri }} contentFit="cover" style={StyleSheet.absoluteFill} />
+      ) : (
+        <JournalIcon name="projects" tint={color.textMuted} dimension={size.journalMark} />
+      )}
+    </View>
+  );
+  const capture = (
+    <Pressable accessibilityRole="button" accessibilityLabel={name + ' 찍기'} onPress={onCapture}
+      style={({ pressed }) => [styles.capture, pressed && styles.pressed]}>
+      <JournalIcon name="camera" dimension={size.journalSmallGlyph} tint={featured ? color.accent : color.textMuted} />
+      {featured && <Text style={styles.actionText}>기록 추가</Text>}
+    </Pressable>
+  );
+  const status = (done ? '완성' : '뜨는 중') + ' · 기록 ' + photoCount + '개';
+  const details = (
+    <View style={styles.details}>
+      <Text style={styles.meta}>{status}</Text>
+      <Text numberOfLines={2} style={featured ? styles.featureName : styles.name}>{name}</Text>
+      <Text style={styles.meta}>{subtitle}</Text>
+    </View>
+  );
+
+  if (featured) {
+    return (
+      <View style={styles.feature}>
+        <Pressable accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
+          style={({ pressed }) => pressed && styles.pressed}>
+          {picture}
         </Pressable>
-      ) : null}
+        <View style={styles.caption}>
+          <Pressable accessibilityRole="button" accessibilityLabel={name + ' 기록 보기'} onPress={onPress}
+            style={({ pressed }) => [styles.captionLink, pressed && styles.pressed]}>{details}</Pressable>
+          {capture}
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.row}>
+      <Pressable accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
+        style={({ pressed }) => [styles.rowMain, pressed && styles.pressed]}>
+        {picture}
+        {details}
+      </Pressable>
+      {capture}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  done: {
-    fontSize: fontSize.caption, color: color.accent, backgroundColor: color.accentSoft,
-    paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden',
-  },
-  card: {
-    backgroundColor: color.surface,
-    borderWidth: size.hairline,
-    borderColor: color.border,
-    borderRadius: radius.card,
-    padding: space.md,
-    flexDirection: 'row',
-    gap: space.md,
-    alignItems: 'center',
-  },
-  main: { flex: 1, minWidth: 0, flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
-  pressed: { opacity: 0.7 },
-  thumb: {
-    width: size.thumb,
-    height: size.thumb,
-    borderRadius: radius.photo,
-  },
-  thumbEmpty: { backgroundColor: color.border },
-  body: { flex: 1, minWidth: 0, gap: space.xs },
-  name: { flexShrink: 1, fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
-  subtitle: { fontSize: fontSize.caption, color: color.textMuted },
-  ticks: { marginTop: space.xs },
-  capture: {
-    alignSelf: 'center', paddingHorizontal: space.md, paddingVertical: space.sm,
-    borderRadius: radius.pill, backgroundColor: color.accent,
-  },
-  capturePressed: { backgroundColor: color.accentPressed },
-  captureText: { fontSize: fontSize.caption, fontWeight: fontWeight.semibold, color: color.onDark },
+  feature: { borderBottomWidth: size.hairline, borderColor: color.border },
+  cover: { width: '100%', aspectRatio: size.journalCoverRatio, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: color.journalLinen, borderRadius: space.xs, overflow: 'hidden' },
+  caption: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.lg },
+  captionLink: { flex: 1, minWidth: 0 },
+  details: { flex: 1, minWidth: 0, gap: space.xs },
+  featureName: { color: color.journalInk, fontSize: fontSize.heading, fontFamily: journalType.korean, fontWeight: journalType.medium },
+  meta: { color: color.textMuted, fontSize: fontSize.caption },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderBottomWidth: size.hairline,
+    borderColor: color.border, paddingVertical: space.md },
+  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minWidth: 0 },
+  thumb: { width: size.journalCompactThumb, height: size.journalCompactThumb, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: color.journalLinen, borderRadius: radius.photo, overflow: 'hidden' },
+  name: { color: color.text, fontSize: fontSize.body, fontWeight: fontWeight.semibold },
+  capture: { minWidth: size.tap, minHeight: size.tap, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs },
+  actionText: { color: color.accent, fontSize: fontSize.label, fontWeight: fontWeight.semibold },
+  pressed: { opacity: 0.75 },
 });

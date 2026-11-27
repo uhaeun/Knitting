@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CaptionSheet } from '@/features/capture/CaptionSheet';
@@ -15,22 +15,28 @@ import { postPhotoUri } from '@/features/capture/repository';
 import { ProjectDatesSheet } from '@/features/project/ProjectDatesSheet';
 import { RenameProjectSheet } from '@/features/project/RenameProjectSheet';
 import { Scrubber } from '@/features/project/Scrubber';
-import { StitchRow } from '@/shared/ui/StitchRow';
+import { RecordStrip } from '@/features/project/RecordStrip';
 import { useDeleteProject, useProject, useSetPhotosHiddenFromOthers, useSetVisibility } from '@/features/project/queries';
 import { formatDateTime, formatMonthDay } from '@/shared/lib/dates';
 import { showAlert } from '@/shared/lib/dialog';
+import { JournalIcon } from '@/shared/ui/JournalIcon';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
-import { useSquareSide } from '@/shared/ui/layout';
-import { color, fontSize, fontWeight, size, space } from '@/shared/ui/tokens';
+import { useContentWidth, useSquareSide } from '@/shared/ui/layout';
+import { color, fontSize, fontWeight, radius, size, space } from '@/shared/ui/tokens';
 import { VideoBadge } from '@/shared/ui/VideoBadge';
 import { VideoPlayer } from '@/shared/ui/VideoPlayer';
 
 /** 시안 1e — 타임라인 (편물 상세) */
 export default function ProjectScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, recordId } = useLocalSearchParams<{ id: string; recordId?: string }>();
+  return <ProjectTimeline key={id + '/' + (recordId ?? '')} id={id} recordId={recordId} />;
+}
+
+function ProjectTimeline({ id, recordId }: { id: string; recordId?: string }) {
   const router = useRouter();
-  const photoSide = useSquareSide(size.webTimelineChrome);
+  const availableWidth = useContentWidth() - 2 * space.xl;
+  const photoSide = Math.min(availableWidth, useSquareSide(size.webTimelineChrome));
   const project = useProject(id);
   const posts = usePosts(id);
   const del = useDeleteProject();
@@ -50,9 +56,10 @@ export default function ProjectScreen() {
   const [selection, setSelection] = useState({ projectId: id, total: 0, index: 0 });
   // 기록 수나 편물이 바뀌면 마지막 장을 바로 보여준다. 이전 인덱스를 한 번
   // 그렸다가 effect로 옮기지 않아 사진·카운터가 서로 어긋나는 렌더를 피한다.
+  const linkedIndex = selection.total === 0 && recordId ? items.findIndex(item => item.id === recordId) : -1;
   const index = selection.projectId === id && selection.total === total
     ? Math.min(selection.index, Math.max(0, total - 1))
-    : Math.max(0, total - 1);
+    : linkedIndex >= 0 ? linkedIndex : Math.max(0, total - 1);
   if (selection.projectId !== id || selection.total !== total) {
     setSelection({ projectId: id, total, index });
   }
@@ -163,7 +170,7 @@ export default function ProjectScreen() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로" onPress={() => router.back()} style={styles.tap}>
-          <View style={styles.chevron} />
+          <JournalIcon name="back" />
         </Pressable>
         <View style={styles.headerText}>
           <Text style={styles.name} numberOfLines={1}>{p?.name ?? ''}</Text>
@@ -177,7 +184,7 @@ export default function ProjectScreen() {
           ) : null}
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="더 보기" onPress={openMenu} style={styles.tap}>
-          <Text style={styles.more}>⋯</Text>
+          <JournalIcon name="more" />
         </Pressable>
       </View>
 
@@ -189,7 +196,7 @@ export default function ProjectScreen() {
           onAction={goCapture}
         />
       ) : (
-        <>
+        <ScrollView contentContainerStyle={styles.timeline}>
           <View style={[styles.photo, { width: photoSide, height: photoSide }]}>
             {current?.media_type === 'video' && current.video_path && video.state.status !== 'encoding' ? (
               <VideoPlayer key={current.id} uri={current.video_path} poster={postPhotoUri(current)} label="영상 기록" />
@@ -231,8 +238,8 @@ export default function ProjectScreen() {
               {current?.caption ?? '메모 추가'}
             </Text>
           </Pressable>
-          <View style={styles.stitches}>
-            <StitchRow total={total} index={index} unit={14} perRow={14} onSelect={setIndex} />
+          <View style={styles.strip}>
+            <RecordStrip posts={items} index={index} onSelect={setIndex} />
           </View>
           <View style={styles.scrubber}>
             <Scrubber total={total} index={index} onChange={setIndex} />
@@ -252,7 +259,7 @@ export default function ProjectScreen() {
               />
             </View>
           </View>
-        </>
+        </ScrollView>
       )}
 
       <MakeVideoSheet
@@ -286,12 +293,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.bg },
   header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.md, gap: space.sm },
   tap: { width: size.tap, height: size.tap, alignItems: 'center', justifyContent: 'center' },
-  chevron: { width: 12, height: 12, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: color.text, transform: [{ rotate: '45deg' }], marginLeft: 4 },
   headerText: { flex: 1, gap: space.xs, paddingTop: space.sm },
-  name: { fontSize: fontSize.heading, fontWeight: fontWeight.semibold, color: color.text },
+  name: { fontSize: fontSize.coverTitle, fontWeight: fontWeight.semibold, color: color.journalInk },
   meta: { fontSize: fontSize.caption, color: color.textMuted },
-  more: { fontSize: fontSize.heading, color: color.textMuted },
-  photo: { alignSelf: 'center', backgroundColor: color.border },
+  timeline: { flexGrow: 1 },
+  photo: { alignSelf: 'center', borderRadius: radius.card, overflow: 'hidden', backgroundColor: color.journalLinen },
   reorderRow: { flexDirection: 'row', gap: space.sm, paddingHorizontal: space.xl, paddingTop: space.sm },
   reorderButton: { flex: 1, paddingHorizontal: space.sm },
   memoRow: { paddingHorizontal: space.xl, paddingBottom: space.sm },
@@ -301,7 +307,7 @@ const styles = StyleSheet.create({
   date: { fontSize: fontSize.body, fontWeight: fontWeight.semibold, color: color.text },
   counter: { fontSize: fontSize.caption, color: color.textMuted, fontVariant: ['tabular-nums'] },
   scrubber: { paddingHorizontal: space.xl, paddingTop: space.lg },
-  stitches: { paddingHorizontal: space.xl, paddingBottom: space.sm, alignItems: 'flex-start' },
+  strip: { paddingTop: space.sm },
   spacer: { flex: 1 },
   actions: { paddingHorizontal: space.xl, paddingBottom: space.md, gap: space.sm },
   actionRow: { flexDirection: 'row', gap: space.sm },

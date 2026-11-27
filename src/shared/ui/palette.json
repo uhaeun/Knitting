@@ -1,0 +1,11 @@
+{
+  "bg": "#FBFBF5",
+  "surface": "#FFFFFB",
+  "linen": "#E8ECE6",
+  "ink": "#2B3536",
+  "muted": "#5D6967",
+  "border": "#CBD9D5",
+  "accent": "#315B70",
+  "accentPressed": "#224857",
+  "accentSoft": "#E1ECEC"
+}

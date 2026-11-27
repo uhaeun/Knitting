@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   gridIconCellOn: { borderColor: color.cameraBg },
 
   hint: { flexDirection: 'row', gap: space.md, borderWidth: size.hairline, borderColor: color.onDarkBorder, borderRadius: radius.button, padding: space.md },
-  hintBar: { width: 3, backgroundColor: color.onDarkHint },
+  hintBar: { width: 3, backgroundColor: color.onDarkAccent },
   hintBody: { flex: 1, gap: space.xs },
   hintText: { fontSize: fontSize.label, lineHeight: fontSize.label * 1.55, color: color.onDark },
   hintSub: { fontSize: fontSize.caption, color: color.onDarkMuted },
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   },
   albumText: { fontSize: fontSize.micro, color: color.onDark },
   shutter: { width: size.shutter, height: size.shutter, borderRadius: radius.pill, borderWidth: 3, borderColor: color.onDark, padding: 5 },
-  shutterInner: { flex: 1, borderRadius: radius.pill, backgroundColor: color.accent },
+  shutterInner: { flex: 1, borderRadius: radius.pill, backgroundColor: color.onDarkAccent },
   shutterRecording: { borderColor: color.recording },
   shutterPressed: { opacity: 0.7 },
   shutterDisabled: { opacity: 0.4 },

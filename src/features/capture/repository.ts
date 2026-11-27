@@ -4,6 +4,7 @@ import { processClip } from '@/features/capture/videoPipeline';
 import { newId } from '@/shared/lib/id';
 import { readAllPages, requireUserId, signPaths } from '@/shared/lib/remote';
 import { getSupabase, PHOTOS_BUCKET, remotePhotoPath, remoteThumbPath, remoteVideoPath } from '@/shared/lib/supabase';
+import type { CalendarRecord } from '@/features/project/calendar';
 import type { Post } from '@/shared/types/models';
 import type { RemotePost } from '@/shared/types/remote';
 
@@ -31,6 +32,28 @@ async function withUrls(rows: RemotePost[]): Promise<Post[]> {
     created_at: r.created_at,
     updated_at: r.updated_at,
     deleted_at: r.deleted_at,
+  }));
+}
+
+/** Only the signed thumbnail is needed to draw a date. The month limits are exclusive at the end. */
+export async function listCalendarRecords(start: string, end: string, signal?: AbortSignal): Promise<CalendarRecord[]> {
+  const owner = requireUserId();
+  type Row = Pick<RemotePost, 'id' | 'project_id' | 'taken_at' | 'caption' | 'media_type' | 'thumb_path'> & {
+    projects: { name: string };
+  };
+  const rows = await readAllPages<Row>(async (from, to) => {
+    const query = getSupabase().from('posts')
+      .select('id, project_id, taken_at, caption, media_type, thumb_path, projects!posts_project_id_fkey!inner(name)')
+      .eq('owner_id', owner).is('deleted_at', null).is('projects.deleted_at', null)
+      .gte('taken_at', start).lt('taken_at', end)
+      .order('taken_at', { ascending: false }).order('id', { ascending: false }).range(from, to);
+    const { data, error } = await (signal ? query.abortSignal(signal) : query);
+    return { data: data as unknown as Row[] | null, error };
+  });
+  const urls = await signPaths(rows.map(r => r.thumb_path));
+  return rows.map(r => ({
+    id: r.id, projectId: r.project_id, projectName: r.projects.name, takenAt: r.taken_at,
+    caption: r.caption, thumb: urls.get(r.thumb_path) ?? null, mediaType: r.media_type,
   }));
 }
 
