@@ -1,6 +1,7 @@
+import { useUserId } from '@/features/auth/store';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { deletePost, latestPost, listPosts, savePost, saveVideoPost, swapPostOrder, updateCaption, updateTakenAt } from '@/features/capture/repository';
+import { deletePost, latestPost, listCalendarRecords, listPosts, savePost, saveVideoPost, swapPostOrder, updateCaption, updateTakenAt } from '@/features/capture/repository';
 import { projectKeys } from '@/features/project/queries';
 
 export function usePosts(projectId: string) {
@@ -87,5 +88,15 @@ export function useDeletePost() {
       qc.invalidateQueries({ queryKey: ['feed'] });
       qc.invalidateQueries({ queryKey: ['post'] });
     },
+  });
+}
+
+
+export function useCalendarRecords(start: string, end: string) {
+  const owner = useUserId();
+  return useQuery({
+    queryKey: [...projectKeys.all, 'calendar', owner, start, end],
+    queryFn: ({ signal }) => listCalendarRecords(start, end, signal),
+    enabled: !!owner,
   });
 }

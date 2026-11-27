@@ -12,8 +12,8 @@
       "name": "닛팅",
       "shortName": "닛팅",
       "lang": "ko",
-      "themeColor": "#1F5F5B",
-      "backgroundColor": "#F7F6F3"
+      "themeColor": "#FBFBF5",
+      "backgroundColor": "#FBFBF5"
     },
     "plugins": [
       "expo-router"

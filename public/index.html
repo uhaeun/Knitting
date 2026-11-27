@@ -10,7 +10,7 @@
 
     <!-- 홈 화면에 추가하면 앱처럼 열린다 -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#C8523C" />
+    <meta name="theme-color" content="#FBFBF5" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="닛팅" />
@@ -19,6 +19,7 @@
 
     <!-- The `react-native-web` recommended style reset -->
     <style id="expo-reset">
+      @font-face { font-family: 'Barlow Condensed'; src: url('/fonts/BarlowCondensed-Medium.ttf') format('truetype'); font-style: normal; font-weight: 500; font-display: swap; }
       /* These styles make the body full-height */
       html,
       body {
@@ -27,6 +28,7 @@
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {
         overflow: hidden;
+        background-color: #FBFBF5;
       }
       /* These styles make the root element full-height */
       #root {

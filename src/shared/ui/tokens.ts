@@ -1,23 +1,21 @@
-/**
- * 디자인 토큰 — 모든 스타일의 유일한 출처.
- * 값 출처: docs/닛팅_디자인브리프.html + Claude Design 시안 (2026-09-06)
- * 화면에서 색상값·픽셀 숫자를 직접 쓰지 않는다. 여기 상수만 참조한다.
- */
+import palette from './palette.json';
 
+/** 앱과 설치 아이콘에 함께 쓰는 편물 기록장의 색. */
 export const color = {
-  // 밝은 화면 (목록, 타임라인, 시트)
-  // 강조색은 하은의 손글씨 로고에서 뽑은 주황. 새로 만들지 않았다
-  bg: '#F8F6F1', // 종이빛. 흰색보다 눈이 덜 부시다
-  surface: '#FFFFFF', // 카드, 시트
-  text: '#23211D', // 따뜻한 먹색. 순수 검정 아님
-  textMuted: '#6E6B63',
-  border: '#E3DFD6', // 1px 헤어라인
-  accent: '#C8523C', // 로고 주황. 셔터, 선택 상태, 주요 버튼
-  accentPressed: '#A8422F',
-  accentSoft: '#F4E2DC', // 선택된 탭 뒤 알약. 주황을 아주 옅게
-  danger: '#8F3A24', // 삭제 등. 주황과 헷갈리지 않게 더 어둡게
-  tickInactive: '#D8D3C7', // 스크러버 미도달 눈금
-  overlay: 'rgba(35,33,29,0.34)', // 시트 뒤 딤
+  bg: palette.bg,
+  journalInk: palette.ink,
+  journalPaper: palette.surface,
+  journalLinen: palette.linen,
+  surface: palette.surface,
+  text: palette.ink,
+  textMuted: palette.muted,
+  border: palette.border,
+  accent: palette.accent,
+  accentPressed: palette.accentPressed,
+  accentSoft: palette.accentSoft,
+  danger: '#93392E',
+  tickInactive: '#D3D2D0',
+  overlay: 'rgba(48,47,49,0.34)',
 
   // 어두운 화면 (촬영)
   cameraBg: '#0B0C0A',
@@ -25,13 +23,23 @@ export const color = {
   onDarkMuted: 'rgba(255,255,255,0.6)',
   onDarkSecondary: 'rgba(255,255,255,0.72)',
   onDarkBorder: 'rgba(255,255,255,0.28)',
-  onDarkHint: '#E08A6F', // 첫 촬영 안내 박스 세로선
+  onDarkAccent: '#A5C8CE', // 촬영 안내와 셔터
   gridLine: 'rgba(255,255,255,0.5)',
-  recording: '#D6453D', // 녹화 중 셔터 테두리·REC 배지
+  recording: '#BF433C', // 녹화 중 셔터 테두리·REC 배지
   photoLabelBg: 'rgba(11,12,10,0.55)', // 결과 사진 위 라벨 바탕. 밝은 편물 위에서도 흰 글씨가 읽히는 농도
 } as const;
 
+export const journalType = {
+  number: '"Barlow Condensed", "Arial Narrow", sans-serif',
+  korean: '"Apple SD Gothic Neo", "Noto Sans CJK KR", "Noto Sans KR", sans-serif',
+  medium: '500',
+} as const;
+
 export const fontSize = {
+  calendarMonth: 54,
+  calendarDay: 18,
+  journalTitle: 34,
+  coverTitle: 23,
   title: 28, // 화면 제목
   heading: 20, // 섹션 제목, 시트 제목
   body: 17, // 본문, 버튼, 입력
@@ -78,6 +86,14 @@ export const size = {
   hairline: 1,
   // 넓은 창(데스크톱·VS Code)에서도 폰 너비 한 칸으로 보여 준다
   webColumn: 480,
+  calendarWeekRatio: 6,
+  narrowCalendarWidth: 350,
+  journalCoverRatio: 1.95,
+  journalCompactThumb: 64,
+  journalMark: 32,
+  journalGlyph: 24,
+  journalSmallGlyph: 19,
+  journalTabHeight: 64,
   webPhotoMin: 200, // 창이 아주 낮아도 사진이 이보다 작아지지 않는다
   webTimelineChrome: 320, // 타임라인에서 사진 외 세로 공간 (헤더·날짜·스크러버·버튼 2개)
   webCaptureChrome: 316, // 촬영 화면에서 사진 외 세로 공간 (상단 바·모드 토글·겹치기 컨트롤·셔터 줄)
